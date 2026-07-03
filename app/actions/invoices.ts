@@ -152,7 +152,7 @@ export async function sendInvoiceEmail(invoiceId: number) {
 
   // Send Email
   await resend.emails.send({
-    from: "Shatter DAMS Billing <no-reply@meetshatter.com>",
+    from: "Shatter DAMS Billing <hello@mailer.meetshatter.com>",
     to: [clientEmail],
     subject: `Invoice ${details.invoice.invoiceNumber} from Shatter`,
     html: `

@@ -24,8 +24,9 @@ export default async function AdminNewQuotePage() {
 
       <QuoteForm 
         clients={clients} 
-        projects={projects.map(p => ({ id: p.project.id, title: p.project.title, clientId: p.project.clientId }))} 
+        projects={projects.map(p => ({ id: p.id, title: p.title, clientId: p.clientId }))} 
       />
     </div>
   );
 }
+

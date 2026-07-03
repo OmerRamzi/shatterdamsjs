@@ -47,7 +47,7 @@ export function InvoicePDFGenerator({ data }: { data: any }) {
       item.description,
       item.quantity.toString(),
       `$${parseFloat(item.unitPrice).toFixed(2)}`,
-      `$${parseFloat(item.total).toFixed(2)}`
+      `$${parseFloat(item.amount).toFixed(2)}`
     ]);
 
     autoTable(doc, {

@@ -87,7 +87,7 @@ export default async function AdminUsersPage() {
                       USR-{user.id.toString().padStart(4, '0')}
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
-                      {user.createdAt ? user.createdAt.toLocaleDateString() : "-"}
+                      {user.createdAt ? user.createdAt?.toLocaleDateString() : "-"}
                     </td>
                   </tr>
                 ))
@@ -99,3 +99,4 @@ export default async function AdminUsersPage() {
     </div>
   );
 }
+

@@ -147,10 +147,8 @@ export async function getClientQuotes() {
   return await db
     .select({
       quote: quotations,
-      project: projects
     })
     .from(quotations)
-    .leftJoin(projects, eq(quotations.projectId, projects.id))
     .where(eq(quotations.clientId, clientRecord[0].id))
     .orderBy(desc(quotations.createdAt));
 }

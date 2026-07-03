@@ -10,7 +10,6 @@ export function QuoteForm({ clients, projects }: { clients: any[], projects: any
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [clientId, setClientId] = useState<number | "">("");
-  const [projectId, setProjectId] = useState<number | "">("");
   const [validUntil, setValidUntil] = useState("");
   const [notes, setNotes] = useState("");
   
@@ -35,7 +34,6 @@ export function QuoteForm({ clients, projects }: { clients: any[], projects: any
     try {
       const res = await createQuote({
         clientId: Number(clientId),
-        projectId: projectId ? Number(projectId) : undefined,
         validUntil: validUntil ? new Date(validUntil) : undefined,
         notes,
         items,
@@ -71,20 +69,7 @@ export function QuoteForm({ clients, projects }: { clients: any[], projects: any
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Project (Optional)</label>
-            <select 
-              value={projectId} 
-              onChange={e => setProjectId(e.target.value as any)}
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            >
-              <option value="">None</option>
-              {projects.filter(p => !clientId || p.clientId === Number(clientId)).map(p => (
-                <option key={p.id} value={p.id}>{p.title}</option>
-              ))}
-            </select>
-          </div>
-          
+
           <div>
             <label className="block text-sm font-medium mb-1.5">Valid Until</label>
             <input 

@@ -95,7 +95,7 @@ export async function activateClient(clientId: number) {
 
   // 4. Send Email via Resend
   await resend.emails.send({
-    from: "Shatter DAMS <no-reply@meetshatter.com>", // Ensure domain is verified in Resend
+    from: "Shatter DAMS <hello@mailer.meetshatter.com>", // Ensure domain is verified in Resend
     to: [client.email],
     subject: "Your Shatter DAMS Client Portal Access",
     html: `

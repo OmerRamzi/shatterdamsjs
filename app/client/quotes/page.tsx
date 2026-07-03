@@ -36,14 +36,14 @@ export default async function ClientQuotesPage() {
                   </td>
                 </tr>
               ) : (
-                quotesList.map(({ quote, project }) => (
+                quotesList.map(({ quote }) => (
                   <tr key={quote.id} className="hover:bg-secondary/20 transition-colors">
                     <td className="px-6 py-4 font-medium text-foreground">
                       {quote.quoteNumber}
                     </td>
-                    <td className="px-6 py-4">{project?.title || "N/A"}</td>
+                    <td className="px-6 py-4">N/A</td>
                     <td className="px-6 py-4 text-muted-foreground">
-                      {quote.createdAt.toLocaleDateString()}
+                      {quote.createdAt?.toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 font-medium">${parseFloat(quote.total!).toFixed(2)}</td>
                     <td className="px-6 py-4">
@@ -71,3 +71,4 @@ export default async function ClientQuotesPage() {
     </div>
   );
 }
+

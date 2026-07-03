@@ -2,6 +2,7 @@
   "name": "shatterdams",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,6 +13,7 @@
     "@aws-sdk/client-s3": "^3.1079.0",
     "@aws-sdk/s3-request-presigner": "^3.1079.0",
     "@supabase/supabase-js": "^2.110.0",
+    "@tailwindcss/postcss": "^4.3.2",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",

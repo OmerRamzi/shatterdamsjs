@@ -43,7 +43,7 @@ export default async function ClientInvoicesPage() {
                     </td>
                     <td className="px-6 py-4">{project?.title || "N/A"}</td>
                     <td className="px-6 py-4 text-muted-foreground">
-                      {invoice.createdAt.toLocaleDateString()}
+                      {invoice.createdAt?.toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 font-medium">${parseFloat(invoice.total!).toFixed(2)}</td>
                     <td className="px-6 py-4">
@@ -71,3 +71,4 @@ export default async function ClientInvoicesPage() {
     </div>
   );
 }
+

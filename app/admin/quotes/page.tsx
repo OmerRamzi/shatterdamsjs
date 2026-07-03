@@ -54,14 +54,14 @@ export default async function AdminQuotesPage() {
               ) : (
                 quotesList.map(({ quote, client }) => (
                   <tr key={quote.id} className="hover:bg-secondary/20 transition-colors">
-                    <td className="px-6 py-4 font-medium">
-                      <Link href={`/admin/quotes/${quote.id}`} className="hover:text-primary transition-colors">
-                        {quote.quoteNumber}
-                      </Link>
+                    <td className="px-6 py-4 font-medium text-foreground">
+                      {quote.quoteNumber}
                     </td>
-                    <td className="px-6 py-4">{client?.companyName}</td>
+                    <td className="px-6 py-4">
+                      {client?.companyName || "Unknown Client"}
+                    </td>
                     <td className="px-6 py-4 text-muted-foreground">
-                      {quote.createdAt.toLocaleDateString()}
+                      {quote.createdAt?.toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 font-medium">${parseFloat(quote.total!).toFixed(2)}</td>
                     <td className="px-6 py-4">
@@ -84,3 +84,4 @@ export default async function AdminQuotesPage() {
     </div>
   );
 }
+

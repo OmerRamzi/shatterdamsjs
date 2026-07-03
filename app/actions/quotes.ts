@@ -42,12 +42,10 @@ export async function getQuotes() {
   
   const results = await db.select({
     quote: quotations,
-    client: clients,
-    project: projects
+    client: clients
   })
     .from(quotations)
     .leftJoin(clients, eq(quotations.clientId, clients.id))
-    .leftJoin(projects, eq(quotations.projectId, projects.id))
     .where(eq(quotations.tenantId, user.tenantId))
     .orderBy(desc(quotations.createdAt));
     
@@ -56,7 +54,6 @@ export async function getQuotes() {
 
 export async function createQuote(data: {
   clientId: number;
-  projectId?: number;
   validUntil?: Date;
   notes?: string;
   items: { description: string; quantity: number; unitPrice: number }[];
@@ -71,7 +68,6 @@ export async function createQuote(data: {
   const newQuote = await db.insert(quotations).values({
     tenantId: admin.tenantId,
     clientId: data.clientId,
-    projectId: data.projectId,
     quoteNumber,
     issueDate: new Date().toISOString(),
     subtotal: subtotal.toString(),
@@ -111,12 +107,10 @@ export async function getQuoteDetails(quoteId: number) {
 
   const quoteList = await db.select({
     quote: quotations,
-    client: clients,
-    project: projects
+    client: clients
   })
     .from(quotations)
     .leftJoin(clients, eq(quotations.clientId, clients.id))
-    .leftJoin(projects, eq(quotations.projectId, projects.id))
     .where(eq(quotations.id, quoteId))
     .limit(1);
 
@@ -145,7 +139,7 @@ export async function sendQuoteEmail(quoteId: number) {
   if (!clientEmail) throw new Error("Client has no email address");
 
   await resend.emails.send({
-    from: "Shatter DAMS Sales <no-reply@meetshatter.com>",
+    from: "Shatter DAMS Sales <hello@mailer.meetshatter.com>",
     to: [clientEmail],
     subject: `Quotation ${details.quote.quoteNumber} from Shatter`,
     html: `

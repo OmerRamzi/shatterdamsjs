@@ -11,7 +11,7 @@ export default async function AdminQuoteDetailsPage({ params }: { params: { id: 
 
   try {
     const data = await getQuoteDetails(quoteId);
-    const { quote, client, project, items } = data;
+    const { quote, client, items } = data;
 
     return (
       <div className="space-y-6 max-w-4xl mx-auto">
@@ -34,7 +34,7 @@ export default async function AdminQuoteDetailsPage({ params }: { params: { id: 
                   {quote.status}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  Issued: {quote.createdAt.toLocaleDateString()}
+                  Issued: {quote.createdAt?.toLocaleDateString()}
                 </span>
               </div>
             </div>
@@ -70,7 +70,7 @@ export default async function AdminQuoteDetailsPage({ params }: { params: { id: 
             <div className="text-right">
               <div className="mb-4">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Date Issued</p>
-                <p className="font-medium text-sm">{quote.createdAt.toLocaleDateString()}</p>
+                <p className="font-medium text-sm">{quote.createdAt?.toLocaleDateString()}</p>
               </div>
               {quote.validUntil && (
                 <div>
@@ -96,7 +96,7 @@ export default async function AdminQuoteDetailsPage({ params }: { params: { id: 
                   <td className="py-4 font-medium text-foreground">{item.description}</td>
                   <td className="py-4 text-center text-muted-foreground">{item.quantity}</td>
                   <td className="py-4 text-right text-muted-foreground">${parseFloat(item.unitPrice!).toFixed(2)}</td>
-                  <td className="py-4 text-right font-medium text-foreground">${parseFloat(item.total!).toFixed(2)}</td>
+                  <td className="py-4 text-right font-medium text-foreground">${parseFloat(item.amount!).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>

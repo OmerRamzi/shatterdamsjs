@@ -16,7 +16,7 @@ export function QuotePDFGenerator({ data }: { data: any }) {
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.text(`Quote Number: ${quote.quoteNumber}`, 14, 30);
-    doc.text(`Date Issued: ${new Date(quote.createdAt).toLocaleDateString()}`, 14, 35);
+    doc.text(`Date Issued: ${new Date(quote.createdAt || new Date()).toLocaleDateString()}`, 14, 35);
     if (quote.validUntil) {
       doc.text(`Valid Until: ${new Date(quote.validUntil).toLocaleDateString()}`, 14, 40);
     }
@@ -47,7 +47,7 @@ export function QuotePDFGenerator({ data }: { data: any }) {
       item.description,
       item.quantity.toString(),
       `$${parseFloat(item.unitPrice).toFixed(2)}`,
-      `$${parseFloat(item.total).toFixed(2)}`
+      `$${parseFloat(item.amount).toFixed(2)}`
     ]);
 
     autoTable(doc, {
