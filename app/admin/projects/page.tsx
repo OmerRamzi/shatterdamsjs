@@ -1,5 +1,6 @@
 import { getProjects } from "@/app/actions/projects";
 import { Plus, Search, MoreHorizontal, FolderGit2 } from "lucide-react";
+import Link from "next/link";
 
 export default async function AdminProjectsPage() {
   const projects = await getProjects();
@@ -59,8 +60,10 @@ export default async function AdminProjectsPage() {
                           <FolderGit2 className="w-4 h-4" />
                         </div>
                         <div>
-                          <p>{project.title}</p>
-                          <p className="text-xs text-muted-foreground font-normal">
+                          <Link href={`/admin/projects/${project.id}`} className="font-medium hover:text-primary transition-colors">
+                            {project.title}
+                          </Link>
+                          <p className="text-xs text-muted-foreground font-normal mt-0.5">
                             Deadline: {project.deadline ? project.deadline.split("-").join("/") : "Not set"}
                           </p>
                         </div>
