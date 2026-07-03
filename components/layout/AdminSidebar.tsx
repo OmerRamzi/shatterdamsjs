@@ -36,10 +36,12 @@ export function AdminSidebar() {
         ))}
       </nav>
       <div className="p-4 border-t border-border">
-        <button className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-md text-destructive hover:bg-destructive/10 transition-colors">
-          <LogOut className="w-5 h-5" />
-          Sign Out
-        </button>
+        <form action="/api/auth/signout" method="POST">
+          <button type="submit" className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-md text-destructive hover:bg-destructive/10 transition-colors">
+            <LogOut className="w-5 h-5" />
+            Sign Out
+          </button>
+        </form>
       </div>
     </aside>
   );

@@ -92,6 +92,13 @@ export async function updateFileStatus(fileId: number, status: string) {
   const file = fileList[0];
   
   if (!file || file.tenantId !== user.tenantId) throw new Error("Unauthorized");
+
+  // RLS for clients: clients can ONLY transition from 'client_review' to 'approved'
+  if (user.role === "client") {
+    if (file.status !== "client_review" || status !== "approved") {
+      throw new Error("Clients can only approve files pending their review");
+    }
+  }
   
   await db.update(files).set({ 
     status,
@@ -111,6 +118,7 @@ export async function updateFileStatus(fileId: number, status: string) {
 // 6. Delete File (from R2 and DB)
 export async function deleteFile(fileId: number) {
   const user = await requireAuth();
+  if (user.role === "client") throw new Error("Clients cannot delete files");
   
   const fileList = await db.select().from(files).where(eq(files.id, fileId)).limit(1);
   const file = fileList[0];

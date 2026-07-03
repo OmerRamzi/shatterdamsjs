@@ -4,7 +4,7 @@ import { useState } from "react";
 import { getDownloadUrl, updateFileStatus, deleteFile } from "@/app/actions/files";
 import { Download, Trash2, MoreVertical, CheckCircle, Clock } from "lucide-react";
 
-export function FileRowAction({ fileId, currentStatus }: { fileId: number, currentStatus: string }) {
+export function FileRowAction({ fileId, currentStatus, userRole }: { fileId: number, currentStatus: string, userRole?: string }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -48,7 +48,7 @@ export function FileRowAction({ fileId, currentStatus }: { fileId: number, curre
   return (
     <div className="flex items-center gap-2 justify-end">
       {/* Workflow Status Quick Actions */}
-      {currentStatus === "internal_review" && (
+      {currentStatus === "internal_review" && userRole !== "client" && (
         <button 
           onClick={() => handleStatusUpdate("client_review")}
           disabled={isUpdating}
@@ -76,14 +76,17 @@ export function FileRowAction({ fileId, currentStatus }: { fileId: number, curre
       >
         <Download className="w-4 h-4" />
       </button>
-      <button 
-        onClick={handleDelete}
-        disabled={isUpdating}
-        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-        title="Delete"
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
+      
+      {userRole !== "client" && (
+        <button 
+          onClick={handleDelete}
+          disabled={isUpdating}
+          className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+          title="Delete"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 }
