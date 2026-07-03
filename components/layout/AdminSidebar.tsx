@@ -5,13 +5,17 @@ import {
   Users, 
   Settings, 
   LogOut,
-  FolderOpen
+  FolderOpen,
+  FileText,
+  Receipt
 } from "lucide-react";
 
 export function AdminSidebar() {
   const menuItems = [
     { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { label: "Projects", href: "/admin/projects", icon: FolderOpen },
+    { label: "Quotations", href: "/admin/quotes", icon: FileText },
+    { label: "Invoices", href: "/admin/invoices", icon: Receipt },
     { label: "Clients", href: "/admin/clients", icon: Briefcase },
     { label: "Team", href: "/admin/team", icon: Users },
     { label: "System Users", href: "/admin/users", icon: Users },

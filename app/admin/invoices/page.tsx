@@ -1,47 +1,65 @@
-import { getClientInvoices } from "@/app/actions/portal";
-import { Receipt, Download } from "lucide-react";
+import { getInvoices } from "@/app/actions/invoices";
+import { Plus, Search, Receipt } from "lucide-react";
 import Link from "next/link";
 
-export default async function ClientInvoicesPage() {
-  const invoicesList = await getClientInvoices();
+export default async function AdminInvoicesPage() {
+  const invoicesList = await getInvoices();
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Invoices</h2>
-        <p className="text-muted-foreground mt-1">View and download your billing statements.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Invoices</h2>
+          <p className="text-muted-foreground mt-1">Manage and track all client billing.</p>
+        </div>
+        <Link href="/admin/invoices/new" className="btn-primary flex items-center gap-2">
+          <Plus className="w-4 h-4" />
+          Create Invoice
+        </Link>
       </div>
 
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-border flex items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search invoices..."
+              className="w-full bg-secondary/50 border-none rounded-md pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+        </div>
+        
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-muted-foreground uppercase bg-secondary/30 border-b border-border">
               <tr>
                 <th className="px-6 py-4 font-medium">Invoice Number</th>
-                <th className="px-6 py-4 font-medium">Project</th>
-                <th className="px-6 py-4 font-medium">Issued Date</th>
+                <th className="px-6 py-4 font-medium">Client</th>
+                <th className="px-6 py-4 font-medium">Date</th>
                 <th className="px-6 py-4 font-medium">Amount</th>
                 <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 font-medium text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {invoicesList.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center">
                       <Receipt className="w-8 h-8 mb-2 opacity-50" />
-                      <p>You have no invoices yet.</p>
+                      <p>No invoices found.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                invoicesList.map(({ invoice, project }) => (
+                invoicesList.map(({ invoice, client }) => (
                   <tr key={invoice.id} className="hover:bg-secondary/20 transition-colors">
-                    <td className="px-6 py-4 font-medium text-foreground">
-                      {invoice.invoiceNumber}
+                    <td className="px-6 py-4 font-medium">
+                      <Link href={`/admin/invoices/${invoice.id}`} className="hover:text-primary transition-colors">
+                        {invoice.invoiceNumber}
+                      </Link>
                     </td>
-                    <td className="px-6 py-4">{project?.title || "N/A"}</td>
+                    <td className="px-6 py-4">{client?.companyName}</td>
                     <td className="px-6 py-4 text-muted-foreground">
                       {invoice.createdAt.toLocaleDateString()}
                     </td>
@@ -50,16 +68,11 @@ export default async function ClientInvoicesPage() {
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                         invoice.status === 'paid' ? 'bg-emerald-500/10 text-emerald-500' :
                         invoice.status === 'sent' ? 'bg-blue-500/10 text-blue-500' :
+                        invoice.status === 'cancelled' ? 'bg-destructive/10 text-destructive' :
                         'bg-secondary text-muted-foreground'
                       }`}>
                         {invoice.status}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      {/* For now, we will redirect them to a detailed view if they want to download the PDF, or just implement the view. */}
-                      <Link href={`/client/invoices/${invoice.id}`} className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors">
-                        View <Download className="w-3 h-3" />
-                      </Link>
                     </td>
                   </tr>
                 ))

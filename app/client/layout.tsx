@@ -1,5 +1,5 @@
 import { PortalLayout } from "@/components/layout/PortalLayout";
-import { LayoutDashboard, FolderGit2, Receipt } from "lucide-react";
+import { LayoutDashboard, FolderGit2, Receipt, FileText } from "lucide-react";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 
@@ -14,6 +14,7 @@ export default async function ClientLayout({
   const menuItems = [
     { label: "Dashboard", href: "/client/dashboard", icon: LayoutDashboard },
     { label: "My Projects", href: "/client/projects", icon: FolderGit2 },
+    { label: "Quotations", href: "/client/quotes", icon: FileText },
     { label: "Invoices", href: "/client/invoices", icon: Receipt },
   ];
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { projects, clients, projectTeam, files } from "@/db/schema";
+import { projects, clients, projectTeam, files, invoices, quotations } from "@/db/schema";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { auth } from "@/auth";
 
@@ -115,4 +115,42 @@ export async function getTeamFiles(projectId: number) {
   return await db.select().from(files)
     .where(eq(files.projectId, projectId))
     .orderBy(desc(files.uploadedAt));
+}
+
+// ==============================
+// 3. Client Invoices & Quotes
+// ==============================
+
+export async function getClientInvoices() {
+  const user = await requireClient();
+  
+  const clientRecord = await db.select().from(clients).where(eq(clients.userId, parseInt(user.id))).limit(1);
+  if (!clientRecord[0]) return [];
+
+  return await db
+    .select({
+      invoice: invoices,
+      project: projects
+    })
+    .from(invoices)
+    .leftJoin(projects, eq(invoices.projectId, projects.id))
+    .where(eq(invoices.clientId, clientRecord[0].id))
+    .orderBy(desc(invoices.createdAt));
+}
+
+export async function getClientQuotes() {
+  const user = await requireClient();
+  
+  const clientRecord = await db.select().from(clients).where(eq(clients.userId, parseInt(user.id))).limit(1);
+  if (!clientRecord[0]) return [];
+
+  return await db
+    .select({
+      quote: quotations,
+      project: projects
+    })
+    .from(quotations)
+    .leftJoin(projects, eq(quotations.projectId, projects.id))
+    .where(eq(quotations.clientId, clientRecord[0].id))
+    .orderBy(desc(quotations.createdAt));
 }
