@@ -1,5 +1,6 @@
 import { getClients } from "@/app/actions/clients";
 import { Plus, Search, MoreHorizontal, Building2 } from "lucide-react";
+import { ActivateClientButton } from "@/components/ui/ActivateClientButton";
 
 export default async function AdminClientsPage() {
   // Fetch clients on server
@@ -68,13 +69,17 @@ export default async function AdminClientsPage() {
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">{client.contactPerson || "-"}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        client.status === 'active' 
-                          ? 'bg-emerald-500/10 text-emerald-500' 
-                          : 'bg-destructive/10 text-destructive'
-                      }`}>
-                        {client.status}
-                      </span>
+                      {!client.userId ? (
+                        <ActivateClientButton clientId={client.id} />
+                      ) : (
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          client.status === 'active' 
+                            ? 'bg-emerald-500/10 text-emerald-500' 
+                            : 'bg-destructive/10 text-destructive'
+                        }`}>
+                          {client.status}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
                       {client.createdAt?.toLocaleDateString()}
