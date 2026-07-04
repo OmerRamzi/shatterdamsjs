@@ -1,48 +1,43 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { supabase } from "@/db/supabase";
 
-// Cloudflare R2 Connection Config
-const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || "";
-const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID || "";
-const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || "";
-const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || "";
-
-const S3 = new S3Client({
-  region: "auto",
-  endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: R2_ACCESS_KEY_ID,
-    secretAccessKey: R2_SECRET_ACCESS_KEY,
-  },
-});
+const STORAGE_BUCKET = "shatter-dams-files";
 
 export async function generateUploadUrl(key: string, contentType: string) {
-  const command = new PutObjectCommand({
-    Bucket: R2_BUCKET_NAME,
-    Key: key,
-    ContentType: contentType,
-  });
+  // Use Supabase createSignedUploadUrl
+  const { data, error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .createSignedUploadUrl(key);
 
-  // URL expires in 1 hour (3600 seconds)
-  return await getSignedUrl(S3, command, { expiresIn: 3600 });
+  if (error || !data) {
+    throw new Error(error?.message || "Could not generate upload URL");
+  }
+
+  // data.signedUrl is the URL you can PUT the file to
+  return data.signedUrl;
 }
 
 export async function generateDownloadUrl(key: string, originalFilename?: string) {
-  const command = new GetObjectCommand({
-    Bucket: R2_BUCKET_NAME,
-    Key: key,
-    // Optional: force browser to download with correct filename instead of displaying inline
-    ResponseContentDisposition: originalFilename ? `attachment; filename="${originalFilename}"` : undefined
-  });
+  const { data, error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .createSignedUrl(key, 3600, {
+      download: originalFilename || true,
+    });
 
-  return await getSignedUrl(S3, command, { expiresIn: 3600 });
+  if (error || !data) {
+    throw new Error(error?.message || "Could not generate download URL");
+  }
+
+  return data.signedUrl;
 }
 
 export async function deleteFileFromR2(key: string) {
-  const command = new DeleteObjectCommand({
-    Bucket: R2_BUCKET_NAME,
-    Key: key,
-  });
+  const { data, error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .remove([key]);
 
-  return await S3.send(command);
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
 }
