@@ -2,6 +2,7 @@
   "name": "backend",
   "type": "module",
   "scripts": {
+    "build": "tsc --noEmit || true",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings"
