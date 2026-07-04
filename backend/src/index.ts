@@ -13,7 +13,11 @@ app.get('/api/health', (c) => {
 });
 
 app.get('/api/debug-env', (c) => {
-  return c.json({ keys: Object.keys(c.env || {}) });
+  return c.json({ 
+    supabaseUrl: typeof c.env.SUPABASE_URL, 
+    jwt: typeof c.env.JWT_SECRET,
+    val: c.env.SUPABASE_URL || 'missing'
+  });
 });
 
 app.onError((err, c) => {
