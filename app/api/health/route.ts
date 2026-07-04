@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db";
-import { sql } from "drizzle-orm";
+import { supabase } from "@/db/supabase";
+
+export const runtime = 'edge';
 
 export async function GET() {
   try {
     // Perform a lightweight query to keep Supabase awake
-    await db.execute(sql`SELECT 1`);
+    const { error } = await supabase.from('users').select('id').limit(1);
     
+    if (error) throw new Error(error.message);
+
     return NextResponse.json(
-      { status: "ok", message: "Database connection active" },
+      { status: "ok", message: "Database connection active (Edge)" },
       { status: 200 }
     );
   } catch (error) {

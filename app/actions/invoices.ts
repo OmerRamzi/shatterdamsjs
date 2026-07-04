@@ -1,8 +1,6 @@
 "use server";
 
-import { db } from "@/db";
-import { invoices, invoiceItems, clients, projects, activityLogs } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { supabase } from "@/db/supabase";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { Resend } from "resend";
@@ -22,15 +20,15 @@ async function generateInvoiceNumber(tenantId: number) {
   const year = new Date().getFullYear();
   const prefix = `INV-${year}-`;
   
-  // Find the latest invoice for this year
-  const latest = await db.select({ invoiceNumber: invoices.invoiceNumber })
-    .from(invoices)
-    .where(eq(invoices.tenantId, tenantId))
-    .orderBy(desc(invoices.id))
+  const { data: latest } = await supabase
+    .from("invoices")
+    .select("invoiceNumber")
+    .eq("tenantId", tenantId)
+    .order("id", { ascending: false })
     .limit(1);
 
   let sequence = 1;
-  if (latest.length > 0 && latest[0].invoiceNumber.startsWith(prefix)) {
+  if (latest && latest.length > 0 && latest[0].invoiceNumber.startsWith(prefix)) {
     const lastSeq = parseInt(latest[0].invoiceNumber.split("-")[2], 10);
     if (!isNaN(lastSeq)) sequence = lastSeq + 1;
   }
@@ -41,18 +39,24 @@ async function generateInvoiceNumber(tenantId: number) {
 export async function getInvoices() {
   const user = await requireAdmin();
   
-  const results = await db.select({
-    invoice: invoices,
-    client: clients,
-    project: projects
-  })
-    .from(invoices)
-    .leftJoin(clients, eq(invoices.clientId, clients.id))
-    .leftJoin(projects, eq(invoices.projectId, projects.id))
-    .where(eq(invoices.tenantId, user.tenantId))
-    .orderBy(desc(invoices.createdAt));
+  const { data } = await supabase
+    .from("invoices")
+    .select(`
+      *,
+      client:clients(*),
+      project:projects(*)
+    `)
+    .eq("tenantId", user.tenantId)
+    .order("createdAt", { ascending: false });
     
-  return results;
+  return (data || []).map(row => {
+    const { client, project, ...invoiceData } = row;
+    return {
+      invoice: invoiceData,
+      client: client,
+      project: project
+    };
+  });
 }
 
 export async function createInvoice(data: {
@@ -68,29 +72,30 @@ export async function createInvoice(data: {
   
   // Calculate totals
   const subtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-  const total = subtotal; // Assuming no tax logic yet, or add if needed
+  const total = subtotal;
 
   // Insert Invoice
-  const newInvoice = await db.insert(invoices).values({
+  const { data: newInvoice, error: invError } = await supabase.from("invoices").insert({
     tenantId: admin.tenantId,
     clientId: data.clientId,
     projectId: data.projectId,
     invoiceNumber,
     issueDate: new Date().toISOString(),
-    dueDate: data.dueDate ? data.dueDate.toISOString() : new Date(Date.now() + 30*24*60*60*1000).toISOString(),
+    dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : new Date(Date.now() + 30*24*60*60*1000).toISOString(),
     subtotal: subtotal.toString(),
     tax: "0",
     total: total.toString(),
     status: "draft",
     notes: data.notes,
-    createdBy: parseInt(admin.id),
-  }).returning({ id: invoices.id });
+    createdBy: parseInt(admin.id as string),
+  }).select("id").single();
 
-  const invoiceId = newInvoice[0].id;
+  if (invError || !newInvoice) throw new Error(invError?.message || "Failed to create invoice");
+  const invoiceId = newInvoice.id;
 
   // Insert Items
   for (const item of data.items) {
-    await db.insert(invoiceItems).values({
+    await supabase.from("invoice_items").insert({
       invoiceId,
       description: item.description,
       quantity: item.quantity.toString(),
@@ -99,9 +104,9 @@ export async function createInvoice(data: {
     });
   }
 
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: admin.tenantId,
-    userId: parseInt(admin.id),
+    userId: parseInt(admin.id as string),
     action: `Invoice ${invoiceNumber} created.`,
   });
 
@@ -113,33 +118,38 @@ export async function getInvoiceDetails(invoiceId: number) {
   const session = await auth();
   if (!session || !session.user) throw new Error("Unauthorized");
 
-  const invoiceList = await db.select({
-    invoice: invoices,
-    client: clients,
-    project: projects
-  })
-    .from(invoices)
-    .leftJoin(clients, eq(invoices.clientId, clients.id))
-    .leftJoin(projects, eq(invoices.projectId, projects.id))
-    .where(eq(invoices.id, invoiceId))
+  const { data: invoiceList, error } = await supabase
+    .from("invoices")
+    .select(`
+      *,
+      client:clients(*),
+      project:projects(*)
+    `)
+    .eq("id", invoiceId)
     .limit(1);
 
-  if (!invoiceList[0]) throw new Error("Invoice not found");
+  if (error || !invoiceList || invoiceList.length === 0) throw new Error("Invoice not found");
+  const row = invoiceList[0];
   
-  // Basic tenant safety
-  if (invoiceList[0].invoice.tenantId !== session.user.tenantId) throw new Error("Unauthorized");
+  if (row.tenantId !== session.user.tenantId) throw new Error("Unauthorized");
 
   // Client isolation
   if (session.user.role === "client") {
-    const clientRecord = await db.select().from(clients).where(eq(clients.userId, parseInt(session.user.id))).limit(1);
-    if (!clientRecord[0] || invoiceList[0].invoice.clientId !== clientRecord[0].id) {
+    const { data: clientRecord } = await supabase.from("clients").select("*").eq("userId", session.user.id).limit(1);
+    if (!clientRecord || clientRecord.length === 0 || row.clientId !== clientRecord[0].id) {
       throw new Error("Unauthorized");
     }
   }
 
-  const items = await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, invoiceId));
+  const { data: items } = await supabase.from("invoice_items").select("*").eq("invoiceId", invoiceId);
 
-  return { ...invoiceList[0], items };
+  const { client, project, ...invoiceData } = row;
+  return {
+    invoice: invoiceData,
+    client: client,
+    project: project,
+    items: items || []
+  };
 }
 
 export async function sendInvoiceEmail(invoiceId: number) {
@@ -150,7 +160,6 @@ export async function sendInvoiceEmail(invoiceId: number) {
   
   if (!clientEmail) throw new Error("Client has no email address");
 
-  // Send Email
   await resend.emails.send({
     from: "Shatter DAMS Billing <hello@mailer.meetshatter.com>",
     to: [clientEmail],
@@ -166,12 +175,11 @@ export async function sendInvoiceEmail(invoiceId: number) {
     `,
   });
 
-  // Update Status
-  await db.update(invoices).set({ status: "sent" }).where(eq(invoices.id, invoiceId));
+  await supabase.from("invoices").update({ status: "sent" }).eq("id", invoiceId);
 
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: admin.tenantId,
-    userId: parseInt(admin.id),
+    userId: parseInt(admin.id as string),
     action: `Invoice ${details.invoice.invoiceNumber} sent to client.`,
   });
 
@@ -184,11 +192,11 @@ export async function markInvoicePaid(invoiceId: number) {
   const admin = await requireAdmin();
   const details = await getInvoiceDetails(invoiceId);
   
-  await db.update(invoices).set({ status: "paid" }).where(eq(invoices.id, invoiceId));
+  await supabase.from("invoices").update({ status: "paid" }).eq("id", invoiceId);
 
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: admin.tenantId,
-    userId: parseInt(admin.id),
+    userId: parseInt(admin.id as string),
     action: `Invoice ${details.invoice.invoiceNumber} marked as paid.`,
   });
 

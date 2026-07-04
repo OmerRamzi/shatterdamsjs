@@ -1,8 +1,6 @@
 "use server";
 
-import { db } from "@/db";
-import { projects, clients, projectTeam, files, invoices, quotations } from "@/db/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { supabase } from "@/db/supabase";
 import { auth } from "@/auth";
 
 // --- CLIENT PORTAL ACTIONS ---
@@ -16,26 +14,32 @@ async function requireClient() {
 export async function getClientProjects() {
   const user = await requireClient();
   
-  // Find the client record associated with this user
-  const clientRecord = await db.select().from(clients).where(eq(clients.userId, parseInt(user.id))).limit(1);
-  if (!clientRecord[0]) return [];
+  const { data: clientRecord } = await supabase.from("clients").select("*").eq("userId", user.id).limit(1);
+  if (!clientRecord || clientRecord.length === 0) return [];
 
-  return await db.select().from(projects).where(eq(projects.clientId, clientRecord[0].id)).orderBy(desc(projects.createdAt));
+  const { data } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("clientId", clientRecord[0].id)
+    .order("createdAt", { ascending: false });
+    
+  return data || [];
 }
 
 export async function getClientProjectDetails(projectId: number) {
   const user = await requireClient();
   
-  const clientRecord = await db.select().from(clients).where(eq(clients.userId, parseInt(user.id))).limit(1);
-  if (!clientRecord[0]) throw new Error("Unauthorized");
+  const { data: clientRecord } = await supabase.from("clients").select("*").eq("userId", user.id).limit(1);
+  if (!clientRecord || clientRecord.length === 0) throw new Error("Unauthorized");
 
-  const projectList = await db.select().from(projects)
-    .where(and(
-      eq(projects.id, projectId),
-      eq(projects.clientId, clientRecord[0].id)
-    )).limit(1);
+  const { data: projectList } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", projectId)
+    .eq("clientId", clientRecord[0].id)
+    .limit(1);
 
-  if (!projectList[0]) throw new Error("Unauthorized");
+  if (!projectList || projectList.length === 0) throw new Error("Unauthorized");
   return projectList[0];
 }
 
@@ -44,11 +48,14 @@ export async function getClientFiles(projectId: number) {
   await getClientProjectDetails(projectId);
 
   // Clients only see files that are explicitly sent to client review or approved
-  return await db.select().from(files)
-    .where(and(
-      eq(files.projectId, projectId),
-      inArray(files.status, ['client_review', 'approved'])
-    )).orderBy(desc(files.uploadedAt));
+  const { data } = await supabase
+    .from("files")
+    .select("*")
+    .eq("projectId", projectId)
+    .in("status", ['client_review', 'approved'])
+    .order("uploadedAt", { ascending: false });
+    
+  return data || [];
 }
 
 
@@ -65,56 +72,68 @@ async function requireTeam() {
 export async function getTeamProjects() {
   const user = await requireTeam();
   
-  // Find projects assigned to this user in project_team
-  const assigned = await db.select({ projectId: projectTeam.projectId })
-    .from(projectTeam)
-    .where(eq(projectTeam.userId, parseInt(user.id)));
+  const { data: assigned } = await supabase
+    .from("project_team")
+    .select("projectId")
+    .eq("userId", user.id);
 
-  if (assigned.length === 0) return [];
+  if (!assigned || assigned.length === 0) return [];
 
   const projectIds = assigned.map(a => a.projectId);
 
-  return await db.select({
-    project: projects,
-    client: clients,
-  })
-    .from(projects)
-    .leftJoin(clients, eq(projects.clientId, clients.id))
-    .where(inArray(projects.id, projectIds))
-    .orderBy(desc(projects.createdAt));
+  const { data } = await supabase
+    .from("projects")
+    .select(`
+      *,
+      client:clients(*)
+    `)
+    .in("id", projectIds)
+    .order("createdAt", { ascending: false });
+
+  return (data || []).map(row => {
+    const { client, ...project } = row;
+    return { project, client };
+  });
 }
 
 export async function getTeamProjectDetails(projectId: number) {
   const user = await requireTeam();
   
-  const assigned = await db.select().from(projectTeam)
-    .where(and(
-      eq(projectTeam.projectId, projectId),
-      eq(projectTeam.userId, parseInt(user.id))
-    )).limit(1);
-
-  if (!assigned[0]) throw new Error("Unauthorized: Not assigned to project");
-
-  const projectList = await db.select({
-    project: projects,
-    client: clients,
-  })
-    .from(projects)
-    .leftJoin(clients, eq(projects.clientId, clients.id))
-    .where(eq(projects.id, projectId))
+  const { data: assigned } = await supabase
+    .from("project_team")
+    .select("*")
+    .eq("projectId", projectId)
+    .eq("userId", user.id)
     .limit(1);
 
-  return projectList[0];
+  if (!assigned || assigned.length === 0) throw new Error("Unauthorized: Not assigned to project");
+
+  const { data: projectList } = await supabase
+    .from("projects")
+    .select(`
+      *,
+      client:clients(*)
+    `)
+    .eq("id", projectId)
+    .limit(1);
+
+  if (!projectList || projectList.length === 0) throw new Error("Project not found");
+  
+  const row = projectList[0];
+  const { client, ...project } = row;
+  return { project, client };
 }
 
 export async function getTeamFiles(projectId: number) {
-  // Verifies access
   await getTeamProjectDetails(projectId);
 
-  // Team members see all files for projects they are assigned to
-  return await db.select().from(files)
-    .where(eq(files.projectId, projectId))
-    .orderBy(desc(files.uploadedAt));
+  const { data } = await supabase
+    .from("files")
+    .select("*")
+    .eq("projectId", projectId)
+    .order("uploadedAt", { ascending: false });
+    
+  return data || [];
 }
 
 // ==============================
@@ -124,31 +143,35 @@ export async function getTeamFiles(projectId: number) {
 export async function getClientInvoices() {
   const user = await requireClient();
   
-  const clientRecord = await db.select().from(clients).where(eq(clients.userId, parseInt(user.id))).limit(1);
-  if (!clientRecord[0]) return [];
+  const { data: clientRecord } = await supabase.from("clients").select("*").eq("userId", user.id).limit(1);
+  if (!clientRecord || clientRecord.length === 0) return [];
 
-  return await db
-    .select({
-      invoice: invoices,
-      project: projects
-    })
-    .from(invoices)
-    .leftJoin(projects, eq(invoices.projectId, projects.id))
-    .where(eq(invoices.clientId, clientRecord[0].id))
-    .orderBy(desc(invoices.createdAt));
+  const { data } = await supabase
+    .from("invoices")
+    .select(`
+      *,
+      project:projects(*)
+    `)
+    .eq("clientId", clientRecord[0].id)
+    .order("createdAt", { ascending: false });
+
+  return (data || []).map(row => {
+    const { project, ...invoice } = row;
+    return { invoice, project };
+  });
 }
 
 export async function getClientQuotes() {
   const user = await requireClient();
   
-  const clientRecord = await db.select().from(clients).where(eq(clients.userId, parseInt(user.id))).limit(1);
-  if (!clientRecord[0]) return [];
+  const { data: clientRecord } = await supabase.from("clients").select("*").eq("userId", user.id).limit(1);
+  if (!clientRecord || clientRecord.length === 0) return [];
 
-  return await db
-    .select({
-      quote: quotations,
-    })
-    .from(quotations)
-    .where(eq(quotations.clientId, clientRecord[0].id))
-    .orderBy(desc(quotations.createdAt));
+  const { data } = await supabase
+    .from("quotations")
+    .select("*")
+    .eq("clientId", clientRecord[0].id)
+    .order("createdAt", { ascending: false });
+
+  return (data || []).map(quote => ({ quote }));
 }

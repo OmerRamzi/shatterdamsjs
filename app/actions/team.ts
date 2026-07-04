@@ -1,8 +1,6 @@
 "use server";
 
-import { db } from "@/db";
-import { users, userRoles, activityLogs } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { supabase } from "@/db/supabase";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
@@ -18,18 +16,19 @@ async function requireAdmin() {
 export async function getTeamMembers() {
   const admin = await requireAdmin();
   
-  // Get all users in this tenant except clients
-  const allRoles = await db.select().from(userRoles);
-  const teamUserIds = allRoles
+  const { data: allRoles } = await supabase.from("user_roles").select("*");
+  const roles = allRoles || [];
+
+  const teamUserIds = roles
     .filter(r => r.role === "employee" || r.role === "freelancer" || r.role === "administrator")
     .map(r => r.userId);
 
   if (teamUserIds.length === 0) return [];
 
-  const team = await db.select().from(users).where(inArray(users.id, teamUserIds));
+  const { data: team } = await supabase.from("users").select("*").in("id", teamUserIds);
   
-  return team.map(u => {
-    const role = allRoles.find(r => r.userId === u.id)?.role;
+  return (team || []).map(u => {
+    const role = roles.find(r => r.userId === u.id)?.role;
     return { ...u, role };
   });
 }
@@ -46,25 +45,26 @@ export async function createTeamMember(data: {
   const defaultPassword = "Team@123";
   const passwordHash = await bcrypt.hash(defaultPassword, 10);
 
-  const newUser = await db.insert(users).values({
+  const { data: newUser, error: userError } = await supabase.from("users").insert({
     tenantId: admin.tenantId,
     email: data.email,
     passwordHash,
     displayName: data.displayName,
     phone: data.phone,
     preferredLocale: "en",
-  }).returning({ id: users.id });
+  }).select("id").single();
 
-  const userId = newUser[0].id;
+  if (userError || !newUser) throw new Error(userError?.message || "Failed to create user");
+  const userId = newUser.id;
 
-  await db.insert(userRoles).values({
+  await supabase.from("user_roles").insert({
     userId,
     role: data.role,
   });
 
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: admin.tenantId,
-    userId: parseInt(admin.id),
+    userId: parseInt(admin.id as string),
     action: `Team member '${data.displayName}' added as ${data.role}.`,
   });
 

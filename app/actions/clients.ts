@@ -1,8 +1,6 @@
 "use server";
 
-import { db } from "@/db";
-import { clients, users, userRoles, activityLogs } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { supabase } from "@/db/supabase";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
@@ -21,7 +19,13 @@ async function requireAdmin() {
 
 export async function getClients() {
   const user = await requireAdmin();
-  return await db.select().from(clients).where(eq(clients.tenantId, user.tenantId));
+  const { data, error } = await supabase
+    .from("clients")
+    .select("*")
+    .eq("tenantId", user.tenantId);
+    
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 
 export async function createClient(data: {
@@ -35,8 +39,8 @@ export async function createClient(data: {
 }) {
   const admin = await requireAdmin();
 
-  // Create Client Profile (without auto-provisioning user)
-  await db.insert(clients).values({
+  // Create Client Profile
+  const { error: insertError } = await supabase.from("clients").insert({
     tenantId: admin.tenantId,
     companyName: data.companyName,
     contactPerson: data.contactPerson,
@@ -47,11 +51,12 @@ export async function createClient(data: {
     country: data.country || "Sri Lanka",
     status: "active",
   });
+  if (insertError) throw new Error(insertError.message);
 
   // Log Activity
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: admin.tenantId,
-    userId: parseInt(admin.id),
+    userId: parseInt(admin.id as string),
     action: `Client '${data.companyName}' added (Unactivated).`,
   });
 
@@ -63,10 +68,15 @@ export async function activateClient(clientId: number) {
   const admin = await requireAdmin();
 
   // Get Client
-  const clientList = await db.select().from(clients).where(eq(clients.id, clientId)).limit(1);
+  const { data: clientList, error: getError } = await supabase
+    .from("clients")
+    .select("*")
+    .eq("id", clientId)
+    .limit(1);
+
+  if (getError || !clientList || clientList.length === 0) throw new Error("Client not found");
   const client = clientList[0];
 
-  if (!client) throw new Error("Client not found");
   if (client.userId) throw new Error("Client is already activated");
 
   // Generate secure random password
@@ -74,28 +84,30 @@ export async function activateClient(clientId: number) {
   const passwordHash = await bcrypt.hash(randomPassword, 10);
 
   // 1. Create User
-  const newUser = await db.insert(users).values({
+  const { data: newUser, error: userError } = await supabase.from("users").insert({
     tenantId: admin.tenantId,
     email: client.email,
     passwordHash,
     displayName: client.contactPerson || client.companyName,
     preferredLocale: "en",
-  }).returning({ id: users.id });
+  }).select("id").single();
+  
+  if (userError || !newUser) throw new Error(userError.message || "Failed to create user");
 
-  const userId = newUser[0].id;
+  const userId = newUser.id;
 
   // 2. Assign Role 'client'
-  await db.insert(userRoles).values({
+  await supabase.from("user_roles").insert({
     userId,
     role: "client",
   });
 
   // 3. Update Client Profile
-  await db.update(clients).set({ userId }).where(eq(clients.id, clientId));
+  await supabase.from("clients").update({ userId }).eq("id", clientId);
 
   // 4. Send Email via Resend
   await resend.emails.send({
-    from: "Shatter DAMS <hello@mailer.meetshatter.com>", // Ensure domain is verified in Resend
+    from: "Shatter DAMS <hello@mailer.meetshatter.com>",
     to: [client.email],
     subject: "Your Shatter DAMS Client Portal Access",
     html: `
@@ -110,9 +122,9 @@ export async function activateClient(clientId: number) {
   });
 
   // 5. Log Activity
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: admin.tenantId,
-    userId: parseInt(admin.id),
+    userId: parseInt(admin.id as string),
     action: `Client '${client.companyName}' account activated and credentials emailed.`,
   });
 
@@ -123,17 +135,12 @@ export async function activateClient(clientId: number) {
 export async function deleteClient(clientId: number) {
   const admin = await requireAdmin();
   
-  // Note: clients table has onDelete: cascade for projects in schema, 
-  // but let's just delete the client and let the DB handle cascades.
-  // Wait, deleting a client should fail if there are active projects? Or cascade?
-  // Original docs: "Built-in dependency protection prevents deletion of clients with active projects."
-  // We can just rely on standard checks or just delete it if the user forces. For now, basic delete.
+  const { error } = await supabase.from("clients").delete().eq("id", clientId);
+  if (error) throw new Error(error.message);
   
-  await db.delete(clients).where(eq(clients.id, clientId));
-  
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: admin.tenantId,
-    userId: parseInt(admin.id),
+    userId: parseInt(admin.id as string),
     action: `Client ID ${clientId} deleted.`,
   });
 

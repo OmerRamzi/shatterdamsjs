@@ -1,8 +1,6 @@
 "use server";
 
-import { db } from "@/db";
-import { activityLogs, users } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { supabase } from "@/db/supabase";
 import { auth } from "@/auth";
 
 export async function getGlobalActivityLogs(limit: number = 10) {
@@ -11,21 +9,26 @@ export async function getGlobalActivityLogs(limit: number = 10) {
     throw new Error("Unauthorized");
   }
 
-  const logs = await db
-    .select({
-      id: activityLogs.id,
-      action: activityLogs.action,
-      createdAt: activityLogs.createdAt,
-      user: {
-        id: users.id,
-        displayName: users.displayName,
-      }
-    })
-    .from(activityLogs)
-    .leftJoin(users, eq(activityLogs.userId, users.id))
-    .where(eq(activityLogs.tenantId, session.user.tenantId))
-    .orderBy(desc(activityLogs.createdAt))
+  const { data } = await supabase
+    .from("activity_logs")
+    .select(`
+      id,
+      action,
+      createdAt,
+      user:users (
+        id,
+        displayName
+      )
+    `)
+    .eq("tenantId", session.user.tenantId)
+    .order("createdAt", { ascending: false })
     .limit(limit);
 
-  return logs;
+  return (data || []).map(row => ({
+    id: row.id,
+    action: row.action,
+    createdAt: row.createdAt,
+    // Supabase returns related objects as an array or object depending on relation, usually object for many-to-one
+    user: Array.isArray(row.user) ? row.user[0] : row.user
+  }));
 }

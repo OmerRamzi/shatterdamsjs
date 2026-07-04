@@ -1,8 +1,6 @@
 "use server";
 
-import { db } from "@/db";
-import { projects, activityLogs } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { supabase } from "@/db/supabase";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 
@@ -16,7 +14,8 @@ async function requireAuth() {
 
 export async function getProjects() {
   const user = await requireAuth();
-  return await db.select().from(projects).where(eq(projects.tenantId, user.tenantId));
+  const { data } = await supabase.from("projects").select("*").eq("tenantId", user.tenantId);
+  return data || [];
 }
 
 export async function createProject(data: {
@@ -28,21 +27,21 @@ export async function createProject(data: {
 }) {
   const user = await requireAuth();
 
-  await db.insert(projects).values({
+  await supabase.from("projects").insert({
     tenantId: user.tenantId,
     clientId: data.clientId,
     title: data.title,
     description: data.description,
     budget: data.budget,
     deadline: data.deadline,
-    createdBy: parseInt(user.id),
+    createdBy: parseInt(user.id as string),
     status: "active",
     priority: "medium",
   });
 
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: user.tenantId,
-    userId: parseInt(user.id),
+    userId: parseInt(user.id as string),
     action: `Project '${data.title}' created.`,
   });
 

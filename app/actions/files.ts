@@ -1,8 +1,6 @@
 "use server";
 
-import { db } from "@/db";
-import { files, fileComments, activityLogs } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { supabase } from "@/db/supabase";
 import { auth } from "@/auth";
 import { generateUploadUrl, generateDownloadUrl, deleteFileFromR2 } from "@/lib/storage";
 import { revalidatePath } from "next/cache";
@@ -35,10 +33,10 @@ export async function registerUploadedFile(data: {
 }) {
   const user = await requireAuth();
 
-  await db.insert(files).values({
+  await supabase.from("files").insert({
     tenantId: user.tenantId,
     projectId: data.projectId,
-    uploadedBy: parseInt(user.id),
+    uploadedBy: parseInt(user.id as string),
     filename: data.filename,
     originalFilename: data.originalFilename,
     filePath: data.filePath,
@@ -48,9 +46,9 @@ export async function registerUploadedFile(data: {
     version: 1,
   });
 
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: user.tenantId,
-    userId: parseInt(user.id),
+    userId: parseInt(user.id as string),
     action: `File '${data.originalFilename}' uploaded to project ID ${data.projectId}.`,
   });
 
@@ -62,23 +60,28 @@ export async function registerUploadedFile(data: {
 export async function getProjectFiles(projectId: number) {
   const user = await requireAuth();
   
-  const projectFiles = await db
-    .select()
-    .from(files)
-    .where(eq(files.projectId, projectId))
-    .orderBy(desc(files.uploadedAt));
+  const { data } = await supabase
+    .from("files")
+    .select("*")
+    .eq("projectId", projectId)
+    .order("uploadedAt", { ascending: false });
     
-  return projectFiles;
+  return data || [];
 }
 
 // 4. Generate Download URL for a specific file
 export async function getDownloadUrl(fileId: number) {
   const user = await requireAuth();
   
-  const fileList = await db.select().from(files).where(eq(files.id, fileId)).limit(1);
+  const { data: fileList } = await supabase
+    .from("files")
+    .select("*")
+    .eq("id", fileId)
+    .limit(1);
+    
+  if (!fileList || fileList.length === 0) throw new Error("File not found");
   const file = fileList[0];
   
-  if (!file) throw new Error("File not found");
   if (file.tenantId !== user.tenantId) throw new Error("Unauthorized");
   
   return await generateDownloadUrl(file.filePath, file.originalFilename);
@@ -88,10 +91,11 @@ export async function getDownloadUrl(fileId: number) {
 export async function updateFileStatus(fileId: number, status: string) {
   const user = await requireAuth();
   
-  const fileList = await db.select().from(files).where(eq(files.id, fileId)).limit(1);
+  const { data: fileList } = await supabase.from("files").select("*").eq("id", fileId).limit(1);
+  if (!fileList || fileList.length === 0) throw new Error("File not found");
   const file = fileList[0];
   
-  if (!file || file.tenantId !== user.tenantId) throw new Error("Unauthorized");
+  if (file.tenantId !== user.tenantId) throw new Error("Unauthorized");
 
   // RLS for clients: clients can ONLY transition from 'client_review' to 'approved'
   if (user.role === "client") {
@@ -100,14 +104,14 @@ export async function updateFileStatus(fileId: number, status: string) {
     }
   }
   
-  await db.update(files).set({ 
+  await supabase.from("files").update({ 
     status,
-    ...(status === "approved" ? { approvedBy: parseInt(user.id), approvedAt: new Date() } : {})
-  }).where(eq(files.id, fileId));
+    ...(status === "approved" ? { approvedBy: parseInt(user.id as string), approvedAt: new Date().toISOString() } : {})
+  }).eq("id", fileId);
 
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: user.tenantId,
-    userId: parseInt(user.id),
+    userId: parseInt(user.id as string),
     action: `File '${file.originalFilename}' status changed to '${status}'.`,
   });
 
@@ -120,20 +124,21 @@ export async function deleteFile(fileId: number) {
   const user = await requireAuth();
   if (user.role === "client") throw new Error("Clients cannot delete files");
   
-  const fileList = await db.select().from(files).where(eq(files.id, fileId)).limit(1);
+  const { data: fileList } = await supabase.from("files").select("*").eq("id", fileId).limit(1);
+  if (!fileList || fileList.length === 0) throw new Error("File not found");
   const file = fileList[0];
   
-  if (!file || file.tenantId !== user.tenantId) throw new Error("Unauthorized");
+  if (file.tenantId !== user.tenantId) throw new Error("Unauthorized");
 
   // Delete from R2
   await deleteFileFromR2(file.filePath);
   
-  // Delete from DB (Comments will cascade due to schema)
-  await db.delete(files).where(eq(files.id, fileId));
+  // Delete from DB (Comments will cascade due to schema DB settings, though supabase REST does this automatically if DB triggers are set)
+  await supabase.from("files").delete().eq("id", fileId);
 
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: user.tenantId,
-    userId: parseInt(user.id),
+    userId: parseInt(user.id as string),
     action: `File '${file.originalFilename}' deleted.`,
   });
 
@@ -145,12 +150,12 @@ export async function deleteFile(fileId: number) {
 export async function addFileComment(fileId: number, comment: string) {
   const user = await requireAuth();
   
-  const fileList = await db.select().from(files).where(eq(files.id, fileId)).limit(1);
-  if (!fileList[0] || fileList[0].tenantId !== user.tenantId) throw new Error("Unauthorized");
+  const { data: fileList } = await supabase.from("files").select("*").eq("id", fileId).limit(1);
+  if (!fileList || fileList.length === 0 || fileList[0].tenantId !== user.tenantId) throw new Error("Unauthorized");
 
-  await db.insert(fileComments).values({
+  await supabase.from("file_comments").insert({
     fileId,
-    userId: parseInt(user.id),
+    userId: parseInt(user.id as string),
     comment,
   });
 
@@ -161,5 +166,6 @@ export async function addFileComment(fileId: number, comment: string) {
 // 8. Get File Comments
 export async function getFileComments(fileId: number) {
   const user = await requireAuth();
-  return await db.select().from(fileComments).where(eq(fileComments.fileId, fileId)).orderBy(desc(fileComments.createdAt));
+  const { data } = await supabase.from("file_comments").select("*").eq("fileId", fileId).order("createdAt", { ascending: false });
+  return data || [];
 }

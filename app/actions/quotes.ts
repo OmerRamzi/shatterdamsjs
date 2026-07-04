@@ -1,8 +1,6 @@
 "use server";
 
-import { db } from "@/db";
-import { quotations, quotationItems, clients, projects, activityLogs } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { supabase } from "@/db/supabase";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { Resend } from "resend";
@@ -22,14 +20,15 @@ async function generateQuoteNumber(tenantId: number) {
   const year = new Date().getFullYear();
   const prefix = `QT-${year}-`;
   
-  const latest = await db.select({ quoteNumber: quotations.quoteNumber })
-    .from(quotations)
-    .where(eq(quotations.tenantId, tenantId))
-    .orderBy(desc(quotations.id))
+  const { data: latest } = await supabase
+    .from("quotations")
+    .select("quoteNumber")
+    .eq("tenantId", tenantId)
+    .order("id", { ascending: false })
     .limit(1);
 
   let sequence = 1;
-  if (latest.length > 0 && latest[0].quoteNumber.startsWith(prefix)) {
+  if (latest && latest.length > 0 && latest[0].quoteNumber.startsWith(prefix)) {
     const lastSeq = parseInt(latest[0].quoteNumber.split("-")[2], 10);
     if (!isNaN(lastSeq)) sequence = lastSeq + 1;
   }
@@ -40,16 +39,22 @@ async function generateQuoteNumber(tenantId: number) {
 export async function getQuotes() {
   const user = await requireAdmin();
   
-  const results = await db.select({
-    quote: quotations,
-    client: clients
-  })
-    .from(quotations)
-    .leftJoin(clients, eq(quotations.clientId, clients.id))
-    .where(eq(quotations.tenantId, user.tenantId))
-    .orderBy(desc(quotations.createdAt));
+  const { data } = await supabase
+    .from("quotations")
+    .select(`
+      *,
+      client:clients(*)
+    `)
+    .eq("tenantId", user.tenantId)
+    .order("createdAt", { ascending: false });
     
-  return results;
+  return (data || []).map(row => {
+    const { client, ...quoteData } = row;
+    return {
+      quote: quoteData,
+      client: client
+    };
+  });
 }
 
 export async function createQuote(data: {
@@ -65,7 +70,7 @@ export async function createQuote(data: {
   const subtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
   const total = subtotal;
 
-  const newQuote = await db.insert(quotations).values({
+  const { data: newQuote, error: quoteError } = await supabase.from("quotations").insert({
     tenantId: admin.tenantId,
     clientId: data.clientId,
     quoteNumber,
@@ -74,15 +79,16 @@ export async function createQuote(data: {
     tax: "0",
     total: total.toString(),
     status: "draft",
-    validUntil: data.validUntil ? data.validUntil.toISOString() : new Date(Date.now() + 30*24*60*60*1000).toISOString(),
+    validUntil: data.validUntil ? new Date(data.validUntil).toISOString() : new Date(Date.now() + 30*24*60*60*1000).toISOString(),
     notes: data.notes,
-    createdBy: parseInt(admin.id),
-  }).returning({ id: quotations.id });
+    createdBy: parseInt(admin.id as string),
+  }).select("id").single();
 
-  const quotationId = newQuote[0].id;
+  if (quoteError || !newQuote) throw new Error(quoteError?.message || "Failed to create quote");
+  const quotationId = newQuote.id;
 
   for (const item of data.items) {
-    await db.insert(quotationItems).values({
+    await supabase.from("quotation_items").insert({
       quotationId,
       description: item.description,
       quantity: item.quantity.toString(),
@@ -91,9 +97,9 @@ export async function createQuote(data: {
     });
   }
 
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: admin.tenantId,
-    userId: parseInt(admin.id),
+    userId: parseInt(admin.id as string),
     action: `Quotation ${quoteNumber} created.`,
   });
 
@@ -105,29 +111,36 @@ export async function getQuoteDetails(quoteId: number) {
   const session = await auth();
   if (!session || !session.user) throw new Error("Unauthorized");
 
-  const quoteList = await db.select({
-    quote: quotations,
-    client: clients
-  })
-    .from(quotations)
-    .leftJoin(clients, eq(quotations.clientId, clients.id))
-    .where(eq(quotations.id, quoteId))
+  const { data: quoteList, error } = await supabase
+    .from("quotations")
+    .select(`
+      *,
+      client:clients(*)
+    `)
+    .eq("id", quoteId)
     .limit(1);
 
-  if (!quoteList[0]) throw new Error("Quote not found");
-  if (quoteList[0].quote.tenantId !== session.user.tenantId) throw new Error("Unauthorized");
+  if (error || !quoteList || quoteList.length === 0) throw new Error("Quote not found");
+  
+  const row = quoteList[0];
+  if (row.tenantId !== session.user.tenantId) throw new Error("Unauthorized");
 
   // Client isolation
   if (session.user.role === "client") {
-    const clientRecord = await db.select().from(clients).where(eq(clients.userId, parseInt(session.user.id))).limit(1);
-    if (!clientRecord[0] || quoteList[0].quote.clientId !== clientRecord[0].id) {
+    const { data: clientRecord } = await supabase.from("clients").select("*").eq("userId", session.user.id).limit(1);
+    if (!clientRecord || clientRecord.length === 0 || row.clientId !== clientRecord[0].id) {
       throw new Error("Unauthorized");
     }
   }
 
-  const items = await db.select().from(quotationItems).where(eq(quotationItems.quotationId, quoteId));
+  const { data: items } = await supabase.from("quotation_items").select("*").eq("quotationId", quoteId);
 
-  return { ...quoteList[0], items };
+  const { client, ...quoteData } = row;
+  return {
+    quote: quoteData,
+    client: client,
+    items: items || []
+  };
 }
 
 export async function sendQuoteEmail(quoteId: number) {
@@ -153,11 +166,11 @@ export async function sendQuoteEmail(quoteId: number) {
     `,
   });
 
-  await db.update(quotations).set({ status: "sent" }).where(eq(quotations.id, quoteId));
+  await supabase.from("quotations").update({ status: "sent" }).eq("id", quoteId);
 
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: admin.tenantId,
-    userId: parseInt(admin.id),
+    userId: parseInt(admin.id as string),
     action: `Quotation ${details.quote.quoteNumber} sent to client.`,
   });
 
@@ -172,11 +185,11 @@ export async function acceptQuote(quoteId: number) {
   
   const details = await getQuoteDetails(quoteId);
   
-  await db.update(quotations).set({ status: "accepted" }).where(eq(quotations.id, quoteId));
+  await supabase.from("quotations").update({ status: "accepted" }).eq("id", quoteId);
 
-  await db.insert(activityLogs).values({
+  await supabase.from("activity_logs").insert({
     tenantId: session.user.tenantId,
-    userId: parseInt(session.user.id),
+    userId: parseInt(session.user.id as string),
     action: `Quotation ${details.quote.quoteNumber} accepted.`,
   });
 
