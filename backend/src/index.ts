@@ -48,4 +48,8 @@ app.route('/api/invoices', invoicesRoutes);
 app.route('/api/quotes', quotesRoutes);
 app.route('/api/users', usersRoutes);
 
-export default app;
+export default {
+  fetch(request: Request, env: any, ctx: any) {
+    return app.fetch(request, env, ctx);
+  }
+};
