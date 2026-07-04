@@ -1,0 +1,25 @@
+{
+  "name": "backend",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --minify",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1079.0",
+    "@aws-sdk/s3-request-presigner": "^3.1079.0",
+    "@supabase/supabase-js": "^2.110.0",
+    "bcryptjs": "^3.0.3",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.27",
+    "postgres": "^3.4.9",
+    "resend": "^6.17.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^26.1.0",
+    "typescript": "^6.0.3",
+    "wrangler": "^4.4.0"
+  }
+}
