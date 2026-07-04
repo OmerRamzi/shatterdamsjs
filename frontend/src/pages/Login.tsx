@@ -66,6 +66,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
         <div className="p-8">
           <div className="text-center mb-8">
+            <img src="/brand/black.png" alt="Shatter DAMS" className="h-12 mx-auto mb-4 object-contain" />
             <h1 className="text-3xl font-bold tracking-tight text-primary">Welcome Back</h1>
             <p className="text-muted-foreground mt-2 text-sm">
               Sign in to your Shatter DAMS workspace.

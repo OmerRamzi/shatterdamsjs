@@ -35,12 +35,9 @@ export function PortalLayout({ children, navItems, basePath }: PortalLayoutProps
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800">
-          <div className="flex items-center gap-2 font-black text-lg tracking-tight text-white">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-              <span className="text-sm">SD</span>
-            </div>
-            Shatter DAMS
-          </div>
+          <Link to="/" className="flex items-center gap-2">
+            <img src="/brand/black.png" alt="Shatter DAMS" className="h-8 object-contain bg-white/90 p-1 rounded" />
+          </Link>
           <button onClick={() => setSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
           </button>
