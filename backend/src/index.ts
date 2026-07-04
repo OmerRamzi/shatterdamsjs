@@ -12,6 +12,10 @@ app.get('/api/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.get('/api/debug-env', (c) => {
+  return c.json({ keys: Object.keys(c.env || {}) });
+});
+
 app.onError((err, c) => {
   console.error('Unhandled Error:', err);
   return c.json({ error: err.message, stack: err.stack }, 500);
