@@ -60,7 +60,7 @@ export default function AdminDashboard() {
         <div className="col-span-4 bg-card border border-border rounded-xl shadow-sm">
           <div className="p-6 border-b border-border flex items-center justify-between">
             <h3 className="font-semibold text-lg">Pending Approvals</h3>
-            <Link to="/admin/projects" className="text-sm text-primary hover:underline font-medium">View all</Link>
+            <Link to="/projects" className="text-sm text-primary hover:underline font-medium">View all</Link>
           </div>
           <div className="p-6">
             <div className="space-y-4">

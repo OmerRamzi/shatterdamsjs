@@ -8,16 +8,16 @@ export default function ClientLayout() {
   if (!user) return null;
 
   const navItems = [
-    { name: "Dashboard", to: "/client", icon: LayoutDashboard },
-    { name: "Projects", to: "/client/projects", icon: FolderKanban },
-    { name: "Quotations", to: "/client/quotes", icon: FileText },
-    { name: "Invoices", to: "/client/invoices", icon: Receipt },
+    { name: "Dashboard", to: "/", icon: LayoutDashboard },
+    { name: "Projects", to: "/projects", icon: FolderKanban },
+    { name: "Quotations", to: "/quotes", icon: FileText },
+    { name: "Invoices", to: "/invoices", icon: Receipt },
   ];
 
   return (
     <PortalLayout 
       navItems={navItems}
-      basePath="/client"
+      basePath="/"
     >
       <Outlet />
     </PortalLayout>

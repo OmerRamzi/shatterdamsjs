@@ -38,9 +38,21 @@ export default function LoginPage() {
       if (from && from !== '/login') {
         navigate(from, { replace: true });
       } else {
-        if (data.user.role === 'administrator') navigate('/admin');
-        else if (data.user.role === 'client') navigate('/client');
-        else navigate('/team');
+        const hostname = window.location.hostname;
+        
+        let correctSubdomain = 'team';
+        if (data.user.role === 'administrator') correctSubdomain = 'admin';
+        else if (data.user.role === 'client') correctSubdomain = 'client';
+        
+        const currentSubdomain = hostname.split('.')[0];
+        
+        if (currentSubdomain !== correctSubdomain && hostname.includes('.')) {
+          const parts = hostname.split('.');
+          parts[0] = correctSubdomain;
+          window.location.href = window.location.protocol + '//' + parts.join('.') + '/';
+        } else {
+          navigate('/');
+        }
       }
     } catch (err: any) {
       setError(err.message);

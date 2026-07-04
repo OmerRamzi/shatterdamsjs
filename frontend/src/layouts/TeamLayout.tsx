@@ -8,14 +8,14 @@ export default function TeamLayout() {
   if (!user) return null;
 
   const navItems = [
-    { name: "Dashboard", to: "/team", icon: LayoutDashboard },
-    { name: "Projects", to: "/team/projects", icon: FolderKanban },
+    { name: "Dashboard", to: "/", icon: LayoutDashboard },
+    { name: "Projects", to: "/projects", icon: FolderKanban },
   ];
 
   return (
     <PortalLayout 
       navItems={navItems}
-      basePath="/team"
+      basePath="/"
     >
       <Outlet />
     </PortalLayout>

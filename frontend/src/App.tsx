@@ -41,68 +41,88 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
   }
 
   if (!allowedRoles.includes(user.role)) {
-    // Redirect based on role if they try to access something they shouldn't
-    if (user.role === 'administrator') return <Navigate to="/admin" replace />;
-    if (user.role === 'client') return <Navigate to="/client" replace />;
-    return <Navigate to="/team" replace />;
+    // Redirect based on role to correct subdomain
+    let newSubdomain = 'team';
+    if (user.role === 'administrator') newSubdomain = 'admin';
+    if (user.role === 'client') newSubdomain = 'client';
+    
+    const hostname = window.location.hostname;
+    if (hostname.includes('.')) {
+      const parts = hostname.split('.');
+      parts[0] = newSubdomain;
+      window.location.hostname = parts.join('.');
+    } else {
+      window.location.hostname = newSubdomain + '.localhost';
+    }
+    return <div className="flex h-screen items-center justify-center">Redirecting to your portal...</div>;
   }
 
   return <>{children}</>;
 };
 
 function AppRoutes() {
+  const hostname = window.location.hostname;
+  
+  let portal = 'team'; // default
+  if (hostname.startsWith('admin.')) portal = 'admin';
+  else if (hostname.startsWith('client.')) portal = 'client';
+
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       
-      {/* Admin Routes */}
-      <Route path="/admin" element={
-        <ProtectedRoute allowedRoles={['administrator']}>
-          <AdminLayout />
-        </ProtectedRoute>
-      }>
-        <Route index element={<AdminDashboard />} />
-        <Route path="clients" element={<AdminClientsPage />} />
-        <Route path="projects" element={<AdminProjectsPage />} />
-        <Route path="projects/:id" element={<AdminProjectDetailsPage />} />
-        <Route path="team" element={<AdminTeamPage />} />
-        <Route path="invoices" element={<AdminInvoicesPage />} />
-        <Route path="invoices/new" element={<AdminNewInvoicePage />} />
-        <Route path="invoices/:id" element={<AdminInvoiceDetailsPage />} />
-        <Route path="quotes" element={<AdminQuotesPage />} />
-        <Route path="quotes/new" element={<AdminNewQuotePage />} />
-        <Route path="quotes/:id" element={<AdminQuoteDetailsPage />} />
-        <Route path="users" element={<AdminUsersPage />} />
-      </Route>
+      {portal === 'admin' && (
+        <Route path="/" element={
+          <ProtectedRoute allowedRoles={['administrator']}>
+            <AdminLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<AdminDashboard />} />
+          <Route path="clients" element={<AdminClientsPage />} />
+          <Route path="projects" element={<AdminProjectsPage />} />
+          <Route path="projects/:id" element={<AdminProjectDetailsPage />} />
+          <Route path="team" element={<AdminTeamPage />} />
+          <Route path="invoices" element={<AdminInvoicesPage />} />
+          <Route path="invoices/new" element={<AdminNewInvoicePage />} />
+          <Route path="invoices/:id" element={<AdminInvoiceDetailsPage />} />
+          <Route path="quotes" element={<AdminQuotesPage />} />
+          <Route path="quotes/new" element={<AdminNewQuotePage />} />
+          <Route path="quotes/:id" element={<AdminQuoteDetailsPage />} />
+          <Route path="users" element={<AdminUsersPage />} />
+        </Route>
+      )}
 
-      {/* Team Routes */}
-      <Route path="/team" element={
-        <ProtectedRoute allowedRoles={['employee', 'freelancer', 'administrator']}>
-          <TeamLayout />
-        </ProtectedRoute>
-      }>
-        <Route index element={<TeamDashboardPage />} />
-        <Route path="dashboard" element={<TeamDashboardPage />} />
-        <Route path="projects" element={<TeamProjectsPage />} />
-        <Route path="projects/:id" element={<TeamProjectDetailsPage />} />
-      </Route>
+      {portal === 'team' && (
+        <Route path="/" element={
+          <ProtectedRoute allowedRoles={['employee', 'freelancer', 'administrator']}>
+            <TeamLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<TeamDashboardPage />} />
+          <Route path="dashboard" element={<TeamDashboardPage />} />
+          <Route path="projects" element={<TeamProjectsPage />} />
+          <Route path="projects/:id" element={<TeamProjectDetailsPage />} />
+        </Route>
+      )}
 
-      {/* Client Routes */}
-      <Route path="/client" element={
-        <ProtectedRoute allowedRoles={['client']}>
-          <ClientLayout />
-        </ProtectedRoute>
-      }>
-        <Route index element={<ClientDashboardPage />} />
-        <Route path="dashboard" element={<ClientDashboardPage />} />
-        <Route path="projects" element={<ClientProjectsPage />} />
-        <Route path="projects/:id" element={<ClientProjectDetailsPage />} />
-        <Route path="invoices" element={<ClientInvoicesPage />} />
-        <Route path="invoices/:id" element={<ClientInvoiceDetailsPage />} />
-        <Route path="quotes" element={<ClientQuotesPage />} />
-        <Route path="quotes/:id" element={<ClientQuoteDetailsPage />} />
-      </Route>
+      {portal === 'client' && (
+        <Route path="/" element={
+          <ProtectedRoute allowedRoles={['client']}>
+            <ClientLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<ClientDashboardPage />} />
+          <Route path="dashboard" element={<ClientDashboardPage />} />
+          <Route path="projects" element={<ClientProjectsPage />} />
+          <Route path="projects/:id" element={<ClientProjectDetailsPage />} />
+          <Route path="invoices" element={<ClientInvoicesPage />} />
+          <Route path="invoices/:id" element={<ClientInvoiceDetailsPage />} />
+          <Route path="quotes" element={<ClientQuotesPage />} />
+          <Route path="quotes/:id" element={<ClientQuoteDetailsPage />} />
+        </Route>
+      )}
+      
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

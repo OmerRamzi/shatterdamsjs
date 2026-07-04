@@ -11,12 +11,12 @@ import {
 import { useAuth } from '../../context/AuthContext';
 
 const navItems = [
-  { name: 'Dashboard', to: '/admin', icon: LayoutDashboard },
-  { name: 'Clients', to: '/admin/clients', icon: Users },
-  { name: 'Projects', to: '/admin/projects', icon: FolderKanban },
-  { name: 'Invoices', to: '/admin/invoices', icon: Receipt },
-  { name: 'Quotes', to: '/admin/quotes', icon: FileText },
-  { name: 'Team', to: '/admin/team', icon: ShieldAlert },
+  { name: 'Dashboard', to: '/', icon: LayoutDashboard },
+  { name: 'Clients', to: '/clients', icon: Users },
+  { name: 'Projects', to: '/projects', icon: FolderKanban },
+  { name: 'Invoices', to: '/invoices', icon: Receipt },
+  { name: 'Quotes', to: '/quotes', icon: FileText },
+  { name: 'Team', to: '/team', icon: ShieldAlert },
 ];
 
 export function AdminSidebar() {
