@@ -2,8 +2,10 @@ import { getInvoiceDetails } from "@/app/actions/invoices";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { InvoicePDFGenerator } from "@/components/ui/InvoicePDFGenerator";
+import dynamic from "next/dynamic";
 import { InvoiceActions } from "@/components/ui/InvoiceActions";
+
+const InvoicePDFGenerator = dynamic(() => import("@/components/ui/InvoicePDFGenerator").then(mod => mod.InvoicePDFGenerator), { ssr: false });
 
 export default async function AdminInvoiceDetailsPage({ params }: { params: { id: string } }) {
   const invoiceId = parseInt(params.id);
