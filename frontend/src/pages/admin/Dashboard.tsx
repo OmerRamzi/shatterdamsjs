@@ -14,7 +14,18 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetch('/api/activity?limit=5')
       .then(res => res.json())
-      .then(data => setActivities(data))
+      .then(data => {
+        if (Array.isArray(data)) {
+          setActivities(data);
+        } else {
+          setActivities([]);
+          console.error('Failed to load activities:', data);
+        }
+      })
+      .catch(err => {
+        console.error('Activity fetch error:', err);
+        setActivities([]);
+      })
       .finally(() => setIsLoading(false));
   }, []);
   

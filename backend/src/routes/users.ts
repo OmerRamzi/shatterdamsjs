@@ -14,7 +14,7 @@ router.get('/', async (c) => {
   const { data: allUsers, error: usersError } = await supabase
     .from('users')
     .select('*')
-    .eq('tenantId', user.tenantId);
+    .eq('tenant_id', user.tenantId);
 
   if (usersError) {
     return c.json({ error: usersError.message }, 500);

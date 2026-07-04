@@ -22,8 +22,8 @@ activityRoutes.get('/', async (c) => {
         displayName
       )
     `)
-    .eq("tenantId", user.tenantId)
-    .order("createdAt", { ascending: false })
+    .eq("tenant_id", user.tenantId)
+    .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) return c.json({ error: error.message }, 500);

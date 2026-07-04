@@ -21,7 +21,7 @@ clientsRoutes.get('/', async (c) => {
   const { data, error } = await supabase
     .from('clients')
     .select('*')
-    .eq('tenantId', user.tenantId);
+    .eq('tenant_id', user.tenantId);
     
   if (error) return c.json({ error: error.message }, 500);
   return c.json(data || []);

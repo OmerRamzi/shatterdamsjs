@@ -56,14 +56,14 @@ filesRoutes.post('/register', async (c) => {
 });
 
 filesRoutes.get('/project/:projectId', async (c) => {
-  const projectId = c.req.param('projectId');
+  const projectId = c.req.param('project_id');
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
   
   const { data } = await supabase
     .from('files')
     .select('*')
-    .eq('projectId', projectId)
-    .order('uploadedAt', { ascending: false });
+    .eq('project_id', projectId)
+    .order('uploaded_at', { ascending: false });
     
   return c.json(data || []);
 });

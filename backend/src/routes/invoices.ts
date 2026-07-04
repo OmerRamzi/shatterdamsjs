@@ -11,7 +11,7 @@ async function generateInvoiceNumber(supabase: any, tenantId: number) {
   const year = new Date().getFullYear();
   const prefix = `INV-${year}-`;
   
-  const { data: latest } = await supabase.from('invoices').select('invoiceNumber').eq('tenantId', tenantId).order('id', { ascending: false }).limit(1);
+  const { data: latest } = await supabase.from('invoices').select('invoice_number').eq('tenant_id', tenantId).order('id', { ascending: false }).limit(1);
 
   let sequence = 1;
   if (latest && latest.length > 0 && latest[0].invoiceNumber.startsWith(prefix)) {
@@ -25,7 +25,7 @@ invoicesRoutes.get('/', requireAdmin, async (c) => {
   const user = c.get('user');
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
   
-  const { data } = await supabase.from('invoices').select('*, client:clients(*), project:projects(*)').eq('tenantId', user.tenantId).order('createdAt', { ascending: false });
+  const { data } = await supabase.from('invoices').select('*, client:clients(*), project:projects(*)').eq('tenant_id', user.tenantId).order('created_at', { ascending: false });
     
   const formatted = (data || []).map((row: any) => {
     const { client, project, ...invoiceData } = row;
@@ -91,13 +91,13 @@ invoicesRoutes.get('/:id', async (c) => {
   if (row.tenantId !== user.tenantId) return c.json({ error: 'Unauthorized' }, 403);
 
   if (user.role === 'client') {
-    const { data: clientRecord } = await supabase.from('clients').select('*').eq('userId', user.sub).limit(1);
+    const { data: clientRecord } = await supabase.from('clients').select('*').eq('user_id', user.sub).limit(1);
     if (!clientRecord || clientRecord.length === 0 || row.clientId !== clientRecord[0].id) {
       return c.json({ error: 'Unauthorized' }, 403);
     }
   }
 
-  const { data: items } = await supabase.from('invoice_items').select('*').eq('invoiceId', invoiceId);
+  const { data: items } = await supabase.from('invoice_items').select('*').eq('invoice_id', invoiceId);
   const { client, project, ...invoiceData } = row;
   
   return c.json({

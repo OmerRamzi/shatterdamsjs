@@ -10,7 +10,7 @@ projectsRoutes.get('/', async (c) => {
   const user = c.get('user');
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
   
-  const { data, error } = await supabase.from('projects').select('*').eq('tenantId', user.tenantId);
+  const { data, error } = await supabase.from('projects').select('*').eq('tenant_id', user.tenantId);
   if (error) return c.json({ error: error.message }, 500);
   
   return c.json(data || []);

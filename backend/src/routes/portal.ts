@@ -12,10 +12,10 @@ portalRoutes.get('/client/projects', async (c) => {
   
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
   
-  const { data: clientRecord } = await supabase.from('clients').select('*').eq('userId', user.sub).limit(1);
+  const { data: clientRecord } = await supabase.from('clients').select('*').eq('user_id', user.sub).limit(1);
   if (!clientRecord || clientRecord.length === 0) return c.json([]);
 
-  const { data } = await supabase.from('projects').select('*').eq('clientId', clientRecord[0].id).order('createdAt', { ascending: false });
+  const { data } = await supabase.from('projects').select('*').eq('client_id', clientRecord[0].id).order('created_at', { ascending: false });
   return c.json(data || []);
 });
 
@@ -25,10 +25,10 @@ portalRoutes.get('/client/projects/:id', async (c) => {
   const projectId = c.req.param('id');
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
   
-  const { data: clientRecord } = await supabase.from('clients').select('*').eq('userId', user.sub).limit(1);
+  const { data: clientRecord } = await supabase.from('clients').select('*').eq('user_id', user.sub).limit(1);
   if (!clientRecord || clientRecord.length === 0) return c.json({ error: 'Unauthorized' }, 403);
 
-  const { data: projectList } = await supabase.from('projects').select('*').eq('id', projectId).eq('clientId', clientRecord[0].id).limit(1);
+  const { data: projectList } = await supabase.from('projects').select('*').eq('id', projectId).eq('client_id', clientRecord[0].id).limit(1);
   if (!projectList || projectList.length === 0) return c.json({ error: 'Unauthorized' }, 403);
   
   return c.json(projectList[0]);
@@ -40,13 +40,13 @@ portalRoutes.get('/client/projects/:id/files', async (c) => {
   const projectId = c.req.param('id');
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
   
-  const { data: clientRecord } = await supabase.from('clients').select('*').eq('userId', user.sub).limit(1);
+  const { data: clientRecord } = await supabase.from('clients').select('*').eq('user_id', user.sub).limit(1);
   if (!clientRecord || clientRecord.length === 0) return c.json({ error: 'Unauthorized' }, 403);
 
-  const { data: projectList } = await supabase.from('projects').select('*').eq('id', projectId).eq('clientId', clientRecord[0].id).limit(1);
+  const { data: projectList } = await supabase.from('projects').select('*').eq('id', projectId).eq('client_id', clientRecord[0].id).limit(1);
   if (!projectList || projectList.length === 0) return c.json({ error: 'Unauthorized' }, 403);
 
-  const { data } = await supabase.from('files').select('*').eq('projectId', projectId).in('status', ['client_review', 'approved']).order('uploadedAt', { ascending: false });
+  const { data } = await supabase.from('files').select('*').eq('project_id', projectId).in('status', ['client_review', 'approved']).order('uploaded_at', { ascending: false });
   return c.json(data || []);
 });
 
@@ -55,11 +55,11 @@ portalRoutes.get('/team/projects', async (c) => {
   if (!['employee', 'freelancer'].includes(user.role)) return c.json({ error: 'Unauthorized' }, 403);
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
   
-  const { data: assigned } = await supabase.from('project_team').select('projectId').eq('userId', user.sub);
+  const { data: assigned } = await supabase.from('project_team').select('project_id').eq('user_id', user.sub);
   if (!assigned || assigned.length === 0) return c.json([]);
 
   const projectIds = assigned.map(a => a.projectId);
-  const { data } = await supabase.from('projects').select('*, client:clients(*)').in('id', projectIds).order('createdAt', { ascending: false });
+  const { data } = await supabase.from('projects').select('*, client:clients(*)').in('id', projectIds).order('created_at', { ascending: false });
 
   const formatted = (data || []).map((row: any) => {
     const { client, ...project } = row;

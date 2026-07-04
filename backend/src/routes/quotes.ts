@@ -11,7 +11,7 @@ async function generateQuoteNumber(supabase: any, tenantId: number) {
   const year = new Date().getFullYear();
   const prefix = `QT-${year}-`;
   
-  const { data: latest } = await supabase.from('quotations').select('quoteNumber').eq('tenantId', tenantId).order('id', { ascending: false }).limit(1);
+  const { data: latest } = await supabase.from('quotations').select('quote_number').eq('tenant_id', tenantId).order('id', { ascending: false }).limit(1);
 
   let sequence = 1;
   if (latest && latest.length > 0 && latest[0].quoteNumber.startsWith(prefix)) {
@@ -25,7 +25,7 @@ quotesRoutes.get('/', requireAdmin, async (c) => {
   const user = c.get('user');
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
   
-  const { data } = await supabase.from('quotations').select('*, client:clients(*)').eq('tenantId', user.tenantId).order('createdAt', { ascending: false });
+  const { data } = await supabase.from('quotations').select('*, client:clients(*)').eq('tenant_id', user.tenantId).order('created_at', { ascending: false });
     
   const formatted = (data || []).map((row: any) => {
     const { client, ...quoteData } = row;
@@ -90,7 +90,7 @@ quotesRoutes.get('/:id', async (c) => {
   if (row.tenantId !== user.tenantId) return c.json({ error: 'Unauthorized' }, 403);
 
   if (user.role === 'client') {
-    const { data: clientRecord } = await supabase.from('clients').select('*').eq('userId', user.sub).limit(1);
+    const { data: clientRecord } = await supabase.from('clients').select('*').eq('user_id', user.sub).limit(1);
     if (!clientRecord || clientRecord.length === 0 || row.clientId !== clientRecord[0].id) {
       return c.json({ error: 'Unauthorized' }, 403);
     }
