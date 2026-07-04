@@ -1,6 +1,4 @@
-import { db } from "@/db";
-import { users, userRoles } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { supabase } from "@/db/supabase";
 import { auth } from "@/auth";
 import { Search, ShieldAlert, Users } from "lucide-react";
 
@@ -9,12 +7,12 @@ export default async function AdminUsersPage() {
   if (!session || !session.user) return null;
 
   // Fetch all users
-  const allUsers = await db.select().from(users).where(eq(users.tenantId, session.user.tenantId));
-  const roles = await db.select().from(userRoles);
+  const { data: allUsers } = await supabase.from("users").select("*").eq("tenantId", session.user.tenantId);
+  const { data: roles } = await supabase.from("user_roles").select("*");
 
-  const usersWithRoles = allUsers.map(u => ({
+  const usersWithRoles = (allUsers || []).map(u => ({
     ...u,
-    role: roles.find(r => r.userId === u.id)?.role || "unknown"
+    role: (roles || []).find(r => r.userId === u.id)?.role || "unknown"
   }));
 
   return (

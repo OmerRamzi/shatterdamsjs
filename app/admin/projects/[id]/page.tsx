@@ -1,7 +1,5 @@
 import { getProjectFiles } from "@/app/actions/files";
-import { db } from "@/db";
-import { projects, clients } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { supabase } from "@/db/supabase";
 import { notFound } from "next/navigation";
 import { FileUpload } from "@/components/ui/FileUpload";
 import { FileRowAction } from "@/components/ui/FileRowAction";
@@ -14,16 +12,18 @@ export default async function ProjectDetailsPage({ params }: { params: { id: str
   if (isNaN(projectId)) notFound();
 
   // Fetch Project & Client
-  const projectList = await db
-    .select({ project: projects, client: clients })
-    .from(projects)
-    .leftJoin(clients, eq(projects.clientId, clients.id))
-    .where(eq(projects.id, projectId))
+  const { data: projectList } = await supabase
+    .from("projects")
+    .select(`
+      *,
+      client:clients(*)
+    `)
+    .eq("id", projectId)
     .limit(1);
 
-  if (!projectList.length) notFound();
+  if (!projectList || !projectList.length) notFound();
   
-  const { project, client } = projectList[0];
+  const { client, ...project } = projectList[0];
   const projectFiles = await getProjectFiles(projectId);
 
   return (
