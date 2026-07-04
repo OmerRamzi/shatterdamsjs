@@ -37,7 +37,7 @@ authRoutes.post('/login', async (c) => {
   const user = userList[0];
 
   // Check password
-  const passwordsMatch = await bcrypt.compare(password, user.passwordHash);
+  const passwordsMatch = await bcrypt.compare(password, user.password_hash);
   if (!passwordsMatch) {
     return c.json({ error: 'Invalid credentials.' }, 401);
   }
@@ -46,7 +46,7 @@ authRoutes.post('/login', async (c) => {
   const { data: roleList } = await supabase
     .from('user_roles')
     .select('*')
-    .eq('userId', user.id)
+    .eq('user_id', user.id)
     .limit(1);
 
   const role = roleList && roleList.length > 0 ? roleList[0].role : 'client';
@@ -55,9 +55,9 @@ authRoutes.post('/login', async (c) => {
   const payload = {
     sub: user.id.toString(),
     email: user.email,
-    name: user.displayName,
+    name: user.display_name,
     role: role,
-    tenantId: user.tenantId,
+    tenantId: user.tenant_id,
     exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 1 week expiration
   };
 
@@ -77,9 +77,9 @@ authRoutes.post('/login', async (c) => {
     user: {
       id: user.id,
       email: user.email,
-      name: user.displayName,
+      name: user.display_name,
       role: role,
-      tenantId: user.tenantId
+      tenantId: user.tenant_id
     }
   });
 });
