@@ -14,9 +14,9 @@ app.get('/api/health', (c) => {
 
 app.get('/api/debug-env', (c) => {
   return c.json({ 
-    supabaseUrl: typeof c.env.SUPABASE_URL, 
-    jwt: typeof c.env.JWT_SECRET,
-    val: c.env.SUPABASE_URL || 'missing'
+    envString: JSON.stringify(c.env),
+    envType: typeof c.env,
+    envKeys: Object.keys(c.env || {})
   });
 });
 
