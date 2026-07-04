@@ -12,6 +12,11 @@ app.get('/api/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.onError((err, c) => {
+  console.error('Unhandled Error:', err);
+  return c.json({ error: err.message, stack: err.stack }, 500);
+});
+
 // We will mount routes here
 import authRoutes from './routes/auth';
 import clientsRoutes from './routes/clients';
