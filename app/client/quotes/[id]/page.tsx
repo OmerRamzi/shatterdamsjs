@@ -2,10 +2,8 @@ import { getQuoteDetails } from "@/app/actions/quotes";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import dynamic from "next/dynamic";
 import { ClientQuoteAction } from "@/components/ui/ClientQuoteAction";
-
-const QuotePDFGenerator = dynamic(() => import("@/components/ui/QuotePDFGenerator").then(mod => mod.QuotePDFGenerator), { ssr: false });
+import { QuotePDFGenerator } from "@/components/ui/DynamicPDFGenerators";
 
 export default async function ClientQuoteDetailsPage({ params }: { params: { id: string } }) {
   const quoteId = parseInt(params.id);
