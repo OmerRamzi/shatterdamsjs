@@ -1,17 +1,53 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, MoreHorizontal, FolderGit2 } from "lucide-react";
+import { Plus, Search, FolderGit2, Pencil, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { ProjectModal } from "../../components/admin/ProjectModal";
 
 export default function AdminProjectsPage() {
   const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<any>(null);
+
+  const fetchProjects = () => {
+    setIsLoading(true);
     fetch('/api/projects')
       .then(res => res.json())
       .then(data => setProjects(data))
       .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    fetchProjects();
   }, []);
+
+  const handleAdd = () => {
+    setSelectedProject(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (project: any) => {
+    setSelectedProject(project);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this project?')) return;
+    
+    try {
+      const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchProjects();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete project');
+      }
+    } catch (error) {
+      alert('Error deleting project');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -20,7 +56,7 @@ export default function AdminProjectsPage() {
           <h2 className="text-3xl font-bold tracking-tight">Projects</h2>
           <p className="text-muted-foreground mt-1">Track and manage client engagements.</p>
         </div>
-        <button className="btn-primary">
+        <button onClick={handleAdd} className="btn-primary">
           <Plus className="w-4 h-4" />
           Create Project
         </button>
@@ -67,7 +103,7 @@ export default function AdminProjectsPage() {
                 </tr>
               ) : (
                 projects.map((project) => (
-                  <tr key={project.id} className="hover:bg-secondary/20 transition-colors">
+                  <tr key={project.id} className="hover:bg-secondary/20 transition-colors group">
                     <td className="px-6 py-4 font-medium">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-primary">
@@ -115,9 +151,22 @@ export default function AdminProjectsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-secondary transition-colors">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => handleEdit(project)}
+                          className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
+                          title="Edit Project"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(project.id)}
+                          className="text-muted-foreground hover:text-destructive p-1.5 rounded hover:bg-destructive/10 transition-colors"
+                          title="Delete Project"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -126,6 +175,13 @@ export default function AdminProjectsPage() {
           </table>
         </div>
       </div>
+
+      <ProjectModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSaved={fetchProjects}
+        project={selectedProject}
+      />
     </div>
   );
 }

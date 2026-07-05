@@ -1,16 +1,52 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, MoreHorizontal, User } from "lucide-react";
+import { Plus, Search, User, Pencil, Trash2 } from "lucide-react";
+import { TeamModal } from "../../components/admin/TeamModal";
 
 export default function AdminTeamPage() {
   const [team, setTeam] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<any>(null);
+
+  const fetchTeam = () => {
+    setIsLoading(true);
     fetch('/api/team')
       .then(res => res.json())
       .then(data => setTeam(data))
       .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    fetchTeam();
   }, []);
+
+  const handleAdd = () => {
+    setSelectedMember(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (member: any) => {
+    setSelectedMember(member);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to remove this team member?')) return;
+    
+    try {
+      const res = await fetch(`/api/team/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchTeam();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to remove team member');
+      }
+    } catch (error) {
+      alert('Error removing team member');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -19,7 +55,7 @@ export default function AdminTeamPage() {
           <h2 className="text-3xl font-bold tracking-tight">Team</h2>
           <p className="text-muted-foreground mt-1">Manage your internal staff and freelancers.</p>
         </div>
-        <button className="btn-primary">
+        <button onClick={handleAdd} className="btn-primary">
           <Plus className="w-4 h-4" />
           Add Member
         </button>
@@ -66,7 +102,7 @@ export default function AdminTeamPage() {
                 </tr>
               ) : (
                 team.map((member) => (
-                  <tr key={member.id} className="hover:bg-secondary/20 transition-colors">
+                  <tr key={member.id} className="hover:bg-secondary/20 transition-colors group">
                     <td className="px-6 py-4 font-medium">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
@@ -81,20 +117,33 @@ export default function AdminTeamPage() {
                     <td className="px-6 py-4 text-muted-foreground capitalize">{member.role}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        member.isActive 
+                        member.isActive !== false
                           ? 'bg-emerald-500/10 text-emerald-500' 
                           : 'bg-destructive/10 text-destructive'
                       }`}>
-                        {member.isActive ? "Active" : "Inactive"}
+                        {member.isActive !== false ? "Active" : "Inactive"}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
                       {member.lastLoginAt ? new Date(member.lastLoginAt).toLocaleDateString() : "Never"}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-secondary transition-colors">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => handleEdit(member)}
+                          className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
+                          title="Edit Member"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(member.id)}
+                          className="text-muted-foreground hover:text-destructive p-1.5 rounded hover:bg-destructive/10 transition-colors"
+                          title="Remove Member"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -103,6 +152,13 @@ export default function AdminTeamPage() {
           </table>
         </div>
       </div>
+
+      <TeamModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSaved={fetchTeam}
+        member={selectedMember}
+      />
     </div>
   );
 }

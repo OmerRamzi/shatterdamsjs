@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, MoreHorizontal, Building2 } from "lucide-react";
+import { Plus, Search, Building2, Pencil, Trash2 } from "lucide-react";
 import { ActivateClientButton } from "../../components/ui/ActivateClientButton";
+import { ClientModal } from "../../components/admin/ClientModal";
 
 export default function AdminClientsPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<any>(null);
 
   const fetchClients = () => {
+    setIsLoading(true);
     fetch('/api/clients')
       .then(res => res.json())
       .then(data => setClients(data))
@@ -17,6 +23,32 @@ export default function AdminClientsPage() {
     fetchClients();
   }, []);
 
+  const handleAdd = () => {
+    setSelectedClient(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (client: any) => {
+    setSelectedClient(client);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this client? This cannot be undone.')) return;
+    
+    try {
+      const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchClients();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete client');
+      }
+    } catch (error) {
+      alert('Error deleting client');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -24,7 +56,7 @@ export default function AdminClientsPage() {
           <h2 className="text-3xl font-bold tracking-tight">Clients</h2>
           <p className="text-muted-foreground mt-1">Manage your clients and their portal access.</p>
         </div>
-        <button className="btn-primary">
+        <button onClick={handleAdd} className="btn-primary">
           <Plus className="w-4 h-4" />
           Add Client
         </button>
@@ -40,7 +72,6 @@ export default function AdminClientsPage() {
               className="w-full bg-secondary/50 border-none rounded-md pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
-          <button className="btn-secondary text-sm">Filter</button>
         </div>
         
         <div className="overflow-x-auto">
@@ -72,7 +103,7 @@ export default function AdminClientsPage() {
                 </tr>
               ) : (
                 clients.map((client) => (
-                  <tr key={client.id} className="hover:bg-secondary/20 transition-colors">
+                  <tr key={client.id} className="hover:bg-secondary/20 transition-colors group">
                     <td className="px-6 py-4 font-medium">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
@@ -104,9 +135,22 @@ export default function AdminClientsPage() {
                       {new Date(client.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-secondary transition-colors">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => handleEdit(client)}
+                          className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
+                          title="Edit Client"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(client.id)}
+                          className="text-muted-foreground hover:text-destructive p-1.5 rounded hover:bg-destructive/10 transition-colors"
+                          title="Delete Client"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -115,6 +159,13 @@ export default function AdminClientsPage() {
           </table>
         </div>
       </div>
+
+      <ClientModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSaved={fetchClients}
+        client={selectedClient}
+      />
     </div>
   );
 }
