@@ -1,17 +1,38 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Receipt } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function AdminInvoicesPage() {
   const [invoicesList, setInvoicesList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchInvoices = () => {
+    setIsLoading(true);
     fetch('/api/invoices')
       .then(res => res.json())
       .then(data => setInvoicesList(data))
       .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    fetchInvoices();
   }, []);
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this invoice? This cannot be undone.')) return;
+    
+    try {
+      const res = await fetch(`/api/invoices/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchInvoices();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete invoice');
+      }
+    } catch (error) {
+      alert('Error deleting invoice');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -47,18 +68,19 @@ export default function AdminInvoicesPage() {
                 <th className="px-6 py-4 font-medium">Date</th>
                 <th className="px-6 py-4 font-medium">Amount</th>
                 <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-6 py-4 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
                     Loading invoices...
                   </td>
                 </tr>
               ) : invoicesList.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center">
                       <Receipt className="w-8 h-8 mb-2 opacity-50" />
                       <p>No invoices found.</p>
@@ -67,7 +89,7 @@ export default function AdminInvoicesPage() {
                 </tr>
               ) : (
                 invoicesList.map(({ invoice, client }) => (
-                  <tr key={invoice.id} className="hover:bg-secondary/20 transition-colors">
+                  <tr key={invoice.id} className="hover:bg-secondary/20 transition-colors group">
                     <td className="px-6 py-4 font-medium">
                       <Link to={`/admin/invoices/${invoice.id}`} className="hover:text-primary transition-colors">
                         {invoice.invoiceNumber}
@@ -87,6 +109,31 @@ export default function AdminInvoicesPage() {
                       }`}>
                         {invoice.status}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Link 
+                          to={`/admin/invoices/${invoice.id}`}
+                          className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
+                          title="View Invoice"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <Link 
+                          to={`/admin/invoices/${invoice.id}/edit`}
+                          className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
+                          title="Edit Invoice"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Link>
+                        <button 
+                          onClick={() => handleDelete(invoice.id)}
+                          className="text-muted-foreground hover:text-destructive p-1.5 rounded hover:bg-destructive/10 transition-colors"
+                          title="Delete Invoice"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

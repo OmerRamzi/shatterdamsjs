@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-export function InvoiceForm({ clients, projects }: { clients: any[], projects: any[] }) {
+export function InvoiceForm({ clients, projects, initialData }: { clients: any[], projects: any[], initialData?: any }) {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -12,8 +12,27 @@ export function InvoiceForm({ clients, projects }: { clients: any[], projects: a
   const [projectId, setProjectId] = useState<number | "">("");
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [status, setStatus] = useState("draft");
   
   const [items, setItems] = useState([{ description: "", quantity: 1, unitPrice: 0 }]);
+
+  useEffect(() => {
+    if (initialData) {
+      setClientId(initialData.invoice.clientId || "");
+      setProjectId(initialData.invoice.projectId || "");
+      setDueDate(initialData.invoice.dueDate ? new Date(initialData.invoice.dueDate).toISOString().split('T')[0] : "");
+      setNotes(initialData.invoice.notes || "");
+      setStatus(initialData.invoice.status || "draft");
+      
+      if (initialData.items && initialData.items.length > 0) {
+        setItems(initialData.items.map((i: any) => ({
+          description: i.description,
+          quantity: parseFloat(i.quantity),
+          unitPrice: parseFloat(i.unitPrice)
+        })));
+      }
+    }
+  }, [initialData]);
 
   const addItem = () => setItems([...items, { description: "", quantity: 1, unitPrice: 0 }]);
   const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx));
@@ -32,25 +51,29 @@ export function InvoiceForm({ clients, projects }: { clients: any[], projects: a
     
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/invoices', {
-        method: 'POST',
+      const url = initialData ? `/api/invoices/${initialData.invoice.id}` : '/api/invoices';
+      const method = initialData ? 'PUT' : 'POST';
+      
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId: Number(clientId),
           projectId: projectId ? Number(projectId) : undefined,
           dueDate: dueDate ? new Date(dueDate) : undefined,
           notes,
+          status,
           items,
         })
       });
-      if (!res.ok) throw new Error("Failed to create invoice");
+      if (!res.ok) throw new Error("Failed to save invoice");
       const data = await res.json();
       if (data.success) {
-        navigate(`/admin/invoices/${data.invoiceId}`);
+        navigate(`/admin/invoices/${initialData ? initialData.invoice.id : data.invoiceId}`);
       }
     } catch (error) {
       console.error(error);
-      alert("Failed to create invoice.");
+      alert("Failed to save invoice.");
       setIsSubmitting(false);
     }
   };
@@ -99,6 +122,22 @@ export function InvoiceForm({ clients, projects }: { clients: any[], projects: a
               className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
+          
+          {initialData && (
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Status</label>
+              <select 
+                value={status}
+                onChange={e => setStatus(e.target.value)}
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                <option value="draft">Draft</option>
+                <option value="sent">Sent</option>
+                <option value="paid">Paid</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -178,7 +217,7 @@ export function InvoiceForm({ clients, projects }: { clients: any[], projects: a
           disabled={isSubmitting}
           className="btn-primary w-full sm:w-auto px-8"
         >
-          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Generate Invoice"}
+          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (initialData ? "Save Changes" : "Generate Invoice")}
         </button>
       </div>
     </form>

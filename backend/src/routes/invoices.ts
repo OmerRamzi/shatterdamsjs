@@ -23,9 +23,15 @@ async function generateInvoiceNumber(supabase: any, tenantId: number) {
 
 invoicesRoutes.get('/', requireAdmin, async (c) => {
   const user = c.get('user');
+  const clientId = c.req.query('clientId');
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
   
-  const { data } = await supabase.from('invoices').select('*, client:clients(*), project:projects(*)').eq('tenant_id', user.tenantId).order('created_at', { ascending: false });
+  let query = supabase.from('invoices').select('*, client:clients(*), project:projects(*)').eq('tenant_id', user.tenantId);
+  if (clientId) {
+    query = query.eq('client_id', clientId);
+  }
+  
+  const { data } = await query.order('created_at', { ascending: false });
     
   const formatted = (data || []).map((row: any) => {
     const { client, project, ...invoiceData } = row;
@@ -43,18 +49,18 @@ invoicesRoutes.post('/', requireAdmin, async (c) => {
   const subtotal = data.items.reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0);
 
   const { data: newInvoice, error: invError } = await supabase.from('invoices').insert({
-    tenantId: admin.tenantId,
-    clientId: data.clientId,
-    projectId: data.projectId,
-    invoiceNumber,
-    issueDate: new Date().toISOString(),
-    dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : new Date(Date.now() + 30*24*60*60*1000).toISOString(),
+    tenant_id: admin.tenantId,
+    client_id: data.clientId,
+    project_id: data.projectId,
+    invoice_number: invoiceNumber,
+    issue_date: new Date().toISOString(),
+    due_date: data.dueDate ? new Date(data.dueDate).toISOString() : new Date(Date.now() + 30*24*60*60*1000).toISOString(),
     subtotal: subtotal.toString(),
     tax: '0',
     total: subtotal.toString(),
     status: 'draft',
     notes: data.notes,
-    createdBy: parseInt(admin.sub as string),
+    created_by: parseInt(admin.sub as string),
   }).select('id').single();
 
   if (invError || !newInvoice) return c.json({ error: invError?.message || 'Failed to create invoice' }, 500);
@@ -62,17 +68,17 @@ invoicesRoutes.post('/', requireAdmin, async (c) => {
 
   for (const item of data.items) {
     await supabase.from('invoice_items').insert({
-      invoiceId,
+      invoice_id: invoiceId,
       description: item.description,
       quantity: item.quantity.toString(),
-      unitPrice: item.unitPrice.toString(),
+      unit_price: item.unitPrice.toString(),
       amount: (item.quantity * item.unitPrice).toString(),
     });
   }
 
   await supabase.from('activity_logs').insert({
-    tenantId: admin.tenantId,
-    userId: parseInt(admin.sub as string),
+    tenant_id: admin.tenantId,
+    user_id: parseInt(admin.sub as string),
     action: `Invoice ${invoiceNumber} created.`,
   });
 
@@ -88,11 +94,11 @@ invoicesRoutes.get('/:id', async (c) => {
   if (error || !invoiceList || invoiceList.length === 0) return c.json({ error: 'Invoice not found' }, 404);
   const row = invoiceList[0] as any;
   
-  if (row.tenantId !== user.tenantId) return c.json({ error: 'Unauthorized' }, 403);
+  if (row.tenant_id !== user.tenantId) return c.json({ error: 'Unauthorized' }, 403);
 
   if (user.role === 'client') {
     const { data: clientRecord } = await supabase.from('clients').select('*').eq('user_id', user.sub).limit(1);
-    if (!clientRecord || clientRecord.length === 0 || row.clientId !== clientRecord[0].id) {
+    if (!clientRecord || clientRecord.length === 0 || row.client_id !== clientRecord[0].id) {
       return c.json({ error: 'Unauthorized' }, 403);
     }
   }
@@ -124,9 +130,9 @@ invoicesRoutes.post('/:id/send', requireAdmin, async (c) => {
   await resend.emails.send({
     from: 'Shatter DAMS Billing <hello@mailer.meetshatter.com>',
     to: [clientEmail],
-    subject: `Invoice ${row.invoiceNumber} from Shatter`,
+    subject: `Invoice ${row.invoice_number} from Shatter`,
     html: `
-      <h2>Invoice ${row.invoiceNumber}</h2>
+      <h2>Invoice ${row.invoice_number}</h2>
       <p>Dear ${row.client?.contactPerson || row.client?.companyName},</p>
       <p>A new invoice has been generated for your account for the amount of <strong>$${row.total}</strong>.</p>
       <p>You can view and download your invoice securely by logging into your client portal.</p>
@@ -138,9 +144,9 @@ invoicesRoutes.post('/:id/send', requireAdmin, async (c) => {
 
   await supabase.from('invoices').update({ status: 'sent' }).eq('id', invoiceId);
   await supabase.from('activity_logs').insert({
-    tenantId: admin.tenantId,
-    userId: parseInt(admin.sub as string),
-    action: `Invoice ${row.invoiceNumber} sent to client.`,
+    tenant_id: admin.tenantId,
+    user_id: parseInt(admin.sub as string),
+    action: `Invoice ${row.invoice_number} sent to client.`,
   });
 
   return c.json({ success: true });
@@ -156,10 +162,62 @@ invoicesRoutes.patch('/:id/paid', requireAdmin, async (c) => {
 
   await supabase.from('invoices').update({ status: 'paid' }).eq('id', invoiceId);
   await supabase.from('activity_logs').insert({
-    tenantId: admin.tenantId,
-    userId: parseInt(admin.sub as string),
-    action: `Invoice ${invoiceList[0].invoiceNumber} marked as paid.`,
+    tenant_id: admin.tenantId,
+    user_id: parseInt(admin.sub as string),
+    action: `Invoice ${invoiceList[0].invoice_number} marked as paid.`,
   });
+
+  return c.json({ success: true });
+});
+
+invoicesRoutes.put('/:id', requireAdmin, async (c) => {
+  const admin = c.get('user');
+  const invoiceId = c.req.param('id');
+  const data = await c.req.json();
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+
+  const subtotal = data.items.reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0);
+
+  const { error: invError } = await supabase.from('invoices').update({
+    client_id: data.clientId,
+    project_id: data.projectId,
+    due_date: data.dueDate ? new Date(data.dueDate).toISOString() : undefined,
+    subtotal: subtotal.toString(),
+    total: subtotal.toString(),
+    status: data.status || 'draft',
+    notes: data.notes,
+  }).eq('id', invoiceId).eq('tenant_id', admin.tenantId);
+
+  if (invError) return c.json({ error: invError.message || 'Failed to update invoice' }, 500);
+
+  // Re-create items
+  for (const item of data.items) {
+    await supabase.from('invoice_items').insert({
+      invoice_id: invoiceId,
+      description: item.description,
+      quantity: item.quantity.toString(),
+      unit_price: item.unitPrice.toString(),
+      amount: (item.quantity * item.unitPrice).toString(),
+    });
+  }
+
+  return c.json({ success: true });
+});
+
+invoicesRoutes.delete('/:id', requireAdmin, async (c) => {
+  const admin = c.get('user');
+  const invoiceId = c.req.param('id');
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+  
+  // Note: invoice_items will automatically cascade delete if set up in schema. If not, delete them first.
+  await supabase.from('invoice_items').delete().eq('invoice_id', invoiceId);
+
+  const { error } = await supabase.from('invoices')
+    .delete()
+    .eq('id', invoiceId)
+    .eq('tenant_id', admin.tenantId);
+    
+  if (error) return c.json({ error: error.message }, 500);
 
   return c.json({ success: true });
 });

@@ -35,4 +35,41 @@ tasksRoutes.post('/', async (c) => {
   return c.json({ success: true });
 });
 
+tasksRoutes.put('/:id', async (c) => {
+  const user = c.get('user');
+  const taskId = c.req.param('id');
+  const data = await c.req.json();
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+
+  const { error } = await supabase.from('tasks')
+    .update({
+      project_id: data.projectId,
+      title: data.title,
+      status: data.status,
+      due_date: data.dueDate,
+      assignee_id: data.assigneeId
+    })
+    .eq('id', taskId)
+    .eq('tenant_id', user.tenantId);
+
+  if (error) return c.json({ error: error.message }, 500);
+
+  return c.json({ success: true });
+});
+
+tasksRoutes.delete('/:id', async (c) => {
+  const user = c.get('user');
+  const taskId = c.req.param('id');
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+  
+  const { error } = await supabase.from('tasks')
+    .delete()
+    .eq('id', taskId)
+    .eq('tenant_id', user.tenantId);
+    
+  if (error) return c.json({ error: error.message }, 500);
+
+  return c.json({ success: true });
+});
+
 export default tasksRoutes;

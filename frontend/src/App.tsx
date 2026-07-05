@@ -4,13 +4,16 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/Login';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminClientsPage from './pages/admin/Clients';
+import AdminClientDetailsPage from './pages/admin/ClientDetails';
 import AdminProjectsPage from './pages/admin/Projects';
 import AdminTeamPage from './pages/admin/Team';
 import AdminInvoicesPage from './pages/admin/Invoices';
 import AdminNewInvoicePage from './pages/admin/NewInvoice';
+import AdminEditInvoicePage from './pages/admin/EditInvoice';
 import AdminInvoiceDetailsPage from './pages/admin/InvoiceDetails';
 import AdminQuotesPage from './pages/admin/Quotes';
 import AdminNewQuotePage from './pages/admin/NewQuote';
+import AdminEditQuotePage from './pages/admin/EditQuote';
 import AdminQuoteDetailsPage from './pages/admin/QuoteDetails';
 import AdminProjectDetailsPage from './pages/admin/ProjectDetails';
 import AdminUsersPage from './pages/admin/Users';
@@ -83,14 +86,17 @@ function AppRoutes() {
         }>
           <Route index element={<AdminDashboard />} />
           <Route path="clients" element={<AdminClientsPage />} />
+          <Route path="clients/:id" element={<AdminClientDetailsPage />} />
           <Route path="projects" element={<AdminProjectsPage />} />
           <Route path="projects/:id" element={<AdminProjectDetailsPage />} />
           <Route path="team" element={<AdminTeamPage />} />
           <Route path="invoices" element={<AdminInvoicesPage />} />
           <Route path="invoices/new" element={<AdminNewInvoicePage />} />
+          <Route path="invoices/:id/edit" element={<AdminEditInvoicePage />} />
           <Route path="invoices/:id" element={<AdminInvoiceDetailsPage />} />
           <Route path="quotes" element={<AdminQuotesPage />} />
           <Route path="quotes/new" element={<AdminNewQuotePage />} />
+          <Route path="quotes/:id/edit" element={<AdminEditQuotePage />} />
           <Route path="quotes/:id" element={<AdminQuoteDetailsPage />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="timesheets" element={<AdminTimesheetsPage />} />

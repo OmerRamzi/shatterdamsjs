@@ -1,17 +1,38 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, FileText } from "lucide-react";
+import { Plus, Search, FileText, Pencil, Trash2, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function AdminQuotesPage() {
   const [quotesList, setQuotesList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchQuotes = () => {
+    setIsLoading(true);
     fetch('/api/quotes')
       .then(res => res.json())
       .then(data => setQuotesList(data))
       .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    fetchQuotes();
   }, []);
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this quote? This cannot be undone.')) return;
+    
+    try {
+      const res = await fetch(`/api/quotes/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchQuotes();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete quote');
+      }
+    } catch (error) {
+      alert('Error deleting quote');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -47,18 +68,19 @@ export default function AdminQuotesPage() {
                 <th className="px-6 py-4 font-medium">Date</th>
                 <th className="px-6 py-4 font-medium">Amount</th>
                 <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-6 py-4 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
                     Loading quotes...
                   </td>
                 </tr>
               ) : quotesList.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center">
                       <FileText className="w-8 h-8 mb-2 opacity-50" />
                       <p>No quotes found.</p>
@@ -67,7 +89,7 @@ export default function AdminQuotesPage() {
                 </tr>
               ) : (
                 quotesList.map(({ quote, client }) => (
-                  <tr key={quote.id} className="hover:bg-secondary/20 transition-colors">
+                  <tr key={quote.id} className="hover:bg-secondary/20 transition-colors group">
                     <td className="px-6 py-4 font-medium text-foreground">
                       <Link to={`/admin/quotes/${quote.id}`} className="hover:text-primary transition-colors">
                         {quote.quoteNumber}
@@ -89,6 +111,31 @@ export default function AdminQuotesPage() {
                       }`}>
                         {quote.status}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Link 
+                          to={`/admin/quotes/${quote.id}`}
+                          className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
+                          title="View Quote"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <Link 
+                          to={`/admin/quotes/${quote.id}/edit`}
+                          className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
+                          title="Edit Quote"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Link>
+                        <button 
+                          onClick={() => handleDelete(quote.id)}
+                          className="text-muted-foreground hover:text-destructive p-1.5 rounded hover:bg-destructive/10 transition-colors"
+                          title="Delete Quote"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

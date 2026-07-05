@@ -14,6 +14,21 @@ const clientsRoutes = new Hono<{ Bindings: Bindings, Variables: { user: any } }>
 
 clientsRoutes.use('*', requireAuth, requireAdmin);
 
+const mapClientToCamelCase = (c: any) => ({
+  id: c.id,
+  tenantId: c.tenant_id,
+  companyName: c.company_name,
+  contactPerson: c.contact_person,
+  email: c.email,
+  phone: c.phone,
+  address: c.address,
+  city: c.city,
+  country: c.country,
+  status: c.status,
+  userId: c.user_id,
+  createdAt: c.created_at,
+});
+
 clientsRoutes.get('/', async (c) => {
   const user = c.get('user');
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
@@ -24,7 +39,24 @@ clientsRoutes.get('/', async (c) => {
     .eq('tenant_id', user.tenantId);
     
   if (error) return c.json({ error: error.message }, 500);
-  return c.json(data || []);
+  return c.json((data || []).map(mapClientToCamelCase));
+});
+
+clientsRoutes.get('/:id', async (c) => {
+  const user = c.get('user');
+  const clientId = c.req.param('id');
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('tenant_id', user.tenantId)
+    .eq('id', clientId)
+    .single();
+    
+  if (error) return c.json({ error: error.message }, 500);
+  if (!data) return c.json({ error: 'Client not found' }, 404);
+  return c.json(mapClientToCamelCase(data));
 });
 
 clientsRoutes.post('/', async (c) => {
@@ -33,9 +65,9 @@ clientsRoutes.post('/', async (c) => {
   const data = await c.req.json();
 
   const { error: insertError } = await supabase.from('clients').insert({
-    tenantId: admin.tenantId,
-    companyName: data.companyName,
-    contactPerson: data.contactPerson,
+    tenant_id: admin.tenantId,
+    company_name: data.companyName,
+    contact_person: data.contactPerson,
     email: data.email,
     phone: data.phone,
     address: data.address,
@@ -47,8 +79,8 @@ clientsRoutes.post('/', async (c) => {
   if (insertError) return c.json({ error: insertError.message }, 500);
 
   await supabase.from('activity_logs').insert({
-    tenantId: admin.tenantId,
-    userId: parseInt(admin.sub as string),
+    tenant_id: admin.tenantId,
+    user_id: parseInt(admin.sub as string),
     action: `Client '${data.companyName}' added (Unactivated).`,
   });
 
@@ -70,25 +102,25 @@ clientsRoutes.post('/:id/activate', async (c) => {
   if (getError || !clientList || clientList.length === 0) return c.json({ error: 'Client not found' }, 404);
   const client = clientList[0];
 
-  if (client.userId) return c.json({ error: 'Client is already activated' }, 400);
+  if (client.user_id) return c.json({ error: 'Client is already activated' }, 400);
 
   const randomPassword = Math.random().toString(36).slice(-8) + 'Aa1@';
   const passwordHash = await bcrypt.hash(randomPassword, 10);
 
   const { data: newUser, error: userError } = await supabase.from('users').insert({
-    tenantId: admin.tenantId,
+    tenant_id: admin.tenantId,
     email: client.email,
-    passwordHash,
-    displayName: client.contactPerson || client.companyName,
-    preferredLocale: 'en',
+    password_hash: passwordHash,
+    display_name: client.contact_person || client.company_name,
+    preferred_locale: 'en',
   }).select('id').single();
   
   if (userError || !newUser) return c.json({ error: userError?.message || 'Failed to create user' }, 500);
 
   const userId = newUser.id;
 
-  await supabase.from('user_roles').insert({ userId, role: 'client' });
-  await supabase.from('clients').update({ userId }).eq('id', clientId);
+  await supabase.from('user_roles').insert({ user_id: userId, role: 'client' });
+  await supabase.from('clients').update({ user_id: userId }).eq('id', clientId);
 
   await resend.emails.send({
     from: 'Shatter DAMS <hello@mailer.meetshatter.com>',
@@ -106,9 +138,9 @@ clientsRoutes.post('/:id/activate', async (c) => {
   });
 
   await supabase.from('activity_logs').insert({
-    tenantId: admin.tenantId,
-    userId: parseInt(admin.sub as string),
-    action: `Client '${client.companyName}' account activated and credentials emailed.`,
+    tenant_id: admin.tenantId,
+    user_id: parseInt(admin.sub as string),
+    action: `Client '${client.company_name}' account activated and credentials emailed.`,
   });
 
   return c.json({ success: true });
@@ -122,8 +154,8 @@ clientsRoutes.put('/:id', async (c) => {
   
   const { error } = await supabase.from('clients')
     .update({
-      companyName: data.companyName,
-      contactPerson: data.contactPerson,
+      company_name: data.companyName,
+      contact_person: data.contactPerson,
       email: data.email,
       phone: data.phone,
       address: data.address,
@@ -136,8 +168,8 @@ clientsRoutes.put('/:id', async (c) => {
   if (error) return c.json({ error: error.message }, 500);
 
   await supabase.from('activity_logs').insert({
-    tenantId: admin.tenantId,
-    userId: parseInt(admin.sub as string),
+    tenant_id: admin.tenantId,
+    user_id: parseInt(admin.sub as string),
     action: `Client '${data.companyName}' details updated.`,
   });
 
@@ -153,8 +185,8 @@ clientsRoutes.delete('/:id', async (c) => {
   if (error) return c.json({ error: error.message }, 500);
   
   await supabase.from('activity_logs').insert({
-    tenantId: admin.tenantId,
-    userId: parseInt(admin.sub as string),
+    tenant_id: admin.tenantId,
+    user_id: parseInt(admin.sub as string),
     action: `Client ID ${clientId} deleted.`,
   });
 

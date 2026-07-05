@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Building2, Pencil, Trash2 } from "lucide-react";
+import { Link } from 'react-router-dom';
+import { Plus, Search, Building2, Pencil, Trash2, Eye } from "lucide-react";
 import { ActivateClientButton } from "../../components/ui/ActivateClientButton";
 import { ClientModal } from "../../components/admin/ClientModal";
 
@@ -105,15 +106,15 @@ export default function AdminClientsPage() {
                 clients.map((client) => (
                   <tr key={client.id} className="hover:bg-secondary/20 transition-colors group">
                     <td className="px-6 py-4 font-medium">
-                      <div className="flex items-center gap-3">
+                      <Link to={`/admin/clients/${client.id}`} className="flex items-center gap-3 group/link hover:opacity-80 transition-opacity">
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
                           {client.companyName.charAt(0)}
                         </div>
                         <div>
-                          <p>{client.companyName}</p>
+                          <p className="group-hover/link:text-primary transition-colors">{client.companyName}</p>
                           <p className="text-xs text-muted-foreground font-normal">{client.email}</p>
                         </div>
-                      </div>
+                      </Link>
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">{client.contactPerson || "-"}</td>
                     <td className="px-6 py-4">
@@ -135,7 +136,14 @@ export default function AdminClientsPage() {
                       {new Date(client.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                        <Link 
+                          to={`/admin/clients/${client.id}`}
+                          className="text-muted-foreground hover:text-primary p-1.5 rounded-md hover:bg-secondary transition-colors"
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
                         <button 
                           onClick={() => handleEdit(client)}
                           className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"

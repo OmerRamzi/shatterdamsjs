@@ -23,9 +23,15 @@ async function generateQuoteNumber(supabase: any, tenantId: number) {
 
 quotesRoutes.get('/', requireAdmin, async (c) => {
   const user = c.get('user');
+  const clientId = c.req.query('clientId');
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
   
-  const { data } = await supabase.from('quotations').select('*, client:clients(*)').eq('tenant_id', user.tenantId).order('created_at', { ascending: false });
+  let query = supabase.from('quotations').select('*, client:clients(*)').eq('tenant_id', user.tenantId);
+  if (clientId) {
+    query = query.eq('client_id', clientId);
+  }
+  
+  const { data } = await query.order('created_at', { ascending: false });
     
   const formatted = (data || []).map((row: any) => {
     const { client, ...quoteData } = row;
@@ -43,17 +49,17 @@ quotesRoutes.post('/', requireAdmin, async (c) => {
   const subtotal = data.items.reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0);
 
   const { data: newQuote, error: quoteError } = await supabase.from('quotations').insert({
-    tenantId: admin.tenantId,
-    clientId: data.clientId,
-    quoteNumber,
-    issueDate: new Date().toISOString(),
+    tenant_id: admin.tenantId,
+    client_id: data.clientId,
+    quote_number: quoteNumber,
+    issue_date: new Date().toISOString(),
     subtotal: subtotal.toString(),
     tax: '0',
     total: subtotal.toString(),
     status: 'draft',
-    validUntil: data.validUntil ? new Date(data.validUntil).toISOString() : new Date(Date.now() + 30*24*60*60*1000).toISOString(),
+    valid_until: data.validUntil ? new Date(data.validUntil).toISOString() : new Date(Date.now() + 30*24*60*60*1000).toISOString(),
     notes: data.notes,
-    createdBy: parseInt(admin.sub as string),
+    created_by: parseInt(admin.sub as string),
   }).select('id').single();
 
   if (quoteError || !newQuote) return c.json({ error: quoteError?.message || 'Failed to create quote' }, 500);
@@ -61,17 +67,17 @@ quotesRoutes.post('/', requireAdmin, async (c) => {
 
   for (const item of data.items) {
     await supabase.from('quotation_items').insert({
-      quotationId,
+      quotation_id: quotationId,
       description: item.description,
       quantity: item.quantity.toString(),
-      unitPrice: item.unitPrice.toString(),
+      unit_price: item.unitPrice.toString(),
       amount: (item.quantity * item.unitPrice).toString(),
     });
   }
 
   await supabase.from('activity_logs').insert({
-    tenantId: admin.tenantId,
-    userId: parseInt(admin.sub as string),
+    tenant_id: admin.tenantId,
+    user_id: parseInt(admin.sub as string),
     action: `Quotation ${quoteNumber} created.`,
   });
 
@@ -136,9 +142,9 @@ quotesRoutes.post('/:id/send', requireAdmin, async (c) => {
 
   await supabase.from('quotations').update({ status: 'sent' }).eq('id', quoteId);
   await supabase.from('activity_logs').insert({
-    tenantId: admin.tenantId,
-    userId: parseInt(admin.sub as string),
-    action: `Quotation ${row.quoteNumber} sent to client.`,
+    tenant_id: admin.tenantId,
+    user_id: parseInt(admin.sub as string),
+    action: `Quotation ${row.quote_number} sent to client.`,
   });
 
   return c.json({ success: true });
@@ -154,10 +160,61 @@ quotesRoutes.patch('/:id/accept', async (c) => {
 
   await supabase.from('quotations').update({ status: 'accepted' }).eq('id', quoteId);
   await supabase.from('activity_logs').insert({
-    tenantId: user.tenantId,
-    userId: parseInt(user.sub as string),
-    action: `Quotation ${quoteList[0].quoteNumber} accepted.`,
+    tenant_id: user.tenantId,
+    user_id: parseInt(user.sub as string),
+    action: `Quotation ${quoteList[0].quote_number} accepted.`,
   });
+
+  return c.json({ success: true });
+});
+
+quotesRoutes.put('/:id', requireAdmin, async (c) => {
+  const admin = c.get('user');
+  const quoteId = c.req.param('id');
+  const data = await c.req.json();
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+
+  const subtotal = data.items.reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0);
+
+  const { error: quoteError } = await supabase.from('quotations').update({
+    client_id: data.clientId,
+    valid_until: data.validUntil ? new Date(data.validUntil).toISOString() : undefined,
+    subtotal: subtotal.toString(),
+    total: subtotal.toString(),
+    status: data.status || 'draft',
+    notes: data.notes,
+  }).eq('id', quoteId).eq('tenant_id', admin.tenantId);
+
+  if (quoteError) return c.json({ error: quoteError.message || 'Failed to update quote' }, 500);
+
+  // Re-create items
+  await supabase.from('quotation_items').delete().eq('quotation_id', quoteId);
+  for (const item of data.items) {
+    await supabase.from('quotation_items').insert({
+      quotation_id: quoteId,
+      description: item.description,
+      quantity: item.quantity.toString(),
+      unit_price: item.unitPrice.toString(),
+      amount: (item.quantity * item.unitPrice).toString(),
+    });
+  }
+
+  return c.json({ success: true });
+});
+
+quotesRoutes.delete('/:id', requireAdmin, async (c) => {
+  const admin = c.get('user');
+  const quoteId = c.req.param('id');
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+  
+  await supabase.from('quotation_items').delete().eq('quotation_id', quoteId);
+
+  const { error } = await supabase.from('quotations')
+    .delete()
+    .eq('id', quoteId)
+    .eq('tenant_id', admin.tenantId);
+    
+  if (error) return c.json({ error: error.message }, 500);
 
   return c.json({ success: true });
 });
