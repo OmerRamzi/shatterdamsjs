@@ -20,7 +20,7 @@ export function AdminTopbar() {
           <div className="w-5 h-5 rounded-full border border-slate-900 flex items-center justify-center">
             <User className="w-3 h-3" />
           </div>
-          {user?.displayName || 'Omer Ramzi'}
+          {user?.name || 'Omer Ramzi'}
           <ChevronDown className="w-4 h-4 opacity-70" />
         </button>
       </div>

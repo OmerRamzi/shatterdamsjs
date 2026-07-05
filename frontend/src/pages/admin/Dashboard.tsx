@@ -163,7 +163,7 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-slate-600">
-                        <span className="font-bold text-slate-900">{activity.user?.displayName || 'System'}</span>{" "}
+                        <span className="font-bold text-slate-900">{activity.user?.name || 'System'}</span>{" "}
                         {activity.action}
                       </p>
                       <p className="text-xs text-slate-400 mt-0.5 font-medium">
