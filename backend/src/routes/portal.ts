@@ -6,6 +6,29 @@ const portalRoutes = new Hono<{ Bindings: { SUPABASE_URL: string, SUPABASE_ANON_
 
 portalRoutes.use('*', requireAuth);
 
+portalRoutes.get('/stats', async (c) => {
+  const user = c.get('user');
+  if (user.role !== 'administrator') return c.json({ error: 'Unauthorized' }, 403);
+  
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+  
+  const [clientsRes, activeProjectsRes, allProjectsRes, invoicesRes] = await Promise.all([
+    supabase.from('clients').select('id', { count: 'exact' }).eq('tenant_id', user.tenantId),
+    supabase.from('projects').select('id', { count: 'exact' }).eq('tenant_id', user.tenantId).eq('status', 'active'),
+    supabase.from('projects').select('id', { count: 'exact' }).eq('tenant_id', user.tenantId),
+    supabase.from('invoices').select('amount').eq('tenant_id', user.tenantId).eq('status', 'paid')
+  ]);
+  
+  const revenue = (invoicesRes.data || []).reduce((acc: number, inv: any) => acc + (Number(inv.amount) || 0), 0);
+
+  return c.json({
+    totalClients: clientsRes.count || 0,
+    activeProjects: activeProjectsRes.count || 0,
+    allProjects: allProjectsRes.count || 0,
+    revenue: revenue,
+  });
+});
+
 portalRoutes.get('/client/projects', async (c) => {
   const user = c.get('user');
   if (user.role !== 'client') return c.json({ error: 'Unauthorized' }, 403);
@@ -58,7 +81,7 @@ portalRoutes.get('/team/projects', async (c) => {
   const { data: assigned } = await supabase.from('project_team').select('project_id').eq('user_id', user.sub);
   if (!assigned || assigned.length === 0) return c.json([]);
 
-  const projectIds = assigned.map(a => a.projectId);
+  const projectIds = assigned.map(a => (a as any).project_id);
   const { data } = await supabase.from('projects').select('*, client:clients(*)').in('id', projectIds).order('created_at', { ascending: false });
 
   const formatted = (data || []).map((row: any) => {

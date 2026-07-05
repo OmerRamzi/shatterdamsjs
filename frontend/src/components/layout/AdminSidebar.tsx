@@ -6,17 +6,27 @@ import {
   ShieldAlert, 
   Receipt,
   FileText,
+  Clock,
+  CheckSquare,
+  BarChart,
+  UserCog,
+  Settings,
   LogOut
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const navItems = [
-  { name: 'Dashboard', to: '/', icon: LayoutDashboard },
-  { name: 'Clients', to: '/clients', icon: Users },
+  { name: 'Overview', to: '/', icon: LayoutDashboard },
   { name: 'Projects', to: '/projects', icon: FolderKanban },
-  { name: 'Invoices', to: '/invoices', icon: Receipt },
-  { name: 'Quotes', to: '/quotes', icon: FileText },
+  { name: 'Clients', to: '/clients', icon: Users },
   { name: 'Team', to: '/team', icon: ShieldAlert },
+  { name: 'Timesheets', to: '/timesheets', icon: Clock },
+  { name: 'Invoices', to: '/invoices', icon: Receipt },
+  { name: 'Quotations', to: '/quotes', icon: FileText },
+  { name: 'Tasks', to: '/tasks', icon: CheckSquare },
+  { name: 'Reports', to: '/reports', icon: BarChart },
+  { name: 'Manage Users', to: '/users', icon: UserCog },
+  { name: 'Settings', to: '/settings', icon: Settings },
 ];
 
 export function AdminSidebar() {
@@ -24,32 +34,20 @@ export function AdminSidebar() {
   const { logout } = useAuth();
   
   return (
-    <div className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col hidden md:flex h-full">
-      <div className="p-6 border-b border-slate-800">
-        <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white text-sm">SD</span>
-          </div>
-          Shatter DAMS
-        </h1>
-        <p className="text-xs text-slate-400 mt-2 font-medium bg-slate-800/50 py-1 px-2 rounded-md inline-block">
-          Admin Portal
-        </p>
-      </div>
-      
-      <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
+    <div className="w-64 bg-white border-r border-slate-200 flex flex-col hidden md:flex h-full shadow-sm">
+      <nav className="flex-1 py-6 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.to || 
-                           (item.to !== '/admin' && location.pathname.startsWith(item.to));
+                           (item.to !== '/' && location.pathname.startsWith(item.to));
           
           return (
             <Link
               key={item.name}
               to={item.to}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+              className={`flex items-center gap-3 px-6 py-3 text-sm font-semibold transition-all duration-200 border-l-4 ${
                 isActive 
-                  ? 'bg-blue-600/10 text-blue-400' 
-                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                  ? 'border-yellow-400 text-yellow-500 bg-yellow-50/50' 
+                  : 'border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
               <item.icon className="w-5 h-5" />
@@ -59,10 +57,10 @@ export function AdminSidebar() {
         })}
       </nav>
       
-      <div className="p-4 border-t border-slate-800">
+      <div className="p-4 border-t border-slate-200">
         <button 
           onClick={logout} 
-          className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+          className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors"
         >
           <LogOut className="w-5 h-5" />
           Sign Out

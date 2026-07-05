@@ -1,12 +1,23 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { config } from './config';
 
 const app = new Hono<{ Bindings: { DATABASE_URL: string } }>();
 
 app.use('*', cors({
-  origin: ['http://localhost:5173'], // Vite default port
+  origin: ['http://localhost:5173', 'https://admin.meetshatter.com', 'https://team.meetshatter.com', 'https://client.meetshatter.com'], 
   credentials: true,
 }));
+
+// Inject config fallbacks into c.env because Cloudflare drops them on some CI builds
+app.use('*', async (c, next) => {
+  for (const [key, value] of Object.entries(config)) {
+    if (!(c.env as any)[key] && value) {
+      (c.env as any)[key] = value;
+    }
+  }
+  await next();
+});
 
 app.get('/api/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -36,6 +47,10 @@ import portalRoutes from './routes/portal';
 import invoicesRoutes from './routes/invoices';
 import quotesRoutes from './routes/quotes';
 import usersRoutes from './routes/users';
+import tasksRoutes from './routes/tasks';
+import timesheetsRoutes from './routes/timesheets';
+import reportsRoutes from './routes/reports';
+import settingsRoutes from './routes/settings';
 
 app.route('/api/auth', authRoutes);
 app.route('/api/clients', clientsRoutes);
@@ -47,6 +62,10 @@ app.route('/api/portal', portalRoutes);
 app.route('/api/invoices', invoicesRoutes);
 app.route('/api/quotes', quotesRoutes);
 app.route('/api/users', usersRoutes);
+app.route('/api/tasks', tasksRoutes);
+app.route('/api/timesheets', timesheetsRoutes);
+app.route('/api/reports', reportsRoutes);
+app.route('/api/settings', settingsRoutes);
 
 export default {
   fetch(request: Request, env: any, ctx: any) {

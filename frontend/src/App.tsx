@@ -14,6 +14,10 @@ import AdminNewQuotePage from './pages/admin/NewQuote';
 import AdminQuoteDetailsPage from './pages/admin/QuoteDetails';
 import AdminProjectDetailsPage from './pages/admin/ProjectDetails';
 import AdminUsersPage from './pages/admin/Users';
+import AdminTimesheetsPage from './pages/admin/Timesheets';
+import AdminTasksPage from './pages/admin/Tasks';
+import AdminReportsPage from './pages/admin/Reports';
+import AdminSettingsPage from './pages/admin/Settings';
 import ClientDashboardPage from './pages/client/Dashboard';
 import ClientProjectsPage from './pages/client/Projects';
 import ClientProjectDetailsPage from './pages/client/ProjectDetails';
@@ -89,6 +93,10 @@ function AppRoutes() {
           <Route path="quotes/new" element={<AdminNewQuotePage />} />
           <Route path="quotes/:id" element={<AdminQuoteDetailsPage />} />
           <Route path="users" element={<AdminUsersPage />} />
+          <Route path="timesheets" element={<AdminTimesheetsPage />} />
+          <Route path="tasks" element={<AdminTasksPage />} />
+          <Route path="reports" element={<AdminReportsPage />} />
+          <Route path="settings" element={<AdminSettingsPage />} />
         </Route>
       )}
 
