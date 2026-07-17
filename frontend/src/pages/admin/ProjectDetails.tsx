@@ -13,6 +13,8 @@ export default function AdminProjectDetailsPage() {
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'tasks'>('overview');
+
   const fetchProjectData = () => {
     fetch(`/api/projects/${projectId}`)
       .then(res => res.json())
@@ -20,6 +22,7 @@ export default function AdminProjectDetailsPage() {
         setProjectData(data.project);
         setProjectFiles(data.files || []);
       })
+      .catch(err => console.error("Error fetching project data:", err))
       .finally(() => setIsLoading(false));
   };
 
@@ -40,8 +43,6 @@ export default function AdminProjectDetailsPage() {
   if (!projectData) {
     return <div className="p-6 text-destructive">Project not found.</div>;
   }
-
-  const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'tasks'>('overview');
 
   return (
     <div className="space-y-6 max-w-5xl">
