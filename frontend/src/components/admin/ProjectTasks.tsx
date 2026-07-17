@@ -73,7 +73,7 @@ export function ProjectTasks({ projectId, tasks, onTasksUpdate }: { projectId: n
       <TaskModal 
         isOpen={isTaskModalOpen} 
         onClose={() => setIsTaskModalOpen(false)} 
-        onSuccess={onTasksUpdate}
+        onSaved={onTasksUpdate}
         preselectedProjectId={projectId}
       />
     </div>

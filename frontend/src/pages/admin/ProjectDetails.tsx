@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { FileUpload } from "../../components/ui/FileUpload";
 import { FileRowAction } from "../../components/ui/FileRowAction";
 import { FileComments } from "../../components/ui/FileComments";
+import { ProjectTasks } from "../../components/admin/ProjectTasks";
 import { File as FileIcon, Clock, CheckCircle, UploadCloud } from "lucide-react";
 
 export default function AdminProjectDetailsPage() {

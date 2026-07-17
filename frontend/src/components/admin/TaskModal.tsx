@@ -6,9 +6,10 @@ interface TaskModalProps {
   onClose: () => void;
   onSaved: () => void;
   task?: any;
+  preselectedProjectId?: number;
 }
 
-export function TaskModal({ isOpen, onClose, onSaved, task }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, onSaved, task, preselectedProjectId }: TaskModalProps) {
   const [formData, setFormData] = useState({
     title: '',
     projectId: '',
@@ -48,14 +49,14 @@ export function TaskModal({ isOpen, onClose, onSaved, task }: TaskModalProps) {
     } else {
       setFormData({
         title: '',
-        projectId: '',
+        projectId: preselectedProjectId ? preselectedProjectId.toString() : '',
         status: 'todo',
         dueDate: '',
         assigneeId: ''
       });
     }
     setError('');
-  }, [task, isOpen]);
+  }, [task, isOpen, preselectedProjectId]);
 
   if (!isOpen) return null;
 
