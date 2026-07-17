@@ -69,7 +69,7 @@ export function InvoiceForm({ clients, projects, initialData }: { clients: any[]
       if (!res.ok) throw new Error("Failed to save invoice");
       const data = await res.json();
       if (data.success) {
-        navigate(`/admin/invoices/${initialData ? initialData.invoice.id : data.invoiceId}`);
+        navigate(`/invoices/${initialData ? initialData.invoice.id : data.invoiceId}`);
       }
     } catch (error) {
       console.error(error);

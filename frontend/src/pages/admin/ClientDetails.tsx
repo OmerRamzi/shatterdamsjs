@@ -55,7 +55,7 @@ export default function AdminClientDetailsPage() {
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-          <Link to="/admin/clients" className="hover:text-foreground flex items-center gap-1 transition-colors">
+          <Link to="/clients" className="hover:text-foreground flex items-center gap-1 transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Clients
           </Link>
         </div>
@@ -162,7 +162,7 @@ export default function AdminClientDetailsPage() {
             <div className="space-y-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-lg">Projects</h3>
-                <Link to="/admin/projects" className="btn-primary flex items-center gap-2 text-sm py-1.5">
+                <Link to="/projects" className="btn-primary flex items-center gap-2 text-sm py-1.5">
                    Go to Projects
                 </Link>
               </div>
@@ -173,7 +173,7 @@ export default function AdminClientDetailsPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {projects.map(project => (
-                    <Link key={project.id} to={`/admin/projects/${project.id}`} className="block group">
+                    <Link key={project.id} to={`/projects/${project.id}`} className="block group">
                       <div className="bg-card border border-border p-4 rounded-xl shadow-sm hover:border-primary/50 transition-colors">
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-medium group-hover:text-primary transition-colors">{project.title}</h4>
@@ -198,7 +198,7 @@ export default function AdminClientDetailsPage() {
             <div className="space-y-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-lg">Invoices</h3>
-                <Link to="/admin/invoices/new" className="btn-primary flex items-center gap-2 text-sm py-1.5">
+                <Link to="/invoices/new" className="btn-primary flex items-center gap-2 text-sm py-1.5">
                    <Plus className="w-3.5 h-3.5" /> Create Invoice
                 </Link>
               </div>
@@ -222,7 +222,7 @@ export default function AdminClientDetailsPage() {
                       {invoices.map(({ invoice }) => (
                         <tr key={invoice.id} className="hover:bg-secondary/20 transition-colors">
                           <td className="px-4 py-3 font-medium text-foreground">
-                            <Link to={`/admin/invoices/${invoice.id}`} className="hover:text-primary transition-colors">
+                            <Link to={`/invoices/${invoice.id}`} className="hover:text-primary transition-colors">
                               {invoice.invoiceNumber}
                             </Link>
                           </td>
@@ -239,7 +239,7 @@ export default function AdminClientDetailsPage() {
                           </td>
                           <td className="px-4 py-3 text-right">
                              <Link 
-                              to={`/admin/invoices/${invoice.id}`}
+                              to={`/invoices/${invoice.id}`}
                               className="text-muted-foreground hover:text-primary p-1 rounded hover:bg-secondary transition-colors inline-block"
                             >
                               <Eye className="w-4 h-4" />
@@ -258,7 +258,7 @@ export default function AdminClientDetailsPage() {
             <div className="space-y-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-lg">Quotations</h3>
-                <Link to="/admin/quotes/new" className="btn-primary flex items-center gap-2 text-sm py-1.5">
+                <Link to="/quotes/new" className="btn-primary flex items-center gap-2 text-sm py-1.5">
                    <Plus className="w-3.5 h-3.5" /> Create Quote
                 </Link>
               </div>
@@ -282,7 +282,7 @@ export default function AdminClientDetailsPage() {
                       {quotes.map(({ quote }) => (
                         <tr key={quote.id} className="hover:bg-secondary/20 transition-colors">
                           <td className="px-4 py-3 font-medium text-foreground">
-                            <Link to={`/admin/quotes/${quote.id}`} className="hover:text-primary transition-colors">
+                            <Link to={`/quotes/${quote.id}`} className="hover:text-primary transition-colors">
                               {quote.quoteNumber}
                             </Link>
                           </td>
@@ -300,7 +300,7 @@ export default function AdminClientDetailsPage() {
                           </td>
                           <td className="px-4 py-3 text-right">
                              <Link 
-                              to={`/admin/quotes/${quote.id}`}
+                              to={`/quotes/${quote.id}`}
                               className="text-muted-foreground hover:text-primary p-1 rounded hover:bg-secondary transition-colors inline-block"
                             >
                               <Eye className="w-4 h-4" />

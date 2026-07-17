@@ -66,7 +66,7 @@ export function QuoteForm({ clients, initialData }: { clients: any[], projects?:
       if (!res.ok) throw new Error("Failed to save quote");
       const data = await res.json();
       if (data.success) {
-        navigate(`/admin/quotes/${initialData ? initialData.quote.id : data.quoteId}`);
+        navigate(`/quotes/${initialData ? initialData.quote.id : data.quoteId}`);
       }
     } catch (error) {
       console.error(error);

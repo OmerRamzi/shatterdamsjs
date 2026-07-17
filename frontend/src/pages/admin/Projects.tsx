@@ -110,7 +110,7 @@ export default function AdminProjectsPage() {
                           <FolderGit2 className="w-4 h-4" />
                         </div>
                         <div>
-                          <Link to={`/admin/projects/${project.id}`} className="font-medium hover:text-primary transition-colors">
+                          <Link to={`/projects/${project.id}`} className="font-medium hover:text-primary transition-colors">
                             {project.title}
                           </Link>
                           <p className="text-xs text-muted-foreground font-normal mt-0.5">

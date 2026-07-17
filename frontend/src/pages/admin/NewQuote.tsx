@@ -26,7 +26,7 @@ export default function AdminNewQuotePage() {
     <div className="space-y-6 max-w-4xl">
       <div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <Link to="/admin/quotes" className="hover:text-foreground flex items-center gap-1 transition-colors">
+          <Link to="/quotes" className="hover:text-foreground flex items-center gap-1 transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Quotes
           </Link>
         </div>

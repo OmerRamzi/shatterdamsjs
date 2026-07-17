@@ -49,7 +49,7 @@ export default function AdminProjectDetailsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-            <Link to="/admin/projects" className="hover:text-foreground transition-colors">Projects</Link>
+            <Link to="/projects" className="hover:text-foreground transition-colors">Projects</Link>
             <span>/</span>
             <span>{projectData.client?.companyName || "Unknown Client"}</span>
           </div>

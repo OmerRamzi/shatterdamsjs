@@ -106,7 +106,7 @@ export default function AdminClientsPage() {
                 clients.map((client) => (
                   <tr key={client.id} className="hover:bg-secondary/20 transition-colors group">
                     <td className="px-6 py-4 font-medium">
-                      <Link to={`/admin/clients/${client.id}`} className="flex items-center gap-3 group/link hover:opacity-80 transition-opacity">
+                      <Link to={`/clients/${client.id}`} className="flex items-center gap-3 group/link hover:opacity-80 transition-opacity">
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
                           {client.companyName.charAt(0)}
                         </div>
@@ -138,7 +138,7 @@ export default function AdminClientsPage() {
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
                         <Link 
-                          to={`/admin/clients/${client.id}`}
+                          to={`/clients/${client.id}`}
                           className="text-muted-foreground hover:text-primary p-1.5 rounded-md hover:bg-secondary transition-colors"
                           title="View Details"
                         >

@@ -41,7 +41,7 @@ export default function AdminQuotesPage() {
           <h2 className="text-3xl font-bold tracking-tight">Quotations</h2>
           <p className="text-muted-foreground mt-1">Manage pricing quotes and estimates.</p>
         </div>
-        <Link to="/admin/quotes/new" className="btn-primary flex items-center gap-2">
+        <Link to="/quotes/new" className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />
           Create Quote
         </Link>
@@ -91,7 +91,7 @@ export default function AdminQuotesPage() {
                 quotesList.map(({ quote, client }) => (
                   <tr key={quote.id} className="hover:bg-secondary/20 transition-colors group">
                     <td className="px-6 py-4 font-medium text-foreground">
-                      <Link to={`/admin/quotes/${quote.id}`} className="hover:text-primary transition-colors">
+                      <Link to={`/quotes/${quote.id}`} className="hover:text-primary transition-colors">
                         {quote.quoteNumber}
                       </Link>
                     </td>
@@ -115,14 +115,14 @@ export default function AdminQuotesPage() {
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Link 
-                          to={`/admin/quotes/${quote.id}`}
+                          to={`/quotes/${quote.id}`}
                           className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
                           title="View Quote"
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
                         <Link 
-                          to={`/admin/quotes/${quote.id}/edit`}
+                          to={`/quotes/${quote.id}/edit`}
                           className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
                           title="Edit Quote"
                         >

@@ -41,7 +41,7 @@ export default function AdminInvoicesPage() {
           <h2 className="text-3xl font-bold tracking-tight">Invoices</h2>
           <p className="text-muted-foreground mt-1">Manage and track all client billing.</p>
         </div>
-        <Link to="/admin/invoices/new" className="btn-primary flex items-center gap-2">
+        <Link to="/invoices/new" className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />
           Create Invoice
         </Link>
@@ -91,7 +91,7 @@ export default function AdminInvoicesPage() {
                 invoicesList.map(({ invoice, client }) => (
                   <tr key={invoice.id} className="hover:bg-secondary/20 transition-colors group">
                     <td className="px-6 py-4 font-medium">
-                      <Link to={`/admin/invoices/${invoice.id}`} className="hover:text-primary transition-colors">
+                      <Link to={`/invoices/${invoice.id}`} className="hover:text-primary transition-colors">
                         {invoice.invoiceNumber}
                       </Link>
                     </td>
@@ -113,14 +113,14 @@ export default function AdminInvoicesPage() {
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Link 
-                          to={`/admin/invoices/${invoice.id}`}
+                          to={`/invoices/${invoice.id}`}
                           className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
                           title="View Invoice"
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
                         <Link 
-                          to={`/admin/invoices/${invoice.id}/edit`}
+                          to={`/invoices/${invoice.id}/edit`}
                           className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
                           title="Edit Invoice"
                         >
