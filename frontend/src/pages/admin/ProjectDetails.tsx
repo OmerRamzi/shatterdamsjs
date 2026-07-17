@@ -51,7 +51,7 @@ export default function AdminProjectDetailsPage() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
             <Link to="/projects" className="hover:text-foreground transition-colors">Projects</Link>
             <span>/</span>
-            <span>{projectData.client?.companyName || "Unknown Client"}</span>
+            <span>{projectData.client?.company_name || "Unknown Client"}</span>
           </div>
           <h2 className="text-3xl font-bold tracking-tight">{projectData.title}</h2>
           <p className="text-muted-foreground mt-1 max-w-2xl">{projectData.description || "No description provided."}</p>
@@ -131,14 +131,14 @@ export default function AdminProjectDetailsPage() {
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-4">
                               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase">
-                                {file.originalFilename.split('.').pop()?.substring(0, 3)}
+                                {file.original_filename?.split('.').pop()?.substring(0, 3)}
                               </div>
                               <div>
                                 <p className="font-medium text-sm leading-tight mb-1 max-w-[200px] sm:max-w-[300px] truncate">
-                                  {file.originalFilename}
+                                  {file.original_filename}
                                 </p>
                                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                  <span>{(file.fileSize / 1024 / 1024).toFixed(2)} MB</span>
+                                  <span>{((file.file_size || 0) / 1024 / 1024).toFixed(2)} MB</span>
                                   <span>•</span>
                                   <span className="flex items-center gap-1">
                                     {file.status === 'approved' ? (
