@@ -1,75 +1,78 @@
 import { Hono } from 'hono';
-import { requireAuth } from '../middleware';
-import { createClient } from '@supabase/supabase-js';
+import { requireAuth, requireAdmin } from '../middleware';
+import { getDb } from '../db/client';
+import * as schema from '../db/schema';
+import { eq } from 'drizzle-orm';
 
-const tasksRoutes = new Hono<{ Bindings: { SUPABASE_URL: string, SUPABASE_ANON_KEY: string }, Variables: { user: any } }>();
+const tasksRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
 tasksRoutes.use('*', requireAuth);
 
-tasksRoutes.get('/', async (c) => {
-  const user = c.get('user');
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+tasksRoutes.get('/project/:projectId', async (c) => {
+  const projectId = parseInt(c.req.param('projectId'));
+  const db = getDb(c.env.DATABASE_URL);
   
-  const { data, error } = await supabase.from('tasks').select('*').eq('tenant_id', user.tenantId);
-  if (error) return c.json({ error: error.message }, 500);
-  
-  return c.json(data || []);
+  try {
+    const data = await db.select().from(schema.tasks)
+      .where(eq(schema.tasks.projectId, projectId))
+      .orderBy(schema.tasks.id);
+      
+    return c.json(data);
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
 });
 
-tasksRoutes.post('/', async (c) => {
-  const user = c.get('user');
+tasksRoutes.post('/', requireAdmin, async (c) => {
   const data = await c.req.json();
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+  const db = getDb(c.env.DATABASE_URL);
 
-  const { error } = await supabase.from('tasks').insert({
-    tenant_id: user.tenantId,
-    project_id: data.projectId,
-    title: data.title,
-    status: data.status || 'todo',
-    due_date: data.dueDate,
-    assignee_id: data.assigneeId
-  });
-
-  if (error) return c.json({ error: error.message }, 500);
-
-  return c.json({ success: true });
-});
-
-tasksRoutes.put('/:id', async (c) => {
-  const user = c.get('user');
-  const taskId = c.req.param('id');
-  const data = await c.req.json();
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
-
-  const { error } = await supabase.from('tasks')
-    .update({
-      project_id: data.projectId,
+  try {
+    await db.insert(schema.tasks).values({
+      projectId: data.projectId,
       title: data.title,
-      status: data.status,
-      due_date: data.dueDate,
-      assignee_id: data.assigneeId
-    })
-    .eq('id', taskId)
-    .eq('tenant_id', user.tenantId);
+      status: data.status || 'todo',
+      priority: data.priority || 'medium',
+      dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : undefined,
+      assignedTo: data.assigneeId
+    });
 
-  if (error) return c.json({ error: error.message }, 500);
-
-  return c.json({ success: true });
+    return c.json({ success: true });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
 });
 
-tasksRoutes.delete('/:id', async (c) => {
-  const user = c.get('user');
-  const taskId = c.req.param('id');
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
-  
-  const { error } = await supabase.from('tasks')
-    .delete()
-    .eq('id', taskId)
-    .eq('tenant_id', user.tenantId);
-    
-  if (error) return c.json({ error: error.message }, 500);
+tasksRoutes.put('/:id', requireAdmin, async (c) => {
+  const taskId = parseInt(c.req.param('id'));
+  const data = await c.req.json();
+  const db = getDb(c.env.DATABASE_URL);
 
-  return c.json({ success: true });
+  try {
+    await db.update(schema.tasks).set({
+      assignedTo: data.assigneeId,
+      title: data.title,
+      description: data.description,
+      status: data.status,
+      priority: data.priority,
+      dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : undefined,
+    }).where(eq(schema.tasks.id, taskId));
+    return c.json({ success: true });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+tasksRoutes.delete('/:id', requireAdmin, async (c) => {
+  const taskId = parseInt(c.req.param('id'));
+  const db = getDb(c.env.DATABASE_URL);
+  
+  try {
+    await db.delete(schema.tasks).where(eq(schema.tasks.id, taskId));
+    return c.json({ success: true });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 export default tasksRoutes;

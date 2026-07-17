@@ -6,7 +6,7 @@ import { Link, useLocation } from 'react-router-dom';
 
 interface PortalLayoutProps {
   children: ReactNode;
-  navItems: { name: string; to: string; icon: any }[];
+  navItems: { name: string; to: string; icon: React.ElementType }[];
   basePath: string;
 }
 

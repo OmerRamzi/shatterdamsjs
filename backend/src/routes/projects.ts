@@ -1,137 +1,130 @@
 import { Hono } from 'hono';
-import { requireAuth } from '../middleware';
-import { createClient } from '@supabase/supabase-js';
+import { requireAuth, requireAdmin } from '../middleware';
+import { getDb } from '../db/client';
+import * as schema from '../db/schema';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 
-const projectsRoutes = new Hono<{ Bindings: { SUPABASE_URL: string, SUPABASE_ANON_KEY: string }, Variables: { user: any } }>();
+const projectsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
 projectsRoutes.use('*', requireAuth);
 
 projectsRoutes.get('/', async (c) => {
   const user = c.get('user');
-  const clientId = c.req.query('clientId');
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+  const db = getDb(c.env.DATABASE_URL);
   
-  let query = supabase.from('projects').select('*').eq('tenant_id', user.tenantId);
-  if (clientId) {
-    query = query.eq('client_id', clientId);
+  try {
+    const data = await db.select().from(schema.projects)
+      .where(eq(schema.projects.tenantId, user.tenantId))
+      .orderBy(desc(schema.projects.createdAt));
+      
+    const clientIds = [...new Set(data.map(i => i.clientId).filter(Boolean))] as number[];
+    const clients = clientIds.length > 0 ? await db.select().from(schema.clients).where(inArray(schema.clients.id, clientIds)) : [];
+
+    const formatted = data.map((projectData) => {
+      const client = clients.find(c => c.id === projectData.clientId) || null;
+      return { ...projectData, client };
+    });
+
+    return c.json(formatted);
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
   }
-  
-  const { data, error } = await query;
-  if (error) return c.json({ error: error.message }, 500);
-  
-  return c.json(data || []);
 });
 
-projectsRoutes.post('/', async (c) => {
-  const user = c.get('user');
+projectsRoutes.post('/', requireAdmin, async (c) => {
+  const admin = c.get('user');
   const data = await c.req.json();
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+  const db = getDb(c.env.DATABASE_URL);
 
-  const { error } = await supabase.from('projects').insert({
-    tenant_id: user.tenantId,
-    client_id: data.clientId,
-    title: data.title,
-    description: data.description,
-    budget: data.budget,
-    deadline: data.deadline,
-    created_by: parseInt(user.sub as string),
-    status: 'active',
-    priority: 'medium',
-  });
-
-  if (error) return c.json({ error: error.message }, 500);
-
-  await supabase.from('activity_logs').insert({
-    tenant_id: user.tenantId,
-    user_id: parseInt(user.sub as string),
-    action: `Project '${data.title}' created.`,
-  });
-
-  return c.json({ success: true });
-});
-
-projectsRoutes.get('/:id', async (c) => {
-  const user = c.get('user');
-  const projectId = c.req.param('id');
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
-  
-  // Fetch core project
-  const { data: project, error: projectError } = await supabase
-    .from('projects')
-    .select('*')
-    .eq('id', projectId)
-    .eq('tenant_id', user.tenantId)
-    .single();
-    
-  if (projectError || !project) {
-    return c.json({ error: 'Project not found' }, 404);
-  }
-  
-  // Fetch related data concurrently
-  const [clientRes, filesRes, tasksRes] = await Promise.all([
-    project.client_id ? supabase.from('clients').select('*').eq('id', project.client_id).eq('tenant_id', user.tenantId).single() : Promise.resolve({ data: null }),
-    supabase.from('files').select('*').eq('projectId', projectId).eq('tenantId', user.tenantId),
-    supabase.from('tasks').select('*').eq('project_id', projectId).eq('tenant_id', user.tenantId)
-  ]);
-  
-  return c.json({
-    project: {
-      ...project,
-      client: clientRes.data,
-      tasks: tasksRes.data || []
-    },
-    files: filesRes.data || []
-  });
-});
-
-projectsRoutes.put('/:id', async (c) => {
-  const user = c.get('user');
-  const projectId = c.req.param('id');
-  const data = await c.req.json();
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
-
-  const { error } = await supabase.from('projects')
-    .update({
+  try {
+    const [newProject] = await db.insert(schema.projects).values({
+      tenantId: admin.tenantId,
+      clientId: data.clientId,
       title: data.title,
       description: data.description,
-      budget: data.budget,
-      deadline: data.deadline,
-      status: data.status,
-      priority: data.priority,
-    })
-    .eq('id', projectId)
-    .eq('tenant_id', user.tenantId);
+      status: data.status || 'active',
+      createdBy: parseInt(admin.sub as string),
+    }).returning({ id: schema.projects.id });
 
-  if (error) return c.json({ error: error.message }, 500);
+    if (!newProject) return c.json({ error: 'Failed to create project' }, 500);
+    const projectId = newProject.id;
 
-  await supabase.from('activity_logs').insert({
-    tenant_id: user.tenantId,
-    user_id: parseInt(user.sub as string),
-    action: `Project '${data.title}' details updated.`,
-  });
+    if (data.teamMembers && data.teamMembers.length > 0) {
+      await db.insert(schema.projectTeam).values(data.teamMembers.map((userId: number) => ({
+        projectId: projectId,
+        userId: userId,
+      })));
+    }
 
-  return c.json({ success: true });
+    await db.insert(schema.activityLogs).values({
+      tenantId: admin.tenantId,
+      userId: parseInt(admin.sub as string),
+      action: `Project '${data.title}' created.`,
+    });
+
+    return c.json({ success: true, projectId });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
 });
 
-projectsRoutes.delete('/:id', async (c) => {
-  const user = c.get('user');
-  const projectId = c.req.param('id');
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
-  
-  const { error } = await supabase.from('projects')
-    .delete()
-    .eq('id', projectId)
-    .eq('tenant_id', user.tenantId);
-    
-  if (error) return c.json({ error: error.message }, 500);
-  
-  await supabase.from('activity_logs').insert({
-    tenant_id: user.tenantId,
-    user_id: parseInt(user.sub as string),
-    action: `Project ID ${projectId} deleted.`,
-  });
+projectsRoutes.put('/:id', requireAdmin, async (c) => {
+  const admin = c.get('user');
+  const projectId = parseInt(c.req.param('id'));
+  const data = await c.req.json();
+  const db = getDb(c.env.DATABASE_URL);
 
-  return c.json({ success: true });
+  try {
+    await db.update(schema.projects).set({
+      title: data.title,
+      description: data.description,
+      status: data.status,
+      clientId: data.clientId,
+    }).where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, admin.tenantId)));
+
+    if (data.teamMembers) {
+      await db.delete(schema.projectTeam).where(eq(schema.projectTeam.projectId, projectId));
+      if (data.teamMembers.length > 0) {
+        await db.insert(schema.projectTeam).values(data.teamMembers.map((userId: number) => ({
+          projectId: projectId,
+          userId: userId,
+        })));
+      }
+    }
+
+    await db.insert(schema.activityLogs).values({
+      tenantId: admin.tenantId,
+      userId: parseInt(admin.sub as string),
+      action: `Project ID ${projectId} updated.`,
+    });
+
+    return c.json({ success: true });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+projectsRoutes.delete('/:id', requireAdmin, async (c) => {
+  const admin = c.get('user');
+  const projectId = parseInt(c.req.param('id'));
+  const db = getDb(c.env.DATABASE_URL);
+  
+  try {
+    await db.delete(schema.tasks).where(eq(schema.tasks.projectId, projectId));
+    await db.delete(schema.projectTeam).where(eq(schema.projectTeam.projectId, projectId));
+    
+    await db.delete(schema.projects).where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, admin.tenantId)));
+    
+    await db.insert(schema.activityLogs).values({
+      tenantId: admin.tenantId,
+      userId: parseInt(admin.sub as string),
+      action: `Project ID ${projectId} deleted.`,
+    });
+
+    return c.json({ success: true });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 export default projectsRoutes;

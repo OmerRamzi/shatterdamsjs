@@ -1,34 +1,44 @@
 import { Hono } from 'hono';
-import { requireAuth } from '../middleware';
-import { createClient } from '@supabase/supabase-js';
+import { requireAuth, requireAdmin } from '../middleware';
+import { getDb } from '../db/client';
+import * as schema from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 
-const settingsRoutes = new Hono<{ Bindings: { SUPABASE_URL: string, SUPABASE_ANON_KEY: string }, Variables: { user: any } }>();
+const settingsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
-settingsRoutes.use('*', requireAuth);
+settingsRoutes.use('*', requireAuth, requireAdmin);
 
 settingsRoutes.get('/', async (c) => {
   const user = c.get('user');
-  if (user.role !== 'administrator') return c.json({ error: 'Unauthorized' }, 403);
+  const db = getDb(c.env.DATABASE_URL);
   
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
-  
-  const { data, error } = await supabase.from('organizations').select('settings').eq('id', user.tenantId).limit(1);
-  if (error) return c.json({ error: error.message }, 500);
-  
-  return c.json(data?.[0]?.settings || {});
+  try {
+    const tenantSettings = await db.select({ key: schema.settings.settingKey, value: schema.settings.settingValue }).from(schema.settings).where(eq(schema.settings.tenantId, user.tenantId));
+    const formattedSettings = tenantSettings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {});
+    return c.json(formattedSettings);
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 settingsRoutes.put('/', async (c) => {
   const user = c.get('user');
-  if (user.role !== 'administrator') return c.json({ error: 'Unauthorized' }, 403);
   const data = await c.req.json();
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+  const db = getDb(c.env.DATABASE_URL);
 
-  const { error } = await supabase.from('organizations').update({ settings: data }).eq('id', user.tenantId);
-
-  if (error) return c.json({ error: error.message }, 500);
-
-  return c.json({ success: true });
+  try {
+    for (const [key, value] of Object.entries(data)) {
+      const [existing] = await db.select().from(schema.settings).where(and(eq(schema.settings.tenantId, user.tenantId), eq(schema.settings.settingKey, key)));
+      if (existing) {
+        await db.update(schema.settings).set({ settingValue: value as string }).where(eq(schema.settings.id, existing.id));
+      } else {
+        await db.insert(schema.settings).values({ tenantId: user.tenantId, settingKey: key, settingValue: value as string });
+      }
+    }
+    return c.json({ success: true });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 export default settingsRoutes;

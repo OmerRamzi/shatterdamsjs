@@ -1,38 +1,44 @@
 import { Hono } from 'hono';
 import { requireAuth } from '../middleware';
-import { createClient } from '@supabase/supabase-js';
+import { getDb } from '../db/client';
+import * as schema from '../db/schema';
+import { eq } from 'drizzle-orm';
 
-const timesheetsRoutes = new Hono<{ Bindings: { SUPABASE_URL: string, SUPABASE_ANON_KEY: string }, Variables: { user: any } }>();
+const timesheetsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
 timesheetsRoutes.use('*', requireAuth);
 
 timesheetsRoutes.get('/', async (c) => {
   const user = c.get('user');
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+  const db = getDb(c.env.DATABASE_URL);
   
-  const { data, error } = await supabase.from('timesheets').select('*').eq('tenant_id', user.tenantId);
-  if (error) return c.json({ error: error.message }, 500);
-  
-  return c.json(data || []);
+  try {
+    const data = await db.select().from(schema.timesheets).where(eq(schema.timesheets.tenantId, user.tenantId));
+    return c.json(data);
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 timesheetsRoutes.post('/', async (c) => {
   const user = c.get('user');
   const data = await c.req.json();
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+  const db = getDb(c.env.DATABASE_URL);
 
-  const { error } = await supabase.from('timesheets').insert({
-    tenant_id: user.tenantId,
-    user_id: user.sub,
-    project_id: data.projectId,
-    date: data.date,
-    hours: data.hours,
-    description: data.description
-  });
+  try {
+    await db.insert(schema.timesheets).values({
+      tenantId: user.tenantId,
+      userId: parseInt(user.sub as string),
+      projectId: data.projectId,
+      date: data.date,
+      hours: data.hours?.toString(),
+      description: data.description
+    });
 
-  if (error) return c.json({ error: error.message }, 500);
-
-  return c.json({ success: true });
+    return c.json({ success: true });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 export default timesheetsRoutes;

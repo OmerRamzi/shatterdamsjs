@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function InvoiceForm({ clients, projects, initialData }: { clients: any[], projects: any[], initialData?: any }) {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);

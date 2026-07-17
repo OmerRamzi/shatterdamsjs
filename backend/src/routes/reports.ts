@@ -1,29 +1,33 @@
 import { Hono } from 'hono';
-import { requireAuth } from '../middleware';
-import { createClient } from '@supabase/supabase-js';
+import { requireAuth, requireAdmin } from '../middleware';
+import { getDb } from '../db/client';
+import * as schema from '../db/schema';
+import { eq } from 'drizzle-orm';
 
-const reportsRoutes = new Hono<{ Bindings: { SUPABASE_URL: string, SUPABASE_ANON_KEY: string }, Variables: { user: any } }>();
+const reportsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
 reportsRoutes.use('*', requireAuth);
 
-reportsRoutes.get('/', async (c) => {
+reportsRoutes.get('/', requireAdmin, async (c) => {
   const user = c.get('user');
-  if (user.role !== 'administrator') return c.json({ error: 'Unauthorized' }, 403);
+  const db = getDb(c.env.DATABASE_URL);
   
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
-  
-  // Basic mock aggregate data for now since we don't have complex SQL functions
-  const { data: invoices, error } = await supabase.from('invoices').select('amount, status').eq('tenant_id', user.tenantId);
-  if (error) return c.json({ error: error.message }, 500);
-  
-  const revenue = (invoices || []).filter(i => i.status === 'paid').reduce((a, b) => a + Number(b.amount), 0);
-  const pending = (invoices || []).filter(i => i.status !== 'paid').reduce((a, b) => a + Number(b.amount), 0);
+  try {
+    const invoices = await db.select({ amount: schema.invoices.total, status: schema.invoices.status })
+      .from(schema.invoices)
+      .where(eq(schema.invoices.tenantId, user.tenantId));
+      
+    const revenue = invoices.filter(i => i.status === 'paid').reduce((a, b) => a + Number(b.amount || 0), 0);
+    const pending = invoices.filter(i => i.status !== 'paid').reduce((a, b) => a + Number(b.amount || 0), 0);
 
-  return c.json({
-    revenueYTD: revenue,
-    pendingInvoices: pending,
-    reportGeneratedAt: new Date().toISOString()
-  });
+    return c.json({
+      revenueYTD: revenue,
+      pendingInvoices: pending,
+      reportGeneratedAt: new Date().toISOString()
+    });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 export default reportsRoutes;

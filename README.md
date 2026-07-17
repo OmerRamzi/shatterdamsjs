@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Shatter DAMS
 
-## Getting Started
+Shatter DAMS (Digital Asset Management System) is a comprehensive business management suite for organizations. It handles digital assets alongside client management, project tracking, invoicing, quotations, timesheets, and payroll.
 
-First, run the development server:
+The system is built as a Decoupled Serverless SPA + API.
+
+## Project Structure
+
+- `frontend/`: The unified Vite + React SPA that serves the Admin, Team, and Client portals via subdomain detection.
+- `backend/`: The Cloudflare Workers + Hono API that powers the application, connecting to a PostgreSQL database via Drizzle ORM.
+- `docs/`: System documentation, architecture diagrams, and development standards.
+
+## Documentation & Standards
+
+Please review the standard operating procedures before contributing:
+- [Architecture Documentation](file:///d:/Work/Shatter/WebProjects/Shatter%20DAMS/docs/ARCHITECTURE.md)
+- [Coding Standards](file:///d:/Work/Shatter/WebProjects/Shatter%20DAMS/docs/CODING_STANDARDS.md)
+- [Security Standards](file:///d:/Work/Shatter/WebProjects/Shatter%20DAMS/docs/SECURITY_STANDARDS.md)
+
+## Development Setup
+
+The project requires [Node.js](https://nodejs.org/) (v20+) and `npm`.
+
+### 1. Database & Backend Setup
+
+Navigate to the `backend/` directory:
+
+```bash
+cd backend
+npm install
+```
+
+Configure your environment variables. Create a `.dev.vars` file in the `backend/` directory (ask your team lead for development secrets):
+
+```env
+DATABASE_URL="postgresql://user:password@host/dbname"
+JWT_SECRET="your_secret_key"
+```
+
+Start the Cloudflare Wrangler development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+The API will be available at `http://localhost:8787`.
+
+### 2. Frontend Setup
+
+In a new terminal window, navigate to the `frontend/` directory:
+
+```bash
+cd frontend
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Start the Vite development server:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The application will be available at `http://localhost:5173`. 
+*Note: During local development, the frontend proxy automatically forwards `/api` requests to the Wrangler backend at `localhost:8787`.*
 
-## Learn More
+## Deployment
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Frontend**: The `frontend/` artifact is built using `npm run build` and can be deployed to any static CDN (e.g., Cloudflare Pages, Vercel).
+- **Backend**: The `backend/` is deployed to Cloudflare Workers using `npm run deploy` via Wrangler.

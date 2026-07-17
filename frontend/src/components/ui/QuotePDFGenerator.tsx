@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function QuotePDFGenerator({ data }: { data: any }) {
   const handleGeneratePDF = () => {
     const doc = new jsPDF();

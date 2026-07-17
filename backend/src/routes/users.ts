@@ -1,39 +1,30 @@
 import { Hono } from 'hono';
-import { requireAuth } from '../middleware';
-import { createClient } from '@supabase/supabase-js';
+import { requireAuth, requireAdmin } from '../middleware';
+import { getDb } from '../db/client';
+import * as schema from '../db/schema';
+import { eq } from 'drizzle-orm';
 
-const router = new Hono<{ Bindings: { SUPABASE_URL: string; SUPABASE_SERVICE_KEY: string }, Variables: { user: any } }>();
+const router = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
-router.use('*', requireAuth);
+router.use('*', requireAuth, requireAdmin);
 
 router.get('/', async (c) => {
   const user = c.get('user');
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
+  const db = getDb(c.env.DATABASE_URL);
 
-  // Fetch all users
-  const { data: allUsers, error: usersError } = await supabase
-    .from('users')
-    .select('*')
-    .eq('tenant_id', user.tenantId);
+  try {
+    const allUsers = await db.select().from(schema.users).where(eq(schema.users.tenantId, user.tenantId));
+    const roles = await db.select().from(schema.userRoles);
 
-  if (usersError) {
-    return c.json({ error: usersError.message }, 500);
+    const usersWithRoles = allUsers.map(u => ({
+      ...u,
+      role: roles.find(r => r.userId === u.id)?.role || 'unknown'
+    }));
+
+    return c.json(usersWithRoles);
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
   }
-
-  const { data: roles, error: rolesError } = await supabase
-    .from('user_roles')
-    .select('*');
-
-  if (rolesError) {
-    return c.json({ error: rolesError.message }, 500);
-  }
-
-  const usersWithRoles = (allUsers || []).map(u => ({
-    ...u,
-    role: (roles || []).find(r => r.userId === u.id)?.role || 'unknown'
-  }));
-
-  return c.json(usersWithRoles);
 });
 
 export default router;
