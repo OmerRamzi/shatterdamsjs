@@ -75,10 +75,12 @@ projectsRoutes.get('/:id', async (c) => {
   ]);
   
   return c.json({
-    ...project,
-    client: clientRes.data,
-    files: filesRes.data || [],
-    tasks: tasksRes.data || []
+    project: {
+      ...project,
+      client: clientRes.data,
+      tasks: tasksRes.data || []
+    },
+    files: filesRes.data || []
   });
 });
 
