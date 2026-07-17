@@ -31,7 +31,7 @@ export function FileUpload({ projectId, onUploadSuccess }: { projectId: number, 
 
     try {
       // 1. Get Presigned URL
-      const presignRes = await fetch('/api/files/presign', {
+      const presignRes = await fetch('/api/files/upload-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, filename: file.name, contentType: file.type })

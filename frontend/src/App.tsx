@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 import LoginPage from './pages/Login';
+import ForgotPasswordPage from './pages/ForgotPassword';
+import ResetPasswordPage from './pages/ResetPassword';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminClientsPage from './pages/admin/Clients';
 import AdminClientDetailsPage from './pages/admin/ClientDetails';
@@ -77,6 +79,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       
       {portal === 'admin' && (
         <Route path="/" element={

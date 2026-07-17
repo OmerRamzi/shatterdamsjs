@@ -40,6 +40,8 @@ export default function AdminProjectDetailsPage() {
     return <div className="p-6 text-destructive">Project not found.</div>;
   }
 
+  const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'tasks'>('overview');
+
   return (
     <div className="space-y-6 max-w-5xl">
       {/* Header */}
@@ -55,97 +57,130 @@ export default function AdminProjectDetailsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left Column: File List */}
-        <div className="md:col-span-2 space-y-6">
-          <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-border flex items-center justify-between">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <FileIcon className="w-5 h-5 text-primary" />
-                Project Files
-              </h3>
-              <span className="text-xs bg-secondary px-2 py-1 rounded-full font-medium">
-                {projectFiles.length} files
-              </span>
-            </div>
-            
-            <div className="divide-y divide-border">
-              {projectFiles.length === 0 ? (
-                <div className="p-12 text-center text-muted-foreground">
-                  <UploadCloud className="w-10 h-10 mx-auto opacity-20 mb-3" />
-                  <p>No files uploaded yet.</p>
+      {/* Tabs */}
+      <div className="flex items-center gap-6 border-b border-border">
+        <button 
+          onClick={() => setActiveTab('overview')}
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'overview' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+        >
+          Overview & Meta
+        </button>
+        <button 
+          onClick={() => setActiveTab('files')}
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'files' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+        >
+          Files <span className="bg-secondary px-2 py-0.5 rounded-full text-xs">{projectFiles.length}</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('tasks')}
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'tasks' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+        >
+          Tasks <span className="bg-secondary px-2 py-0.5 rounded-full text-xs">{projectData.tasks?.length || 0}</span>
+        </button>
+      </div>
+
+      <div className="mt-6">
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+              <h3 className="font-semibold text-lg mb-4">Project Details</h3>
+              <div className="space-y-4 text-sm">
+                <div className="flex justify-between items-center py-2 border-b border-border/50">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="capitalize font-medium">{projectData.status?.replace("_", " ")}</span>
                 </div>
-              ) : (
-                projectFiles.map((file) => (
-                    <div key={file.id} className="p-4 hover:bg-secondary/10 transition-colors">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase">
-                            {file.originalFilename.split('.').pop()?.substring(0, 3)}
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm leading-tight mb-1 max-w-[200px] sm:max-w-[300px] truncate">
-                              {file.originalFilename}
-                            </p>
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                              <span>{(file.fileSize / 1024 / 1024).toFixed(2)} MB</span>
-                              <span>•</span>
-                              <span className="flex items-center gap-1">
-                                {file.status === 'approved' ? (
-                                  <span className="text-emerald-500 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Approved</span>
-                                ) : file.status === 'client_review' ? (
-                                  <span className="text-amber-500 flex items-center gap-1"><Clock className="w-3 h-3" /> Client Review</span>
-                                ) : (
-                                  <span className="text-blue-500 flex items-center gap-1"><Clock className="w-3 h-3" /> Internal Review</span>
-                                )}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <FileRowAction 
-                          fileId={file.id} 
-                          currentStatus={file.status} 
-                          onStatusUpdate={fetchProjectData}
-                          onDeleteSuccess={fetchProjectData}
-                        />
-                      </div>
-                      
-                      <FileComments fileId={file.id} />
+                <div className="flex justify-between items-center py-2 border-b border-border/50">
+                  <span className="text-muted-foreground">Priority</span>
+                  <span className="capitalize font-medium">{projectData.priority}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-border/50">
+                  <span className="text-muted-foreground">Deadline</span>
+                  <span className="font-medium">{projectData.deadline ? new Date(projectData.deadline).toLocaleDateString() : 'Not Set'}</span>
+                </div>
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-muted-foreground">Budget</span>
+                  <span className="font-medium">${projectData.budget || '0.00'}</span>
+                </div>
+              </div>
+            </div>
+            {/* Can add Team Members here in the future */}
+          </div>
+        )}
+
+        {activeTab === 'files' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2 space-y-6">
+              <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-border flex items-center justify-between">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <FileIcon className="w-5 h-5 text-primary" />
+                    Project Files
+                  </h3>
+                </div>
+                
+                <div className="divide-y divide-border">
+                  {projectFiles.length === 0 ? (
+                    <div className="p-12 text-center text-muted-foreground">
+                      <UploadCloud className="w-10 h-10 mx-auto opacity-20 mb-3" />
+                      <p>No files uploaded yet.</p>
                     </div>
-                ))
-              )}
+                  ) : (
+                    projectFiles.map((file) => (
+                        <div key={file.id} className="p-4 hover:bg-secondary/10 transition-colors">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase">
+                                {file.originalFilename.split('.').pop()?.substring(0, 3)}
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm leading-tight mb-1 max-w-[200px] sm:max-w-[300px] truncate">
+                                  {file.originalFilename}
+                                </p>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                  <span>{(file.fileSize / 1024 / 1024).toFixed(2)} MB</span>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1">
+                                    {file.status === 'approved' ? (
+                                      <span className="text-emerald-500 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Approved</span>
+                                    ) : file.status === 'client_review' ? (
+                                      <span className="text-amber-500 flex items-center gap-1"><Clock className="w-3 h-3" /> Client Review</span>
+                                    ) : (
+                                      <span className="text-blue-500 flex items-center gap-1"><Clock className="w-3 h-3" /> Internal Review</span>
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <FileRowAction 
+                              fileId={file.id} 
+                              currentStatus={file.status} 
+                              onStatusUpdate={fetchProjectData}
+                              onDeleteSuccess={fetchProjectData}
+                            />
+                          </div>
+                          
+                          <FileComments fileId={file.id} />
+                        </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <FileUpload projectId={projectId} onUploadSuccess={fetchProjectData} />
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Right Column: Upload Component & Meta */}
-        <div className="space-y-6">
-          <FileUpload projectId={projectId} onUploadSuccess={fetchProjectData} />
-
-          {/* Project Meta Info */}
-          <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-lg mb-4">Details</h3>
-            <div className="space-y-4 text-sm">
-              <div className="flex justify-between items-center py-2 border-b border-border/50">
-                <span className="text-muted-foreground">Status</span>
-                <span className="capitalize font-medium">{projectData.status?.replace("_", " ")}</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-border/50">
-                <span className="text-muted-foreground">Priority</span>
-                <span className="capitalize font-medium">{projectData.priority}</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-border/50">
-                <span className="text-muted-foreground">Deadline</span>
-                <span className="font-medium">{projectData.deadline ? new Date(projectData.deadline).toLocaleDateString() : 'Not Set'}</span>
-              </div>
-              <div className="flex justify-between items-center py-2">
-                <span className="text-muted-foreground">Budget</span>
-                <span className="font-medium">${projectData.budget || '0.00'}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        {activeTab === 'tasks' && (
+          <ProjectTasks 
+            projectId={projectId} 
+            tasks={projectData.tasks || []} 
+            onTasksUpdate={fetchProjectData} 
+          />
+        )}
       </div>
     </div>
   );

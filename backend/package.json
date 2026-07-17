@@ -5,7 +5,9 @@
     "build": "tsc --noEmit || true",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1079.0",
@@ -20,6 +22,9 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^26.1.0",
+    "dotenv": "^17.4.2",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.23.1",
     "typescript": "^6.0.3",
     "wrangler": "^4.4.0"
   }

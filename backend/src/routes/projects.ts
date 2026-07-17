@@ -50,6 +50,38 @@ projectsRoutes.post('/', async (c) => {
   return c.json({ success: true });
 });
 
+projectsRoutes.get('/:id', async (c) => {
+  const user = c.get('user');
+  const projectId = c.req.param('id');
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+  
+  // Fetch core project
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('*')
+    .eq('id', projectId)
+    .eq('tenant_id', user.tenantId)
+    .single();
+    
+  if (projectError || !project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  
+  // Fetch related data concurrently
+  const [clientRes, filesRes, tasksRes] = await Promise.all([
+    project.client_id ? supabase.from('clients').select('*').eq('id', project.client_id).eq('tenant_id', user.tenantId).single() : Promise.resolve({ data: null }),
+    supabase.from('files').select('*').eq('projectId', projectId).eq('tenantId', user.tenantId),
+    supabase.from('tasks').select('*').eq('project_id', projectId).eq('tenant_id', user.tenantId)
+  ]);
+  
+  return c.json({
+    ...project,
+    client: clientRes.data,
+    files: filesRes.data || [],
+    tasks: tasksRes.data || []
+  });
+});
+
 projectsRoutes.put('/:id', async (c) => {
   const user = c.get('user');
   const projectId = c.req.param('id');
