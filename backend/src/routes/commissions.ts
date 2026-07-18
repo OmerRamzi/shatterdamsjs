@@ -1,9 +1,11 @@
 import { Hono } from 'hono';
-import { requireAdmin } from '../middleware';
+import { requireAuth, requireAdmin } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
-const commissionsRoutes = new Hono();
+const commissionsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
+
+commissionsRoutes.use('*', requireAuth);
 
 // Get all commissions
 commissionsRoutes.get('/', requireAdmin, async (c) => {
