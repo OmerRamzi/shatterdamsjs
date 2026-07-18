@@ -8,7 +8,7 @@ const invoicesRoutes = new Hono<{ Bindings: { DATABASE_URL: string, RESEND_API_K
 
 invoicesRoutes.use('*', requireAuth);
 
-async function generateInvoiceNumber(db: any, tenantId: number) {
+export async function generateInvoiceNumber(db: any, tenantId: number) {
   const year = new Date().getFullYear();
   const prefix = `INV-${year}-`;
   
