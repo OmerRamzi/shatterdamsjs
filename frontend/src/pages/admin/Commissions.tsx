@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Link2, Plus, Loader2, Link, Trash2, Copy, Check } from "lucide-react";
+import { Link2, Plus, Loader2, Trash2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { IntegrationSettingsModal } from "../../components/admin/IntegrationSettingsModal";
 
-export default function AdminCommissionsPage() {
+const AdminCommissionsPage = () => {
   const { user } = useAuth();
   const [commissions, setCommissions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -10,8 +11,6 @@ export default function AdminCommissionsPage() {
   const [isWebhookModalOpen, setIsWebhookModalOpen] = useState(false);
   
   const [clients, setClients] = useState<any[]>([]);
-  const [webhookSecret, setWebhookSecret] = useState("");
-  const [isCopied, setIsCopied] = useState(false);
 
   // Form State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,24 +85,9 @@ export default function AdminCommissionsPage() {
   };
 
   const fetchWebhookSecret = async () => {
-    try {
-      const res = await fetch("/api/commissions/webhook-secret");
-      if (res.ok) {
-        const data = await res.json();
-        setWebhookSecret(data.secret);
-        setIsWebhookModalOpen(true);
-      }
-    } catch (e) {
-      console.error(e);
-    }
+    setIsWebhookModalOpen(true);
   };
 
-  const copyWebhookUrl = () => {
-    const url = `${window.location.protocol}//${window.location.hostname}:8787/api/webhooks/commissions/${user?.tenantId}`;
-    navigator.clipboard.writeText(url);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
@@ -244,48 +228,14 @@ export default function AdminCommissionsPage() {
         </div>
       )}
 
-      {/* Webhook Modal */}
-      {isWebhookModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-xl shadow-lg max-w-lg w-full p-6">
-            <h2 className="text-xl font-bold mb-2 flex items-center gap-2"><Link className="w-5 h-5" /> API Integration</h2>
-            <p className="text-sm text-muted-foreground mb-6">Use this webhook URL and secret to automatically push commissions from external partners (like Shopify or Stripe) directly into your dashboard.</p>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold mb-1 text-slate-700">Webhook POST URL</label>
-                <div className="flex items-center gap-2">
-                  <input readOnly value={`${window.location.protocol}//${window.location.hostname}:8787/api/webhooks/commissions/${user?.tenantId}`} className="w-full bg-secondary/50 font-mono text-xs border border-border rounded-lg px-3 py-3 text-slate-600" />
-                  <button onClick={copyWebhookUrl} className="p-3 bg-secondary rounded-lg hover:bg-slate-200 transition-colors" title="Copy URL">
-                    {isCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-slate-600" />}
-                  </button>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-bold mb-1 text-slate-700">Webhook Secret</label>
-                <input readOnly value={webhookSecret} className="w-full bg-secondary/50 font-mono text-xs border border-border rounded-lg px-3 py-3 text-slate-600" />
-                <p className="text-xs text-muted-foreground mt-1">Pass this token in the <code className="text-amber-600">x-webhook-secret</code> header.</p>
-              </div>
-
-              <div className="bg-slate-900 text-slate-300 p-4 rounded-lg text-xs font-mono overflow-x-auto">
-                <p className="text-emerald-400 mb-2">// Payload Example</p>
-                {`{
-  "source": "Shopify Partner",
-  "amount": "45.00",
-  "currency": "USD",
-  "referenceId": "txn_12345",
-  "notes": "Referral payout"
-}`}
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-6">
-              <button onClick={() => setIsWebhookModalOpen(false)} className="btn-primary w-full">Done</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Integration Settings Modal */}
+      <IntegrationSettingsModal 
+        isOpen={isWebhookModalOpen} 
+        onClose={() => setIsWebhookModalOpen(false)} 
+        tenantId={user?.tenantId} 
+      />
     </div>
   );
-}
+};
+
+export default AdminCommissionsPage;

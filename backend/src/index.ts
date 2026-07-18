@@ -103,12 +103,18 @@ app.route('/api/commissions', commissionsRoutes);
 app.route('/api/webhooks', webhookRoutes);
 
 import { processRevenueStreams } from './cron/revenue';
+import { processPartnerIntegrations } from './cron/partners';
 
 export default {
   fetch(request: Request, env: any, ctx: any) {
     return app.fetch(request, env, ctx);
   },
   async scheduled(event: any, env: any, ctx: any) {
-    ctx.waitUntil(processRevenueStreams(env));
+    ctx.waitUntil(
+      Promise.all([
+        processRevenueStreams(env),
+        processPartnerIntegrations(env)
+      ])
+    );
   }
 };

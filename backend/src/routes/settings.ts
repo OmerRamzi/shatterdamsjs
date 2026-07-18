@@ -13,7 +13,13 @@ settingsRoutes.get('/', async (c) => {
   
   try {
     const tenantSettings = await db.select({ key: schema.settings.settingKey, value: schema.settings.settingValue }).from(schema.settings).where(eq(schema.settings.tenantId, user.tenantId));
-    const formattedSettings = tenantSettings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {});
+    const formattedSettings = tenantSettings.reduce((acc: any, curr: any) => {
+      let val = curr.value;
+      if (curr.key.includes('secret') || curr.key.includes('token') || curr.key.includes('password')) {
+        val = val ? '********' : '';
+      }
+      return { ...acc, [curr.key]: val };
+    }, {});
     return c.json(formattedSettings);
   } catch (error: any) {
     return c.json({ error: error.message }, 500);
@@ -27,6 +33,8 @@ settingsRoutes.put('/', async (c) => {
 
   try {
     for (const [key, value] of Object.entries(data)) {
+      if (value === '********') continue; // Don't overwrite with masked string
+      
       const [existing] = await db.select().from(schema.settings).where(and(eq(schema.settings.tenantId, user.tenantId), eq(schema.settings.settingKey, key)));
       if (existing) {
         await db.update(schema.settings).set({ settingValue: value as string }).where(eq(schema.settings.id, existing.id));
