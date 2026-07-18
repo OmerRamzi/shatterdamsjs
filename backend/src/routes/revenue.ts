@@ -50,12 +50,16 @@ revenueRoutes.post('/streams', requireAdmin, async (c) => {
       projectId: data.projectId || null,
       name: data.name,
       description: data.description,
-      amount: data.amount,
+      amount: data.amount !== undefined && data.amount !== null ? String(data.amount) : '0.00',
       currency: data.currency || 'USD',
       frequency: data.frequency || 'monthly',
       status: data.status || 'active',
       autoGenerateInvoice: data.autoGenerateInvoice || false,
-      nextBillingDate: data.nextBillingDate ? new Date(data.nextBillingDate).toISOString() : null,
+      nextBillingDate: data.nextBillingDate 
+        ? (typeof data.nextBillingDate === 'string' && data.nextBillingDate.includes('T') 
+            ? data.nextBillingDate.split('T')[0] 
+            : data.nextBillingDate) 
+        : null,
     }).returning({ id: schema.revenueStreams.id });
 
     await db.insert(schema.activityLogs).values({
@@ -94,12 +98,16 @@ revenueRoutes.put('/streams/:id', requireAdmin, async (c) => {
       projectId: data.projectId || null,
       name: data.name,
       description: data.description,
-      amount: data.amount,
+      amount: data.amount !== undefined && data.amount !== null ? String(data.amount) : undefined,
       currency: data.currency,
       frequency: data.frequency,
       status: data.status,
       autoGenerateInvoice: data.autoGenerateInvoice,
-      nextBillingDate: data.nextBillingDate ? new Date(data.nextBillingDate).toISOString() : null,
+      nextBillingDate: data.nextBillingDate === undefined 
+        ? undefined 
+        : (data.nextBillingDate && typeof data.nextBillingDate === 'string' && data.nextBillingDate.includes('T') 
+            ? data.nextBillingDate.split('T')[0] 
+            : data.nextBillingDate),
     }).where(and(eq(schema.revenueStreams.id, streamId), eq(schema.revenueStreams.tenantId, admin.tenantId)));
 
     return c.json({ success: true });
