@@ -5,19 +5,14 @@ import { QuoteForm } from "../../components/ui/QuoteForm";
 
 export default function AdminNewQuotePage() {
   const [clients, setClients] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/clients').then(res => res.json()),
-      fetch('/api/projects').then(res => res.json())
-    ])
-    .then(([clientsData, projectsData]) => {
-      setClients(clientsData || []);
-      setProjects(projectsData || []);
-    })
-    .finally(() => setIsLoading(false));
+    fetch('/api/clients')
+      .then(res => res.json())
+      .then(clientsData => setClients(clientsData || []))
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
   }, []);
 
   if (isLoading) return <div className="p-6">Loading form data...</div>;
@@ -36,7 +31,6 @@ export default function AdminNewQuotePage() {
 
       <QuoteForm 
         clients={clients} 
-        projects={projects.map(p => ({ id: p.id, title: p.title, clientId: p.clientId }))} 
       />
     </div>
   );
