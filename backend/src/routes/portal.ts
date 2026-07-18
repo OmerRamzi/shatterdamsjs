@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
-import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { eq, inArray, desc, ne, and } from 'drizzle-orm';
 
@@ -12,7 +11,7 @@ portalRoutes.get('/stats', async (c) => {
   const user = c.get('user');
   if (user.role !== 'administrator') return c.json({ error: 'Unauthorized' }, 403);
   
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     const clients = await db.select({ id: schema.clients.id }).from(schema.clients).where(eq(schema.clients.tenantId, user.tenantId));
@@ -37,7 +36,7 @@ portalRoutes.get('/client/dashboard', async (c) => {
   const user = c.get('user');
   if (user.role !== 'client') return c.json({ error: 'Unauthorized' }, 403);
   
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     const [clientRecord] = await db.select({ id: schema.clients.id }).from(schema.clients).where(eq(schema.clients.userId, parseInt(user.sub as string))).limit(1);
@@ -104,7 +103,7 @@ portalRoutes.get('/client/projects', async (c) => {
   const user = c.get('user');
   if (user.role !== 'client') return c.json({ error: 'Unauthorized' }, 403);
   
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     const [clientRecord] = await db.select().from(schema.clients).where(eq(schema.clients.userId, parseInt(user.sub as string))).limit(1);
@@ -121,7 +120,7 @@ portalRoutes.get('/client/projects/:id', async (c) => {
   const user = c.get('user');
   if (user.role !== 'client') return c.json({ error: 'Unauthorized' }, 403);
   const projectId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     const [clientRecord] = await db.select().from(schema.clients).where(eq(schema.clients.userId, parseInt(user.sub as string))).limit(1);
@@ -140,7 +139,7 @@ portalRoutes.get('/client/projects/:id/files', async (c) => {
   const user = c.get('user');
   if (user.role !== 'client') return c.json({ error: 'Unauthorized' }, 403);
   const projectId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     const [clientRecord] = await db.select().from(schema.clients).where(eq(schema.clients.userId, parseInt(user.sub as string))).limit(1);
@@ -159,7 +158,7 @@ portalRoutes.get('/client/projects/:id/files', async (c) => {
 portalRoutes.get('/team/projects', async (c) => {
   const user = c.get('user');
   if (!['employee', 'freelancer'].includes(user.role)) return c.json({ error: 'Unauthorized' }, 403);
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     const assigned = await db.select({ projectId: schema.projectTeam.projectId }).from(schema.projectTeam).where(eq(schema.projectTeam.userId, parseInt(user.sub as string)));

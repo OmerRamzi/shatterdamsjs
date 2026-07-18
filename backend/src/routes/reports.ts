@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
-import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -10,7 +9,7 @@ reportsRoutes.use('*', requireAuth);
 
 reportsRoutes.get('/', requireAdmin, async (c) => {
   const user = c.get('user');
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     const invoices = await db.select({ amount: schema.invoices.total, status: schema.invoices.status })

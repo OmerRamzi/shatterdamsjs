@@ -23,18 +23,31 @@ export function InvoiceActions({ invoiceId, currentStatus, onStatusUpdate }: { i
   };
 
   const handleMarkPaid = async () => {
+    const amountInput = window.prompt("Enter payment amount (leave blank to mark fully paid):");
+    if (amountInput === null) return; // User cancelled
+    
     setIsMarking(true);
     try {
-      const res = await fetch(`/api/invoices/${invoiceId}/status`, {
+      const payload: any = {};
+      if (amountInput.trim() !== "") {
+        const parsed = parseFloat(amountInput);
+        if (isNaN(parsed) || parsed <= 0) {
+          alert("Invalid amount entered.");
+          return;
+        }
+        payload.amount = parsed;
+      }
+      
+      const res = await fetch(`/api/invoices/${invoiceId}/paid`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'paid' })
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error("Failed to update status");
       if (onStatusUpdate) onStatusUpdate();
     } catch (error) {
       console.error(error);
-      alert("Failed to mark as paid.");
+      alert("Failed to record payment.");
     } finally {
       setIsMarking(false);
     }
@@ -49,7 +62,7 @@ export function InvoiceActions({ invoiceId, currentStatus, onStatusUpdate }: { i
           className="btn-secondary text-emerald-500 hover:bg-emerald-500/10 flex items-center gap-2 border-emerald-500/20"
         >
           {isMarking ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-          Mark Paid
+          Record Payment
         </button>
       )}
       

@@ -10,6 +10,9 @@ export const status = pgEnum("status", ['active', 'inactive', 'suspended'])
 export const taskPriority = pgEnum("task_priority", ['low', 'medium', 'high', 'urgent'])
 export const taskStatus = pgEnum("task_status", ['todo', 'in_progress', 'review', 'completed', 'cancelled'])
 export const userRole = pgEnum("user_role", ['administrator', 'freelancer', 'client', 'employee'])
+export const revenueStreamFrequency = pgEnum("revenue_stream_frequency", ['one_time', 'weekly', 'monthly', 'quarterly', 'yearly'])
+export const revenueStreamStatus = pgEnum("revenue_stream_status", ['active', 'paused', 'completed', 'cancelled'])
+export const commissionStatus = pgEnum("commission_status", ['pending', 'paid', 'cancelled'])
 
 
 export const activityLogs = pgTable("activity_logs", {
@@ -138,6 +141,8 @@ export const invoices = pgTable("invoices", {
 	tax: numeric({ precision: 15, scale:  2 }).default('0.00'),
 	discount: numeric({ precision: 15, scale:  2 }).default('0.00'),
 	total: numeric({ precision: 15, scale:  2 }).notNull(),
+	currency: varchar({ length: 10 }).default('USD').notNull(),
+	exchangeRate: numeric("exchange_rate", { precision: 15, scale: 6 }).default('1.000000').notNull(),
 	paidAmount: numeric("paid_amount", { precision: 15, scale:  2 }).default('0.00'),
 	status: invoiceStatus().default('draft'),
 	paidDate: date("paid_date"),
@@ -472,4 +477,90 @@ export const users = pgTable("users", {
 			name: "users_tenant_id_tenants_id_fk"
 		}),
 	unique("users_email_unique").on(table.email),
+]);
+
+export const revenueStreams = pgTable("revenue_streams", {
+	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
+	clientId: integer("client_id").notNull(),
+	projectId: integer("project_id"),
+	name: varchar({ length: 255 }).notNull(),
+	description: text(),
+	amount: numeric({ precision: 15, scale: 2 }).notNull(),
+	currency: varchar({ length: 10 }).default('USD').notNull(),
+	frequency: revenueStreamFrequency().default('monthly'),
+	status: revenueStreamStatus().default('active'),
+	autoGenerateInvoice: boolean("auto_generate_invoice").default(false),
+	nextBillingDate: date("next_billing_date"),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	foreignKey({
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "revenue_streams_tenant_id_tenants_id_fk"
+	}),
+	foreignKey({
+		columns: [table.clientId],
+		foreignColumns: [clients.id],
+		name: "revenue_streams_client_id_clients_id_fk"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.projectId],
+		foreignColumns: [projects.id],
+		name: "revenue_streams_project_id_projects_id_fk"
+	}).onDelete("set null"),
+]);
+
+export const revenueRecords = pgTable("revenue_records", {
+	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
+	streamId: integer("stream_id").notNull(),
+	amount: numeric({ precision: 15, scale: 2 }).notNull(),
+	currency: varchar({ length: 10 }).default('USD').notNull(),
+	recordedAt: timestamp("recorded_at", { mode: 'string' }).defaultNow(),
+	notes: text(),
+}, (table) => [
+	foreignKey({
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "revenue_records_tenant_id_tenants_id_fk"
+	}),
+	foreignKey({
+		columns: [table.streamId],
+		foreignColumns: [revenueStreams.id],
+		name: "revenue_records_stream_id_revenue_streams_id_fk"
+	}).onDelete("cascade"),
+]);
+
+export const commissions = pgTable("commissions", {
+	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
+	clientId: integer("client_id"),
+	projectId: integer("project_id"),
+	source: varchar({ length: 100 }).notNull(),
+	amount: numeric({ precision: 15, scale: 2 }).notNull(),
+	currency: varchar({ length: 10 }).default('USD').notNull(),
+	date: date().notNull(),
+	status: commissionStatus().default('pending'),
+	referenceId: varchar("reference_id", { length: 255 }),
+	notes: text(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	foreignKey({
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "commissions_tenant_id_tenants_id_fk"
+	}),
+	foreignKey({
+		columns: [table.clientId],
+		foreignColumns: [clients.id],
+		name: "commissions_client_id_clients_id_fk"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.projectId],
+		foreignColumns: [projects.id],
+		name: "commissions_project_id_projects_id_fk"
+	}).onDelete("set null"),
 ]);

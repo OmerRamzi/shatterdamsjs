@@ -11,7 +11,9 @@ import {
   BarChart,
   UserCog,
   Settings,
-  LogOut
+  LogOut,
+  DollarSign,
+  Link2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -21,6 +23,8 @@ const navItems = [
   { name: 'Clients', to: '/clients', icon: Users },
   { name: 'Team', to: '/team', icon: ShieldAlert },
   { name: 'Timesheets', to: '/timesheets', icon: Clock },
+  { name: 'Financials', to: '/financials', icon: DollarSign },
+  { name: 'Commissions', to: '/commissions', icon: Link2 },
   { name: 'Invoices', to: '/invoices', icon: Receipt },
   { name: 'Quotations', to: '/quotes', icon: FileText },
   { name: 'Tasks', to: '/tasks', icon: CheckSquare },

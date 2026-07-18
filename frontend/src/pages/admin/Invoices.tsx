@@ -99,7 +99,7 @@ export default function AdminInvoicesPage() {
                     <td className="px-6 py-4 text-muted-foreground">
                       {new Date(invoice.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 font-medium">${parseFloat(invoice.total).toFixed(2)}</td>
+                    <td className="px-6 py-4 font-medium">{invoice.currency || 'USD'} {parseFloat(invoice.total).toFixed(2)}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                         invoice.status === 'paid' ? 'bg-emerald-500/10 text-emerald-500' :

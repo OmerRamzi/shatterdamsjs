@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
-import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 
@@ -10,7 +9,7 @@ settingsRoutes.use('*', requireAuth, requireAdmin);
 
 settingsRoutes.get('/', async (c) => {
   const user = c.get('user');
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     const tenantSettings = await db.select({ key: schema.settings.settingKey, value: schema.settings.settingValue }).from(schema.settings).where(eq(schema.settings.tenantId, user.tenantId));
@@ -24,7 +23,7 @@ settingsRoutes.get('/', async (c) => {
 settingsRoutes.put('/', async (c) => {
   const user = c.get('user');
   const data = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     for (const [key, value] of Object.entries(data)) {

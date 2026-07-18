@@ -22,6 +22,8 @@ import AdminUsersPage from './pages/admin/Users';
 import AdminTimesheetsPage from './pages/admin/Timesheets';
 import AdminTasksPage from './pages/admin/Tasks';
 import AdminReportsPage from './pages/admin/Reports';
+import AdminFinancialsPage from './pages/admin/Financials';
+import AdminCommissionsPage from './pages/admin/Commissions';
 import AdminSettingsPage from './pages/admin/Settings';
 import ClientDashboardPage from './pages/client/Dashboard';
 import ClientProjectsPage from './pages/client/Projects';
@@ -105,6 +107,8 @@ function AppRoutes() {
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="timesheets" element={<AdminTimesheetsPage />} />
           <Route path="tasks" element={<AdminTasksPage />} />
+          <Route path="financials" element={<AdminFinancialsPage />} />
+          <Route path="commissions" element={<AdminCommissionsPage />} />
           <Route path="reports" element={<AdminReportsPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
         </Route>

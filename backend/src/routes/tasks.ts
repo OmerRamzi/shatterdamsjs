@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
-import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -9,8 +8,8 @@ const tasksRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { 
 tasksRoutes.use('*', requireAuth);
 
 tasksRoutes.get('/project/:projectId', async (c) => {
-  const projectId = parseInt(c.req.param('projectId'));
-  const db = getDb(c.env.DATABASE_URL);
+  const projectId = parseInt(c.req.param('project_id'));
+  const db = c.get('db');
   
   try {
     const data = await db.select().from(schema.tasks)
@@ -25,7 +24,7 @@ tasksRoutes.get('/project/:projectId', async (c) => {
 
 tasksRoutes.post('/', requireAdmin, async (c) => {
   const data = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     await db.insert(schema.tasks).values({
@@ -46,7 +45,7 @@ tasksRoutes.post('/', requireAdmin, async (c) => {
 tasksRoutes.put('/:id', requireAdmin, async (c) => {
   const taskId = parseInt(c.req.param('id'));
   const data = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     await db.update(schema.tasks).set({
@@ -65,7 +64,7 @@ tasksRoutes.put('/:id', requireAdmin, async (c) => {
 
 tasksRoutes.delete('/:id', requireAdmin, async (c) => {
   const taskId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     await db.delete(schema.tasks).where(eq(schema.tasks.id, taskId));

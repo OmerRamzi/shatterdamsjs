@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
-import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -32,7 +31,7 @@ const mapClientToCamelCase = (c: any) => ({
 
 clientsRoutes.get('/', async (c) => {
   const user = c.get('user');
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     const data = await db.select().from(schema.clients).where(eq(schema.clients.tenantId, user.tenantId));
@@ -45,7 +44,7 @@ clientsRoutes.get('/', async (c) => {
 clientsRoutes.get('/:id', async (c) => {
   const user = c.get('user');
   const clientId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     const [clientData] = await db.select().from(schema.clients)
@@ -62,7 +61,7 @@ clientsRoutes.get('/:id', async (c) => {
 clientsRoutes.post('/', async (c) => {
   const admin = c.get('user');
   const data = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     await db.insert(schema.clients).values({
@@ -92,7 +91,7 @@ clientsRoutes.post('/', async (c) => {
 clientsRoutes.post('/:id/activate', async (c) => {
   const admin = c.get('user');
   const clientId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   const resend = new Resend(c.env.RESEND_API_KEY || 're_dummy');
 
   try {
@@ -148,7 +147,7 @@ clientsRoutes.put('/:id', async (c) => {
   const admin = c.get('user');
   const clientId = parseInt(c.req.param('id'));
   const data = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     await db.update(schema.clients).set({
@@ -176,7 +175,7 @@ clientsRoutes.put('/:id', async (c) => {
 clientsRoutes.delete('/:id', async (c) => {
   const admin = c.get('user');
   const clientId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     await db.delete(schema.clients).where(and(eq(schema.clients.id, clientId), eq(schema.clients.tenantId, admin.tenantId)));

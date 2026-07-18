@@ -6,6 +6,15 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "01da1e3ddfa54092a6aabad52beea029"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 0 * * *"]
+  },
   // "vars": {
   //   "MY_VAR": "my-variable"
   // },

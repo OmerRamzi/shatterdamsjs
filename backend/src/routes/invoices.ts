@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
-import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { eq, and, ne, inArray, desc } from 'drizzle-orm';
 import { Resend } from 'resend';
@@ -29,8 +28,8 @@ async function generateInvoiceNumber(db: any, tenantId: number) {
 
 invoicesRoutes.get('/', requireAdmin, async (c) => {
   const user = c.get('user');
-  const clientId = c.req.query('clientId');
-  const db = getDb(c.env.DATABASE_URL);
+  const clientId = c.req.query('client_id');
+  const db = c.get('db');
   
   try {
     const conditions = [eq(schema.invoices.tenantId, user.tenantId)];
@@ -62,11 +61,23 @@ invoicesRoutes.get('/', requireAdmin, async (c) => {
 invoicesRoutes.post('/', requireAdmin, async (c) => {
   const admin = c.get('user');
   const data = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
+    if (data.clientId) {
+      const [clientCheck] = await db.select({ id: schema.clients.id }).from(schema.clients).where(and(eq(schema.clients.id, data.clientId), eq(schema.clients.tenantId, admin.tenantId))).limit(1);
+      if (!clientCheck) return c.json({ error: 'Invalid client association' }, 403);
+    }
+    if (data.projectId) {
+      const [projectCheck] = await db.select({ id: schema.projects.id }).from(schema.projects).where(and(eq(schema.projects.id, data.projectId), eq(schema.projects.tenantId, admin.tenantId))).limit(1);
+      if (!projectCheck) return c.json({ error: 'Invalid project association' }, 403);
+    }
+
     const invoiceNumber = await generateInvoiceNumber(db, admin.tenantId);
     const subtotal = data.items.reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0);
+    const tax = parseFloat(data.tax || '0');
+    const discount = parseFloat(data.discount || '0');
+    const total = subtotal + tax - discount;
 
     const [newInvoice] = await db.insert(schema.invoices).values({
       tenantId: admin.tenantId,
@@ -76,8 +87,11 @@ invoicesRoutes.post('/', requireAdmin, async (c) => {
       issueDate: new Date().toISOString(),
       dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : new Date(Date.now() + 30*24*60*60*1000).toISOString(),
       subtotal: subtotal.toString(),
-      tax: '0',
-      total: subtotal.toString(),
+      tax: tax.toString(),
+      discount: discount.toString(),
+      total: total.toString(),
+      currency: data.currency || 'USD',
+      exchangeRate: data.exchangeRate ? data.exchangeRate.toString() : '1.000000',
       status: 'draft',
       notes: data.notes,
       createdBy: parseInt(admin.sub as string),
@@ -111,13 +125,11 @@ invoicesRoutes.post('/', requireAdmin, async (c) => {
 invoicesRoutes.get('/:id', async (c) => {
   const user = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
-    const [invoiceData] = await db.select().from(schema.invoices).where(eq(schema.invoices.id, invoiceId)).limit(1);
-    if (!invoiceData) return c.json({ error: 'Invoice not found' }, 404);
-    
-    if (invoiceData.tenantId !== user.tenantId) return c.json({ error: 'Unauthorized' }, 403);
+    const [invoiceData] = await db.select().from(schema.invoices).where(and(eq(schema.invoices.id, invoiceId), eq(schema.invoices.tenantId, user.tenantId))).limit(1);
+    if (!invoiceData) return c.json({ error: 'Invoice not found or unauthorized' }, 404);
 
     let client = null;
     let project = null;
@@ -153,11 +165,11 @@ invoicesRoutes.get('/:id', async (c) => {
 invoicesRoutes.post('/:id/send', requireAdmin, async (c) => {
   const admin = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   const resend = new Resend(c.env.RESEND_API_KEY || 're_dummy');
   
   try {
-    const [invoiceData] = await db.select().from(schema.invoices).where(eq(schema.invoices.id, invoiceId)).limit(1);
+    const [invoiceData] = await db.select().from(schema.invoices).where(and(eq(schema.invoices.id, invoiceId), eq(schema.invoices.tenantId, admin.tenantId))).limit(1);
     if (!invoiceData) return c.json({ error: 'Invoice not found' }, 404);
     
     const [client] = invoiceData.clientId ? await db.select().from(schema.clients).where(eq(schema.clients.id, invoiceData.clientId)).limit(1) : [null];
@@ -196,17 +208,35 @@ invoicesRoutes.post('/:id/send', requireAdmin, async (c) => {
 invoicesRoutes.patch('/:id/paid', requireAdmin, async (c) => {
   const admin = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
+  const data = await c.req.json().catch(() => ({}));
 
   try {
-    const [invoiceData] = await db.select().from(schema.invoices).where(eq(schema.invoices.id, invoiceId)).limit(1);
+    const [invoiceData] = await db.select().from(schema.invoices).where(and(eq(schema.invoices.id, invoiceId), eq(schema.invoices.tenantId, admin.tenantId))).limit(1);
     if (!invoiceData) return c.json({ error: 'Invoice not found' }, 404);
 
-    await db.update(schema.invoices).set({ status: 'paid' }).where(eq(schema.invoices.id, invoiceId));
+    let newPaidAmount = parseFloat(invoiceData.total);
+    let newStatus = 'paid';
+
+    if (data.amount !== undefined) {
+       newPaidAmount = parseFloat(invoiceData.paidAmount || '0') + parseFloat(data.amount);
+       if (newPaidAmount >= parseFloat(invoiceData.total)) {
+           newStatus = 'paid';
+           newPaidAmount = parseFloat(invoiceData.total);
+       } else {
+           newStatus = invoiceData.status === 'draft' ? 'sent' : invoiceData.status;
+       }
+    }
+
+    await db.update(schema.invoices).set({ 
+      status: newStatus as any, 
+      paidAmount: newPaidAmount.toString() 
+    }).where(eq(schema.invoices.id, invoiceId));
+    
     await db.insert(schema.activityLogs).values({
       tenantId: admin.tenantId,
       userId: parseInt(admin.sub as string),
-      action: `Invoice ${invoiceData.invoiceNumber} marked as paid.`,
+      action: `Payment of ${data.amount || invoiceData.total} logged for Invoice ${invoiceData.invoiceNumber}.`,
     });
 
     return c.json({ success: true });
@@ -219,17 +249,33 @@ invoicesRoutes.put('/:id', requireAdmin, async (c) => {
   const admin = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
   const data = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
+    if (data.clientId) {
+      const [clientCheck] = await db.select({ id: schema.clients.id }).from(schema.clients).where(and(eq(schema.clients.id, data.clientId), eq(schema.clients.tenantId, admin.tenantId))).limit(1);
+      if (!clientCheck) return c.json({ error: 'Invalid client association' }, 403);
+    }
+    if (data.projectId) {
+      const [projectCheck] = await db.select({ id: schema.projects.id }).from(schema.projects).where(and(eq(schema.projects.id, data.projectId), eq(schema.projects.tenantId, admin.tenantId))).limit(1);
+      if (!projectCheck) return c.json({ error: 'Invalid project association' }, 403);
+    }
+
     const subtotal = data.items.reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0);
+    const tax = parseFloat(data.tax || '0');
+    const discount = parseFloat(data.discount || '0');
+    const total = subtotal + tax - discount;
 
     await db.update(schema.invoices).set({
       clientId: data.clientId,
       projectId: data.projectId,
       dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : undefined,
       subtotal: subtotal.toString(),
-      total: subtotal.toString(),
+      tax: tax.toString(),
+      discount: discount.toString(),
+      total: total.toString(),
+      currency: data.currency || 'USD',
+      exchangeRate: data.exchangeRate ? data.exchangeRate.toString() : '1.000000',
       status: data.status || 'draft',
       notes: data.notes,
     }).where(and(eq(schema.invoices.id, invoiceId), eq(schema.invoices.tenantId, admin.tenantId)));
@@ -256,7 +302,7 @@ invoicesRoutes.put('/:id', requireAdmin, async (c) => {
 invoicesRoutes.delete('/:id', requireAdmin, async (c) => {
   const admin = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     await db.delete(schema.invoiceItems).where(eq(schema.invoiceItems.invoiceId, invoiceId));

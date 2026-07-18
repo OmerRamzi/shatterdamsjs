@@ -9,6 +9,7 @@ export function InvoicePDFGenerator({ data }: { data: any }) {
   const handleGeneratePDF = () => {
     const doc = new jsPDF();
     const { invoice, client, items, project } = data;
+    const currency = invoice.currency || 'USD';
 
     // Header
     doc.setFontSize(22);
@@ -47,8 +48,8 @@ export function InvoicePDFGenerator({ data }: { data: any }) {
     const tableData = items.map((item: any) => [
       item.description,
       item.quantity.toString(),
-      `$${parseFloat(item.unitPrice).toFixed(2)}`,
-      `$${parseFloat(item.amount).toFixed(2)}`
+      `${currency} ${parseFloat(item.unitPrice).toFixed(2)}`,
+      `${currency} ${parseFloat(item.amount).toFixed(2)}`
     ]);
 
     autoTable(doc, {
@@ -69,24 +70,54 @@ export function InvoicePDFGenerator({ data }: { data: any }) {
     const finalY = (doc as any).lastAutoTable.finalY || 90;
 
     // Totals
+    let currentY = finalY + 10;
+    
     doc.setFontSize(10);
     doc.setTextColor(0);
-    doc.text("Subtotal:", 140, finalY + 10);
-    doc.text(`$${parseFloat(invoice.subtotal).toFixed(2)}`, 180, finalY + 10, { align: "right" });
+    doc.text("Subtotal:", 140, currentY);
+    doc.text(`${currency} ${parseFloat(invoice.subtotal).toFixed(2)}`, 180, currentY, { align: "right" });
     
+    if (parseFloat(invoice.tax) > 0) {
+      currentY += 8;
+      doc.text("Tax:", 140, currentY);
+      doc.text(`${currency} ${parseFloat(invoice.tax).toFixed(2)}`, 180, currentY, { align: "right" });
+    }
+    
+    if (parseFloat(invoice.discount) > 0) {
+      currentY += 8;
+      doc.text("Discount:", 140, currentY);
+      doc.text(`-${currency} ${parseFloat(invoice.discount).toFixed(2)}`, 180, currentY, { align: "right" });
+    }
+    
+    currentY += 12;
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text("Total:", 140, finalY + 20);
-    doc.text(`$${parseFloat(invoice.total).toFixed(2)}`, 180, finalY + 20, { align: "right" });
+    doc.text("Total:", 140, currentY);
+    doc.text(`${currency} ${parseFloat(invoice.total).toFixed(2)}`, 180, currentY, { align: "right" });
+    
+    if (parseFloat(invoice.paidAmount) > 0) {
+      currentY += 8;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(16, 185, 129); // emerald-500
+      doc.text("Amount Paid:", 140, currentY);
+      doc.text(`-${currency} ${parseFloat(invoice.paidAmount).toFixed(2)}`, 180, currentY, { align: "right" });
+      
+      currentY += 8;
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0);
+      doc.text("Balance Due:", 140, currentY);
+      doc.text(`${currency} ${(parseFloat(invoice.total) - parseFloat(invoice.paidAmount || '0')).toFixed(2)}`, 180, currentY, { align: "right" });
+    }
 
     // Notes
     if (invoice.notes) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(100);
-      doc.text("Notes / Terms:", 14, finalY + 40);
+      doc.text("Notes / Terms:", 14, currentY + 20);
       const splitNotes = doc.splitTextToSize(invoice.notes, 180);
-      doc.text(splitNotes, 14, finalY + 47);
+      doc.text(splitNotes, 14, currentY + 27);
     }
 
     // Save

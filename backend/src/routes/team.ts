@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
-import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { eq, inArray, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -10,7 +9,7 @@ const teamRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { u
 teamRoutes.use('*', requireAuth, requireAdmin);
 
 teamRoutes.get('/', async (c) => {
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     const roles = await db.select().from(schema.userRoles);
@@ -37,7 +36,7 @@ teamRoutes.get('/', async (c) => {
 teamRoutes.post('/', async (c) => {
   const admin = c.get('user');
   const data = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     const defaultPassword = 'Team@123';
@@ -73,7 +72,7 @@ teamRoutes.put('/:id', async (c) => {
   const admin = c.get('user');
   const userIdToUpdate = parseInt(c.req.param('id'));
   const data = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     const [existingUser] = await db.select({ id: schema.users.id }).from(schema.users)
@@ -106,7 +105,7 @@ teamRoutes.put('/:id', async (c) => {
 teamRoutes.delete('/:id', async (c) => {
   const admin = c.get('user');
   const userIdToDelete = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     const [existingUser] = await db.select({ id: schema.users.id }).from(schema.users)

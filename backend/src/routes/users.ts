@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
-import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -10,7 +9,7 @@ router.use('*', requireAuth, requireAdmin);
 
 router.get('/', async (c) => {
   const user = c.get('user');
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     const allUsers = await db.select().from(schema.users).where(eq(schema.users.tenantId, user.tenantId));

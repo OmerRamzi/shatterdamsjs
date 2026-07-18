@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { requireAuth } from '../middleware';
-import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -10,7 +9,7 @@ timesheetsRoutes.use('*', requireAuth);
 
 timesheetsRoutes.get('/', async (c) => {
   const user = c.get('user');
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     const data = await db.select().from(schema.timesheets).where(eq(schema.timesheets.tenantId, user.tenantId));
@@ -23,7 +22,7 @@ timesheetsRoutes.get('/', async (c) => {
 timesheetsRoutes.post('/', async (c) => {
   const user = c.get('user');
   const data = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     await db.insert(schema.timesheets).values({

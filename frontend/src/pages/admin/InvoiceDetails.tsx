@@ -115,8 +115,8 @@ export default function AdminInvoiceDetailsPage() {
               <tr key={item.id}>
                 <td className="py-4 font-medium text-foreground">{item.description}</td>
                 <td className="py-4 text-center text-muted-foreground">{item.quantity}</td>
-                <td className="py-4 text-right text-muted-foreground">${parseFloat(item.unitPrice).toFixed(2)}</td>
-                <td className="py-4 text-right font-medium text-foreground">${parseFloat(item.amount).toFixed(2)}</td>
+                <td className="py-4 text-right text-muted-foreground">{invoice.currency || 'USD'} {parseFloat(item.unitPrice).toFixed(2)}</td>
+                <td className="py-4 text-right font-medium text-foreground">{invoice.currency || 'USD'} {parseFloat(item.amount).toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
@@ -126,11 +126,33 @@ export default function AdminInvoiceDetailsPage() {
           <div className="w-64 space-y-3">
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>Subtotal</span>
-              <span>${parseFloat(invoice.subtotal).toFixed(2)}</span>
+              <span>{invoice.currency || 'USD'} {parseFloat(invoice.subtotal).toFixed(2)}</span>
             </div>
+            {parseFloat(invoice.tax) > 0 && (
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Tax</span>
+                <span>{invoice.currency || 'USD'} {parseFloat(invoice.tax).toFixed(2)}</span>
+              </div>
+            )}
+            {parseFloat(invoice.discount) > 0 && (
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Discount</span>
+                <span>-{invoice.currency || 'USD'} {parseFloat(invoice.discount).toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-lg font-bold text-foreground pt-3 border-t border-border">
-              <span>Total Due</span>
-              <span>${parseFloat(invoice.total).toFixed(2)}</span>
+              <span>Total</span>
+              <span>{invoice.currency || 'USD'} {parseFloat(invoice.total).toFixed(2)}</span>
+            </div>
+            {parseFloat(invoice.paidAmount) > 0 && (
+              <div className="flex justify-between text-sm text-emerald-500 font-medium">
+                <span>Amount Paid</span>
+                <span>-{invoice.currency || 'USD'} {parseFloat(invoice.paidAmount).toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm font-semibold text-foreground pt-3 border-t border-border">
+              <span>Balance Due</span>
+              <span>{invoice.currency || 'USD'} {(parseFloat(invoice.total) - parseFloat(invoice.paidAmount || '0')).toFixed(2)}</span>
             </div>
           </div>
         </div>

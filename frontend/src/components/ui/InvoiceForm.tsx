@@ -15,6 +15,11 @@ export function InvoiceForm({ clients, projects, initialData }: { clients: any[]
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("draft");
   
+  const [currency, setCurrency] = useState("USD");
+  const [exchangeRate, setExchangeRate] = useState("1.000000");
+  const [tax, setTax] = useState("0");
+  const [discount, setDiscount] = useState("0");
+  
   const [items, setItems] = useState([{ description: "", quantity: 1, unitPrice: 0 }]);
 
   useEffect(() => {
@@ -24,6 +29,10 @@ export function InvoiceForm({ clients, projects, initialData }: { clients: any[]
       setDueDate(initialData.invoice.dueDate ? new Date(initialData.invoice.dueDate).toISOString().split('T')[0] : "");
       setNotes(initialData.invoice.notes || "");
       setStatus(initialData.invoice.status || "draft");
+      setCurrency(initialData.invoice.currency || "USD");
+      setExchangeRate(initialData.invoice.exchangeRate || "1.000000");
+      setTax(initialData.invoice.tax || "0");
+      setDiscount(initialData.invoice.discount || "0");
       
       if (initialData.items && initialData.items.length > 0) {
         setItems(initialData.items.map((i: any) => ({
@@ -43,7 +52,10 @@ export function InvoiceForm({ clients, projects, initialData }: { clients: any[]
     setItems(newItems);
   };
 
-  const total = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+  const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+  const taxAmount = parseFloat(tax) || 0;
+  const discountAmount = parseFloat(discount) || 0;
+  const total = subtotal + taxAmount - discountAmount;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +76,10 @@ export function InvoiceForm({ clients, projects, initialData }: { clients: any[]
           dueDate: dueDate ? new Date(dueDate) : undefined,
           notes,
           status,
+          currency,
+          exchangeRate,
+          tax,
+          discount,
           items,
         })
       });
@@ -139,6 +155,36 @@ export function InvoiceForm({ clients, projects, initialData }: { clients: any[]
               </select>
             </div>
           )}
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Currency</label>
+              <select 
+                value={currency} 
+                onChange={e => setCurrency(e.target.value)}
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="AUD">AUD</option>
+                <option value="CAD">CAD</option>
+                <option value="LKR">LKR</option>
+              </select>
+            </div>
+            
+            {currency !== "USD" && (
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Exchange Rate (to USD)</label>
+                <input 
+                  type="number" step="0.000001"
+                  value={exchangeRate}
+                  onChange={e => setExchangeRate(e.target.value)}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -166,7 +212,7 @@ export function InvoiceForm({ clients, projects, initialData }: { clients: any[]
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="text-xs text-muted-foreground">Price ($)</label>
+                    <label className="text-xs text-muted-foreground">Price</label>
                     <input 
                       type="number" min="0" step="0.01" required
                       value={item.unitPrice}
@@ -194,9 +240,23 @@ export function InvoiceForm({ clients, projects, initialData }: { clients: any[]
             <Plus className="w-4 h-4" /> Add Item
           </button>
           
-          <div className="border-t border-border pt-4 mt-4 flex justify-between items-center font-semibold text-lg">
-            <span>Total:</span>
-            <span>${total.toFixed(2)}</span>
+          <div className="border-t border-border pt-4 mt-4 space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Subtotal:</span>
+              <span>{currency} {subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Tax Amount:</span>
+              <input type="number" step="0.01" min="0" value={tax} onChange={e => setTax(e.target.value)} className="w-24 text-right bg-background border border-border rounded px-2 py-1" />
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Discount Amount:</span>
+              <input type="number" step="0.01" min="0" value={discount} onChange={e => setDiscount(e.target.value)} className="w-24 text-right bg-background border border-border rounded px-2 py-1" />
+            </div>
+            <div className="flex justify-between items-center font-semibold text-lg pt-2 border-t border-border/50">
+              <span>Total:</span>
+              <span>{currency} {total.toFixed(2)}</span>
+            </div>
           </div>
         </div>
       </div>

@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
-import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { eq, and, desc, inArray } from 'drizzle-orm';
 import { Resend } from 'resend';
@@ -29,8 +28,8 @@ async function generateQuoteNumber(db: any, tenantId: number) {
 
 quotesRoutes.get('/', requireAdmin, async (c) => {
   const user = c.get('user');
-  const clientId = c.req.query('clientId');
-  const db = getDb(c.env.DATABASE_URL);
+  const clientId = c.req.query('client_id');
+  const db = c.get('db');
   
   try {
     const conditions = [eq(schema.quotations.tenantId, user.tenantId)];
@@ -57,7 +56,7 @@ quotesRoutes.get('/', requireAdmin, async (c) => {
 quotesRoutes.post('/', requireAdmin, async (c) => {
   const admin = c.get('user');
   const data = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     const quoteNumber = await generateQuoteNumber(db, admin.tenantId);
@@ -105,7 +104,7 @@ quotesRoutes.post('/', requireAdmin, async (c) => {
 quotesRoutes.get('/:id', async (c) => {
   const user = c.get('user');
   const quoteId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     const [quoteData] = await db.select().from(schema.quotations).where(eq(schema.quotations.id, quoteId)).limit(1);
@@ -141,7 +140,7 @@ quotesRoutes.get('/:id', async (c) => {
 quotesRoutes.post('/:id/send', requireAdmin, async (c) => {
   const admin = c.get('user');
   const quoteId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   const resend = new Resend(c.env.RESEND_API_KEY || 're_dummy');
   
   try {
@@ -184,7 +183,7 @@ quotesRoutes.post('/:id/send', requireAdmin, async (c) => {
 quotesRoutes.patch('/:id/accept', async (c) => {
   const user = c.get('user');
   const quoteId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     const [quoteData] = await db.select().from(schema.quotations).where(eq(schema.quotations.id, quoteId)).limit(1);
@@ -207,7 +206,7 @@ quotesRoutes.put('/:id', requireAdmin, async (c) => {
   const admin = c.get('user');
   const quoteId = parseInt(c.req.param('id'));
   const data = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     const subtotal = data.items.reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0);
@@ -241,7 +240,7 @@ quotesRoutes.put('/:id', requireAdmin, async (c) => {
 quotesRoutes.delete('/:id', requireAdmin, async (c) => {
   const admin = c.get('user');
   const quoteId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     await db.delete(schema.quotationItems).where(eq(schema.quotationItems.quotationId, quoteId));

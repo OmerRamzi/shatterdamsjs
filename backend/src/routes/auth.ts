@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { setCookie, deleteCookie, getCookie } from 'hono/cookie';
 import { sign, verify } from 'hono/jwt';
-import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -23,7 +22,7 @@ authRoutes.post('/login', async (c) => {
     return c.json({ error: 'Email and password are required' }, 400);
   }
 
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
@@ -99,7 +98,7 @@ authRoutes.post('/forgot-password', async (c) => {
     return c.json({ error: 'Email is required' }, 400);
   }
 
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
@@ -165,7 +164,7 @@ authRoutes.post('/reset-password', async (c) => {
     return c.json({ error: 'Token and new password are required' }, 400);
   }
 
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     const [user] = await db.select().from(schema.users).where(eq(schema.users.resetToken, token)).limit(1);

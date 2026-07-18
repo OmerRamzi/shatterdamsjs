@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { requireAuth } from '../middleware';
-import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
@@ -11,7 +10,7 @@ activityRoutes.use('*', requireAuth);
 activityRoutes.get('/', async (c) => {
   const user = c.get('user');
   const limit = parseInt(c.req.query('limit') || '10', 10);
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     const data = await db.select({

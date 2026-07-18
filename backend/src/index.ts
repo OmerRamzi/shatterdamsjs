@@ -2,7 +2,16 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { config } from './config';
 
-const app = new Hono<{ Bindings: { DATABASE_URL: string } }>();
+import { Client } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import * as schema from './db/schema';
+
+type Variables = {
+  user: any;
+  db: ReturnType<typeof drizzle>;
+};
+
+const app = new Hono<{ Bindings: { DATABASE_URL: string, HYPERDRIVE: any }, Variables: Variables }>();
 
 app.use('*', cors({
   origin: ['http://localhost:5173', 'https://admin.meetshatter.com', 'https://team.meetshatter.com', 'https://client.meetshatter.com'], 
@@ -19,6 +28,24 @@ app.use('*', async (c, next) => {
   await next();
 });
 
+// Database middleware
+app.use('*', async (c, next) => {
+  const connString = c.env?.HYPERDRIVE?.connectionString || c.env.DATABASE_URL;
+  if (connString) {
+    const client = new Client({ connectionString: connString });
+    await client.connect();
+    const db = drizzle(client, { schema });
+    c.set('db', db);
+    try {
+      await next();
+    } finally {
+      c.executionCtx.waitUntil(client.end());
+    }
+  } else {
+    await next();
+  }
+});
+
 app.get('/api/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -30,6 +57,8 @@ app.get('/api/debug-env', (c) => {
     envKeys: Object.keys(c.env || {})
   });
 });
+
+
 
 app.onError((err, c) => {
   console.error('Unhandled Error:', err);
@@ -51,6 +80,9 @@ import tasksRoutes from './routes/tasks';
 import timesheetsRoutes from './routes/timesheets';
 import reportsRoutes from './routes/reports';
 import settingsRoutes from './routes/settings';
+import revenueRoutes from './routes/revenue';
+import commissionsRoutes from './routes/commissions';
+import webhookRoutes from './routes/webhooks';
 
 app.route('/api/auth', authRoutes);
 app.route('/api/clients', clientsRoutes);
@@ -66,9 +98,17 @@ app.route('/api/tasks', tasksRoutes);
 app.route('/api/timesheets', timesheetsRoutes);
 app.route('/api/reports', reportsRoutes);
 app.route('/api/settings', settingsRoutes);
+app.route('/api/revenue', revenueRoutes);
+app.route('/api/commissions', commissionsRoutes);
+app.route('/api/webhooks', webhookRoutes);
+
+import { processRevenueStreams } from './cron/revenue';
 
 export default {
   fetch(request: Request, env: any, ctx: any) {
     return app.fetch(request, env, ctx);
+  },
+  async scheduled(event: any, env: any, ctx: any) {
+    ctx.waitUntil(processRevenueStreams(env));
   }
 };

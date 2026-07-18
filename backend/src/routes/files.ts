@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
-import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { generateUploadUrl, generateDownloadUrl, deleteFileFromR2 } from '../lib/storage';
@@ -30,7 +29,7 @@ filesRoutes.post('/upload-url', async (c) => {
 filesRoutes.post('/register', async (c) => {
   const user = c.get('user');
   const data = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   try {
     await db.insert(schema.files).values({
@@ -59,8 +58,8 @@ filesRoutes.post('/register', async (c) => {
 });
 
 filesRoutes.get('/project/:projectId', async (c) => {
-  const projectId = parseInt(c.req.param('projectId'));
-  const db = getDb(c.env.DATABASE_URL);
+  const projectId = parseInt(c.req.param('project_id'));
+  const db = c.get('db');
   
   try {
     const data = await db.select().from(schema.files)
@@ -76,7 +75,7 @@ filesRoutes.get('/project/:projectId', async (c) => {
 filesRoutes.get('/:id/download-url', async (c) => {
   const user = c.get('user');
   const fileId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     const [file] = await db.select().from(schema.files).where(eq(schema.files.id, fileId)).limit(1);
@@ -95,7 +94,7 @@ filesRoutes.patch('/:id/status', async (c) => {
   const user = c.get('user');
   const fileId = parseInt(c.req.param('id'));
   const { status } = await c.req.json();
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
   
   try {
     const [file] = await db.select().from(schema.files).where(eq(schema.files.id, fileId)).limit(1);
@@ -129,7 +128,7 @@ filesRoutes.patch('/:id/status', async (c) => {
 filesRoutes.delete('/:id', async (c) => {
   const user = c.get('user');
   const fileId = parseInt(c.req.param('id'));
-  const db = getDb(c.env.DATABASE_URL);
+  const db = c.get('db');
 
   if (user.role === 'client') return c.json({ error: 'Clients cannot delete files' }, 403);
   
