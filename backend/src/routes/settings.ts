@@ -15,7 +15,7 @@ settingsRoutes.get('/', async (c) => {
     const tenantSettings = await db.select({ key: schema.settings.settingKey, value: schema.settings.settingValue }).from(schema.settings).where(eq(schema.settings.tenantId, user.tenantId));
     const formattedSettings = tenantSettings.reduce((acc: any, curr: any) => {
       let val = curr.value;
-      if (curr.key.includes('secret') || curr.key.includes('token') || curr.key.includes('password')) {
+      if (curr.key.includes('secret') || curr.key.includes('token') || curr.key.includes('password') || curr.key.includes('key')) {
         val = val ? '********' : '';
       }
       return { ...acc, [curr.key]: val };

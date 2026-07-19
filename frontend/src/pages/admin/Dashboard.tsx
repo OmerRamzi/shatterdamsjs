@@ -167,7 +167,7 @@ export default function AdminDashboard() {
                         {activity.action}
                       </p>
                       <p className="text-xs text-slate-400 mt-0.5 font-medium">
-                        {activity.createdAt ? new Date(activity.createdAt).toLocaleString() : 'Just now'}
+                        {activity.createdAt ? new Date(activity.createdAt.replace(' ', 'T') + (activity.createdAt.endsWith('Z') ? '' : 'Z')).toLocaleString() : 'Just now'}
                       </p>
                     </div>
                   </div>

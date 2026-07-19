@@ -166,8 +166,6 @@ invoicesRoutes.post('/:id/send', requireAdmin, async (c) => {
   const admin = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
   const db = c.get('db');
-  const resend = new Resend(c.env.RESEND_API_KEY || 're_dummy');
-  
   try {
     const [invoiceData] = await db.select().from(schema.invoices).where(and(eq(schema.invoices.id, invoiceId), eq(schema.invoices.tenantId, admin.tenantId))).limit(1);
     if (!invoiceData) return c.json({ error: 'Invoice not found' }, 404);
@@ -177,19 +175,40 @@ invoicesRoutes.post('/:id/send', requireAdmin, async (c) => {
     const clientEmail = client?.email;
     if (!clientEmail) return c.json({ error: 'Client has no email address' }, 400);
 
+    const tenantSettings = await db.select({ key: schema.settings.settingKey, value: schema.settings.settingValue }).from(schema.settings).where(eq(schema.settings.tenantId, admin.tenantId));
+    const settingsMap = tenantSettings.reduce((acc: any, curr: any) => ({ ...acc, [curr.key]: curr.value }), {});
+    
+    let subject = settingsMap['invoice_email_subject'] || `Invoice {{invoiceNumber}} from Shatter`;
+    let html = settingsMap['invoice_email_body'] || `
+        <h2>Invoice {{invoiceNumber}}</h2>
+        <p>Dear {{clientName}},</p>
+        <p>A new invoice has been generated for your account for the amount of <strong>${{total}}</strong>.</p>
+        <p>You can view and download your invoice securely by logging into your client portal.</p>
+        <p><strong>Portal Login:</strong> {{portalLink}}</p>
+        <br/>
+        <p>Thank you for your business!</p>
+    `;
+
+    const variables: Record<string, string> = {
+      '{{invoiceNumber}}': invoiceData.invoiceNumber,
+      '{{clientName}}': client?.contactPerson || client?.companyName || 'Valued Client',
+      '{{total}}': invoiceData.total,
+      '{{companyName}}': settingsMap['company_name'] || 'Shatter',
+      '{{portalLink}}': 'https://client.meetshatter.com/login'
+    };
+
+    for (const [key, val] of Object.entries(variables)) {
+      subject = subject.replaceAll(key, val);
+      html = html.replaceAll(key, val);
+    }
+
+    const resend = new Resend(settingsMap['resend_api_key'] || c.env.RESEND_API_KEY || 're_dummy');
+
     await resend.emails.send({
       from: 'Shatter DAMS Billing <hello@mailer.meetshatter.com>',
       to: [clientEmail],
-      subject: `Invoice ${invoiceData.invoiceNumber} from Shatter`,
-      html: `
-        <h2>Invoice ${invoiceData.invoiceNumber}</h2>
-        <p>Dear ${client?.contactPerson || client?.companyName},</p>
-        <p>A new invoice has been generated for your account for the amount of <strong>$${invoiceData.total}</strong>.</p>
-        <p>You can view and download your invoice securely by logging into your client portal.</p>
-        <p><strong>Portal Login:</strong> https://client.meetshatter.com/login</p>
-        <br/>
-        <p>Thank you for your business!</p>
-      `,
+      subject: subject,
+      html: html,
     });
 
     await db.update(schema.invoices).set({ status: 'sent' }).where(eq(schema.invoices.id, invoiceId));
