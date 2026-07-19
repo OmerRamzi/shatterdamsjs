@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Building, CreditCard, Mail, Key, Loader2, Save, CheckCircle } from 'lucide-react';
+import { Building, CreditCard, Mail, Key, Loader2, Save, CheckCircle } from 'lucide-react';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('general');
