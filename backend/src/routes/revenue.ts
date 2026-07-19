@@ -38,6 +38,9 @@ revenueRoutes.post('/streams', requireAdmin, async (c) => {
 
   try {
     // Validate tenant ownership
+    if (typeof data.clientId !== 'number' || isNaN(data.clientId)) {
+      return c.json({ error: 'Client ID is required' }, 400);
+    }
     const [clientCheck] = await db.select({ id: schema.clients.id }).from(schema.clients).where(and(eq(schema.clients.id, data.clientId), eq(schema.clients.tenantId, admin.tenantId))).limit(1);
     if (!clientCheck) return c.json({ error: 'Invalid client association' }, 403);
     
@@ -64,13 +67,59 @@ revenueRoutes.post('/streams', requireAdmin, async (c) => {
         : null,
     }).returning({ id: schema.revenueStreams.id });
 
+    const actionText = `Created new revenue stream: ${data.name}`;
     await db.insert(schema.activityLogs).values({
       tenantId: admin.tenantId,
       userId: parseInt(admin.sub as string),
-      action: `Created new revenue stream: ${data.name}`,
+      action: actionText.length > 100 ? actionText.substring(0, 97) + '...' : actionText,
     });
 
     return c.json({ success: true, streamId: newStream.id }, 201);
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Get a specific revenue stream with its details
+revenueRoutes.get('/streams/:id', requireAdmin, async (c) => {
+  const admin = c.get('user');
+  const streamId = parseInt(c.req.param('id'));
+  if (isNaN(streamId)) return c.json({ error: 'Invalid stream ID' }, 400);
+  const db = c.get('db');
+
+  try {
+    const [streamData] = await db.select({
+      stream: schema.revenueStreams,
+      client: schema.clients,
+      project: schema.projects
+    })
+    .from(schema.revenueStreams)
+    .leftJoin(schema.clients, eq(schema.revenueStreams.clientId, schema.clients.id))
+    .leftJoin(schema.projects, eq(schema.revenueStreams.projectId, schema.projects.id))
+    .where(and(eq(schema.revenueStreams.id, streamId), eq(schema.revenueStreams.tenantId, admin.tenantId)))
+    .limit(1);
+
+    if (!streamData) {
+      return c.json({ error: 'Stream not found' }, 404);
+    }
+
+    const records = await db.select()
+      .from(schema.revenueRecords)
+      .where(and(eq(schema.revenueRecords.streamId, streamId), eq(schema.revenueRecords.tenantId, admin.tenantId)))
+      .orderBy(desc(schema.revenueRecords.recordedAt));
+
+    let invoiceCondition = eq(schema.invoices.clientId, streamData.stream.clientId);
+    if (streamData.stream.projectId) {
+      invoiceCondition = and(invoiceCondition, eq(schema.invoices.projectId, streamData.stream.projectId)) as any;
+    }
+
+    const recentInvoices = await db.select()
+      .from(schema.invoices)
+      .where(and(invoiceCondition, eq(schema.invoices.tenantId, admin.tenantId)))
+      .orderBy(desc(schema.invoices.issueDate))
+      .limit(10);
+
+    return c.json({ ...streamData, records, invoices: recentInvoices });
   } catch (error: any) {
     return c.json({ error: error.message }, 500);
   }
@@ -80,6 +129,7 @@ revenueRoutes.post('/streams', requireAdmin, async (c) => {
 revenueRoutes.put('/streams/:id', requireAdmin, async (c) => {
   const admin = c.get('user');
   const streamId = parseInt(c.req.param('id'));
+  if (isNaN(streamId)) return c.json({ error: 'Invalid stream ID' }, 400);
   const data = await c.req.json();
   const db = c.get('db');
 
@@ -122,6 +172,7 @@ revenueRoutes.put('/streams/:id', requireAdmin, async (c) => {
 revenueRoutes.delete('/streams/:id', requireAdmin, async (c) => {
   const admin = c.get('user');
   const streamId = parseInt(c.req.param('id'));
+  if (isNaN(streamId)) return c.json({ error: 'Invalid stream ID' }, 400);
   const db = c.get('db');
 
   try {
