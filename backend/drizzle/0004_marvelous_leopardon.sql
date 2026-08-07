@@ -1,0 +1,2 @@
+ALTER TABLE "quotations" ADD COLUMN "currency" varchar(10) DEFAULT 'LKR' NOT NULL;--> statement-breakpoint
+ALTER TABLE "quotations" ADD COLUMN "exchange_rate" numeric(15, 6) DEFAULT '1.000000' NOT NULL;

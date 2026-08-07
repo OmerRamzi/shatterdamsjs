@@ -62,7 +62,7 @@ app.get('/api/debug-env', (c) => {
 
 app.onError((err, c) => {
   console.error('Unhandled Error:', err);
-  return c.json({ error: err.message, stack: err.stack }, 500);
+  return c.json({ error: 'Internal server error' }, 500);
 });
 
 // We will mount routes here

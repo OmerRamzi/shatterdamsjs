@@ -9,9 +9,18 @@ export function QuotePDFGenerator({ data }: { data: any }) {
   const handleGeneratePDF = () => {
     const doc = new jsPDF();
     const { quote, client, items, project } = data;
+    const currency = quote.currency || 'LKR';
+
+    // Watermark
+    if (quote.status === 'accepted' || quote.status === 'rejected' || quote.status === 'expired' || quote.status === 'draft') {
+      doc.setFontSize(60);
+      doc.setTextColor(240, 240, 240);
+      doc.text(quote.status.toUpperCase(), 40, 150, { angle: 45, renderingMode: 'fill' });
+    }
 
     // Header
     doc.setFontSize(22);
+    doc.setTextColor(0, 0, 0);
     doc.text("QUOTATION", 14, 20);
 
     doc.setFontSize(10);
@@ -47,8 +56,8 @@ export function QuotePDFGenerator({ data }: { data: any }) {
     const tableData = items.map((item: any) => [
       item.description,
       item.quantity.toString(),
-      `$${parseFloat(item.unitPrice).toFixed(2)}`,
-      `$${parseFloat(item.amount).toFixed(2)}`
+      `${currency} ${parseFloat(item.unitPrice).toFixed(2)}`,
+      `${currency} ${parseFloat(item.amount).toFixed(2)}`
     ]);
 
     autoTable(doc, {
@@ -69,24 +78,39 @@ export function QuotePDFGenerator({ data }: { data: any }) {
     const finalY = (doc as any).lastAutoTable.finalY || 90;
 
     // Totals
+    let currentY = finalY + 10;
+    
     doc.setFontSize(10);
     doc.setTextColor(0);
-    doc.text("Subtotal:", 140, finalY + 10);
-    doc.text(`$${parseFloat(quote.subtotal).toFixed(2)}`, 180, finalY + 10, { align: "right" });
+    doc.text("Subtotal:", 140, currentY);
+    doc.text(`${currency} ${parseFloat(quote.subtotal).toFixed(2)}`, 180, currentY, { align: "right" });
     
+    if (parseFloat(quote.tax || '0') > 0) {
+      currentY += 8;
+      doc.text("Tax:", 140, currentY);
+      doc.text(`${currency} ${parseFloat(quote.tax).toFixed(2)}`, 180, currentY, { align: "right" });
+    }
+    
+    if (parseFloat(quote.discount || '0') > 0) {
+      currentY += 8;
+      doc.text("Discount:", 140, currentY);
+      doc.text(`-${currency} ${parseFloat(quote.discount).toFixed(2)}`, 180, currentY, { align: "right" });
+    }
+
+    currentY += 12;
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text("Total:", 140, finalY + 20);
-    doc.text(`$${parseFloat(quote.total).toFixed(2)}`, 180, finalY + 20, { align: "right" });
+    doc.text("Total:", 140, currentY);
+    doc.text(`${currency} ${parseFloat(quote.total).toFixed(2)}`, 180, currentY, { align: "right" });
 
     // Notes
     if (quote.notes) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(100);
-      doc.text("Notes / Terms:", 14, finalY + 40);
+      doc.text("Notes / Terms:", 14, currentY + 20);
       const splitNotes = doc.splitTextToSize(quote.notes, 180);
-      doc.text(splitNotes, 14, finalY + 47);
+      doc.text(splitNotes, 14, currentY + 27);
     }
 
     // Save

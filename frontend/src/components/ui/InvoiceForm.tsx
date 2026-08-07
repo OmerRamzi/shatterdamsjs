@@ -15,7 +15,7 @@ export function InvoiceForm({ clients, projects, initialData }: { clients: any[]
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("draft");
   
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState("LKR");
   const [exchangeRate, setExchangeRate] = useState("1.000000");
   const [tax, setTax] = useState("0");
   const [discount, setDiscount] = useState("0");
@@ -29,7 +29,7 @@ export function InvoiceForm({ clients, projects, initialData }: { clients: any[]
       setDueDate(initialData.invoice.dueDate ? new Date(initialData.invoice.dueDate).toISOString().split('T')[0] : "");
       setNotes(initialData.invoice.notes || "");
       setStatus(initialData.invoice.status || "draft");
-      setCurrency(initialData.invoice.currency || "USD");
+      setCurrency(initialData.invoice.currency || "LKR");
       setExchangeRate(initialData.invoice.exchangeRate || "1.000000");
       setTax(initialData.invoice.tax || "0");
       setDiscount(initialData.invoice.discount || "0");
@@ -164,16 +164,16 @@ export function InvoiceForm({ clients, projects, initialData }: { clients: any[]
                 onChange={e => setCurrency(e.target.value)}
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
+                <option value="LKR">LKR</option>
                 <option value="USD">USD</option>
                 <option value="EUR">EUR</option>
                 <option value="GBP">GBP</option>
                 <option value="AUD">AUD</option>
                 <option value="CAD">CAD</option>
-                <option value="LKR">LKR</option>
               </select>
             </div>
             
-            {currency !== "USD" && (
+            {currency !== "LKR" && (
               <div>
                 <label className="block text-sm font-medium mb-1.5">Exchange Rate (to USD)</label>
                 <input 

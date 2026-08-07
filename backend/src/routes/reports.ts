@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
 import * as schema from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql, and, isNull } from 'drizzle-orm';
+import { fromCents, toCents } from '../lib/calculations';
 
 const reportsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
@@ -12,20 +13,35 @@ reportsRoutes.get('/', requireAdmin, async (c) => {
   const db = c.get('db');
   
   try {
-    const invoices = await db.select({ amount: schema.invoices.total, status: schema.invoices.status })
-      .from(schema.invoices)
-      .where(eq(schema.invoices.tenantId, user.tenantId));
+    const invoices = await db.select({
+      status: schema.invoices.status,
+      total: schema.invoices.total,
+      paidAmount: schema.invoices.paidAmount,
+    }).from(schema.invoices)
+      .where(and(eq(schema.invoices.tenantId, user.tenantId), isNull(schema.invoices.deletedAt)));
       
-    const revenue = invoices.filter(i => i.status === 'paid').reduce((a, b) => a + Number(b.amount || 0), 0);
-    const pending = invoices.filter(i => i.status !== 'paid').reduce((a, b) => a + Number(b.amount || 0), 0);
+    let revenueCents = 0;
+    let pendingCents = 0;
+    
+    for (const inv of invoices) {
+      if (inv.status === 'paid') {
+        revenueCents += toCents(inv.total);
+      } else if (inv.status === 'sent' || inv.status === 'overdue' || inv.status === 'draft') {
+        const total = toCents(inv.total);
+        const paid = toCents(inv.paidAmount || '0.00');
+        pendingCents += Math.max(0, total - paid);
+        revenueCents += paid;
+      }
+    }
 
     return c.json({
-      revenueYTD: revenue,
-      pendingInvoices: pending,
+      revenueYTD: fromCents(revenueCents),
+      pendingInvoices: fromCents(pendingCents),
       reportGeneratedAt: new Date().toISOString()
     });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
 import * as schema from '../db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 
 const revenueRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
@@ -10,9 +10,28 @@ revenueRoutes.use('*', requireAuth);
 // Get all revenue streams
 revenueRoutes.get('/streams', requireAdmin, async (c) => {
   const admin = c.get('user');
+  const search = c.req.query('search');
+  const status = c.req.query('status');
+  const page = parseInt(c.req.query('page') || '1');
+  const limit = parseInt(c.req.query('limit') || '50');
   const db = c.get('db');
   
   try {
+    let conditions = [eq(schema.revenueStreams.tenantId, admin.tenantId)];
+    
+    if (status) conditions.push(eq(schema.revenueStreams.status, status));
+    if (search) {
+      const searchPattern = `%${search}%`;
+      conditions.push(sql`(${schema.revenueStreams.name} ILIKE ${searchPattern} OR ${schema.revenueStreams.description} ILIKE ${searchPattern})`);
+    }
+
+    const offset = (page - 1) * limit;
+
+    const [countRes] = await db.select({ count: sql`count(*)`.mapWith(Number) })
+      .from(schema.revenueStreams)
+      .where(and(...conditions));
+    const total = countRes.count;
+
     const streams = await db.select({
       stream: schema.revenueStreams,
       client: schema.clients,
@@ -21,12 +40,15 @@ revenueRoutes.get('/streams', requireAdmin, async (c) => {
     .from(schema.revenueStreams)
     .leftJoin(schema.clients, eq(schema.revenueStreams.clientId, schema.clients.id))
     .leftJoin(schema.projects, eq(schema.revenueStreams.projectId, schema.projects.id))
-    .where(eq(schema.revenueStreams.tenantId, admin.tenantId))
-    .orderBy(desc(schema.revenueStreams.createdAt));
+    .where(and(...conditions))
+    .orderBy(desc(schema.revenueStreams.createdAt))
+    .limit(limit)
+    .offset(offset);
     
-    return c.json(streams);
+    return c.json({ data: streams, total, page, limit });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
@@ -76,7 +98,8 @@ revenueRoutes.post('/streams', requireAdmin, async (c) => {
 
     return c.json({ success: true, streamId: newStream.id }, 201);
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
@@ -121,7 +144,8 @@ revenueRoutes.get('/streams/:id', requireAdmin, async (c) => {
 
     return c.json({ ...streamData, records, invoices: recentInvoices });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
@@ -164,7 +188,8 @@ revenueRoutes.put('/streams/:id', requireAdmin, async (c) => {
 
     return c.json({ success: true });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
@@ -180,7 +205,8 @@ revenueRoutes.delete('/streams/:id', requireAdmin, async (c) => {
       .where(and(eq(schema.revenueStreams.id, streamId), eq(schema.revenueStreams.tenantId, admin.tenantId)));
     return c.json({ success: true });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 

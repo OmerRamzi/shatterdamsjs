@@ -1,4 +1,4 @@
-import { pgTable, foreignKey, serial, integer, varchar, text, timestamp, boolean, unique, date, numeric, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, foreignKey, serial, integer, varchar, text, timestamp, boolean, unique, date, numeric, pgEnum, index } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const invoiceStatus = pgEnum("invoice_status", ['draft', 'sent', 'paid', 'overdue', 'cancelled'])
@@ -13,6 +13,9 @@ export const userRole = pgEnum("user_role", ['administrator', 'freelancer', 'cli
 export const revenueStreamFrequency = pgEnum("revenue_stream_frequency", ['one_time', 'weekly', 'monthly', 'quarterly', 'yearly'])
 export const revenueStreamStatus = pgEnum("revenue_stream_status", ['active', 'paused', 'completed', 'cancelled'])
 export const commissionStatus = pgEnum("commission_status", ['pending', 'paid', 'cancelled'])
+export const creditNoteStatus = pgEnum("credit_note_status", ['draft', 'applied', 'void'])
+export const notificationType = pgEnum("notification_type", ['invoice_send', 'quote_send', 'payment_reminder', 'overdue_alert'])
+export const notificationStatus = pgEnum("notification_status", ['pending', 'approved', 'rejected', 'expired'])
 
 
 export const activityLogs = pgTable("activity_logs", {
@@ -141,7 +144,7 @@ export const invoices = pgTable("invoices", {
 	tax: numeric({ precision: 15, scale:  2 }).default('0.00'),
 	discount: numeric({ precision: 15, scale:  2 }).default('0.00'),
 	total: numeric({ precision: 15, scale:  2 }).notNull(),
-	currency: varchar({ length: 10 }).default('USD').notNull(),
+	currency: varchar({ length: 10 }).default('LKR').notNull(),
 	exchangeRate: numeric("exchange_rate", { precision: 15, scale: 6 }).default('1.000000').notNull(),
 	paidAmount: numeric("paid_amount", { precision: 15, scale:  2 }).default('0.00'),
 	status: invoiceStatus().default('draft'),
@@ -152,6 +155,7 @@ export const invoices = pgTable("invoices", {
 	createdBy: integer("created_by").notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+	deletedAt: timestamp("deleted_at", { mode: 'string' }),
 }, (table) => [
 	foreignKey({
 			columns: [table.clientId],
@@ -174,6 +178,9 @@ export const invoices = pgTable("invoices", {
 			name: "invoices_tenant_id_tenants_id_fk"
 		}),
 	unique("invoices_invoice_number_unique").on(table.invoiceNumber),
+	index("invoices_tenant_id_idx").on(table.tenantId),
+	index("invoices_client_id_idx").on(table.clientId),
+	index("invoices_project_id_idx").on(table.projectId),
 ]);
 
 export const milestones = pgTable("milestones", {
@@ -222,6 +229,7 @@ export const projects = pgTable("projects", {
 	deadline: date(),
 	completionDate: date("completion_date"),
 	budget: numeric({ precision: 15, scale:  2 }),
+	hourlyRate: numeric("hourly_rate", { precision: 10, scale:  2 }).default('0.00'),
 	progress: integer().default(0),
 	createdBy: integer("created_by").notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
@@ -243,12 +251,16 @@ export const projects = pgTable("projects", {
 			foreignColumns: [tenants.id],
 			name: "projects_tenant_id_tenants_id_fk"
 		}),
+	index("projects_tenant_id_idx").on(table.tenantId),
+	index("projects_client_id_idx").on(table.clientId),
 ]);
 
 export const quotations = pgTable("quotations", {
 	id: serial().primaryKey().notNull(),
 	tenantId: integer("tenant_id").notNull(),
 	clientId: integer("client_id").notNull(),
+	projectId: integer("project_id"),
+	convertedToInvoiceId: integer("converted_to_invoice_id"),
 	quoteNumber: varchar("quote_number", { length: 50 }).notNull(),
 	title: varchar({ length: 255 }),
 	issueDate: date("issue_date").notNull(),
@@ -257,12 +269,15 @@ export const quotations = pgTable("quotations", {
 	tax: numeric({ precision: 15, scale:  2 }).default('0.00'),
 	discount: numeric({ precision: 15, scale:  2 }).default('0.00'),
 	total: numeric({ precision: 15, scale:  2 }).notNull(),
+	currency: varchar({ length: 10 }).default('LKR').notNull(),
+	exchangeRate: numeric("exchange_rate", { precision: 15, scale: 6 }).default('1.000000').notNull(),
 	status: quoteStatus().default('draft'),
 	notes: text(),
 	terms: text(),
 	createdBy: integer("created_by").notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+	deletedAt: timestamp("deleted_at", { mode: 'string' }),
 }, (table) => [
 	foreignKey({
 			columns: [table.clientId],
@@ -279,7 +294,20 @@ export const quotations = pgTable("quotations", {
 			foreignColumns: [tenants.id],
 			name: "quotations_tenant_id_tenants_id_fk"
 		}),
+	foreignKey({
+			columns: [table.projectId],
+			foreignColumns: [projects.id],
+			name: "quotations_project_id_projects_id_fk"
+		}).onDelete("set null"),
+	foreignKey({
+			columns: [table.convertedToInvoiceId],
+			foreignColumns: [invoices.id],
+			name: "quotations_converted_to_invoice_id_invoices_id_fk"
+		}).onDelete("set null"),
 	unique("quotations_quote_number_unique").on(table.quoteNumber),
+	index("quotations_tenant_id_idx").on(table.tenantId),
+	index("quotations_client_id_idx").on(table.clientId),
+	index("quotations_project_id_idx").on(table.projectId),
 ]);
 
 export const timesheets = pgTable("timesheets", {
@@ -487,7 +515,7 @@ export const revenueStreams = pgTable("revenue_streams", {
 	name: varchar({ length: 255 }).notNull(),
 	description: text(),
 	amount: numeric({ precision: 15, scale: 2 }).notNull(),
-	currency: varchar({ length: 10 }).default('USD').notNull(),
+	currency: varchar({ length: 10 }).default('LKR').notNull(),
 	frequency: revenueStreamFrequency().default('monthly'),
 	status: revenueStreamStatus().default('active'),
 	autoGenerateInvoice: boolean("auto_generate_invoice").default(false),
@@ -510,6 +538,9 @@ export const revenueStreams = pgTable("revenue_streams", {
 		foreignColumns: [projects.id],
 		name: "revenue_streams_project_id_projects_id_fk"
 	}).onDelete("set null"),
+	index("revenue_streams_tenant_id_idx").on(table.tenantId),
+	index("revenue_streams_client_id_idx").on(table.clientId),
+	index("revenue_streams_project_id_idx").on(table.projectId),
 ]);
 
 export const revenueRecords = pgTable("revenue_records", {
@@ -517,7 +548,7 @@ export const revenueRecords = pgTable("revenue_records", {
 	tenantId: integer("tenant_id").notNull(),
 	streamId: integer("stream_id").notNull(),
 	amount: numeric({ precision: 15, scale: 2 }).notNull(),
-	currency: varchar({ length: 10 }).default('USD').notNull(),
+	currency: varchar({ length: 10 }).default('LKR').notNull(),
 	recordedAt: timestamp("recorded_at", { mode: 'string' }).defaultNow(),
 	notes: text(),
 }, (table) => [
@@ -540,7 +571,7 @@ export const commissions = pgTable("commissions", {
 	projectId: integer("project_id"),
 	source: varchar({ length: 100 }).notNull(),
 	amount: numeric({ precision: 15, scale: 2 }).notNull(),
-	currency: varchar({ length: 10 }).default('USD').notNull(),
+	currency: varchar({ length: 10 }).default('LKR').notNull(),
 	date: date().notNull(),
 	status: commissionStatus().default('pending'),
 	referenceId: varchar("reference_id", { length: 255 }),
@@ -563,4 +594,151 @@ export const commissions = pgTable("commissions", {
 		foreignColumns: [projects.id],
 		name: "commissions_project_id_projects_id_fk"
 	}).onDelete("set null"),
+	index("commissions_tenant_id_idx").on(table.tenantId),
+	index("commissions_client_id_idx").on(table.clientId),
+	index("commissions_project_id_idx").on(table.projectId),
+]);
+
+export const expenseCategories = pgTable("expense_categories", {
+	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
+	name: varchar({ length: 255 }).notNull(),
+	description: text(),
+	isActive: boolean("is_active").default(true),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	foreignKey({
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "expense_categories_tenant_id_tenants_id_fk"
+	}),
+	index("expense_categories_tenant_id_idx").on(table.tenantId),
+]);
+
+export const expenses = pgTable("expenses", {
+	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
+	projectId: integer("project_id"),
+	categoryId: integer("category_id").notNull(),
+	amount: numeric({ precision: 15, scale: 2 }).notNull(),
+	currency: varchar({ length: 10 }).default('LKR').notNull(),
+	description: text(),
+	date: date().notNull(),
+	receiptFilePath: varchar("receipt_file_path", { length: 500 }),
+	receiptFileName: varchar("receipt_file_name", { length: 255 }),
+	createdBy: integer("created_by").notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	foreignKey({
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "expenses_tenant_id_tenants_id_fk"
+	}),
+	foreignKey({
+		columns: [table.projectId],
+		foreignColumns: [projects.id],
+		name: "expenses_project_id_projects_id_fk"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.categoryId],
+		foreignColumns: [expenseCategories.id],
+		name: "expenses_category_id_expense_categories_id_fk"
+	}),
+	foreignKey({
+		columns: [table.createdBy],
+		foreignColumns: [users.id],
+		name: "expenses_created_by_users_id_fk"
+	}),
+	index("expenses_tenant_id_idx").on(table.tenantId),
+	index("expenses_project_id_idx").on(table.projectId),
+]);
+
+export const creditNotes = pgTable("credit_notes", {
+	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
+	invoiceId: integer("invoice_id").notNull(),
+	creditNoteNumber: varchar("credit_note_number", { length: 50 }).notNull(),
+	amount: numeric({ precision: 15, scale: 2 }).notNull(),
+	reason: text(),
+	status: creditNoteStatus().default('draft'),
+	appliedDate: date("applied_date"),
+	createdBy: integer("created_by").notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	foreignKey({
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "credit_notes_tenant_id_tenants_id_fk"
+	}),
+	foreignKey({
+		columns: [table.invoiceId],
+		foreignColumns: [invoices.id],
+		name: "credit_notes_invoice_id_invoices_id_fk"
+	}),
+	foreignKey({
+		columns: [table.createdBy],
+		foreignColumns: [users.id],
+		name: "credit_notes_created_by_users_id_fk"
+	}),
+	unique("credit_notes_credit_note_number_unique").on(table.creditNoteNumber),
+	index("credit_notes_tenant_id_idx").on(table.tenantId),
+	index("credit_notes_invoice_id_idx").on(table.invoiceId),
+]);
+
+export const notificationQueue = pgTable("notification_queue", {
+	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
+	type: notificationType().notNull(),
+	entityType: varchar("entity_type", { length: 50 }),
+	entityId: integer("entity_id"),
+	title: varchar({ length: 255 }).notNull(),
+	description: text(),
+	status: notificationStatus().default('pending'),
+	createdBy: integer("created_by"),
+	reviewedBy: integer("reviewed_by"),
+	reviewedAt: timestamp("reviewed_at", { mode: 'string' }),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	foreignKey({
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "notification_queue_tenant_id_tenants_id_fk"
+	}),
+	foreignKey({
+		columns: [table.createdBy],
+		foreignColumns: [users.id],
+		name: "notification_queue_created_by_users_id_fk"
+	}),
+	foreignKey({
+		columns: [table.reviewedBy],
+		foreignColumns: [users.id],
+		name: "notification_queue_reviewed_by_users_id_fk"
+	}),
+	index("notification_queue_tenant_id_idx").on(table.tenantId),
+	index("notification_queue_status_idx").on(table.status),
+]);
+
+export const paymentProofs = pgTable("payment_proofs", {
+	id: serial().primaryKey().notNull(),
+	invoiceId: integer("invoice_id").notNull(),
+	filePath: varchar("file_path", { length: 500 }).notNull(),
+	fileName: varchar("file_name", { length: 255 }).notNull(),
+	fileSize: integer("file_size"),
+	mimeType: varchar("mime_type", { length: 100 }),
+	uploadedBy: integer("uploaded_by").notNull(),
+	uploadedAt: timestamp("uploaded_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	foreignKey({
+		columns: [table.invoiceId],
+		foreignColumns: [invoices.id],
+		name: "payment_proofs_invoice_id_invoices_id_fk"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.uploadedBy],
+		foreignColumns: [users.id],
+		name: "payment_proofs_uploaded_by_users_id_fk"
+	}),
+	index("payment_proofs_invoice_id_idx").on(table.invoiceId),
 ]);

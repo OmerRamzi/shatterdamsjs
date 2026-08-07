@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
 import * as schema from '../db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 
 const commissionsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
@@ -10,9 +10,32 @@ commissionsRoutes.use('*', requireAuth);
 // Get all commissions
 commissionsRoutes.get('/', requireAdmin, async (c) => {
   const admin = c.get('user');
+  const search = c.req.query('search');
+  const status = c.req.query('status');
+  const from = c.req.query('from');
+  const to = c.req.query('to');
+  const page = parseInt(c.req.query('page') || '1');
+  const limit = parseInt(c.req.query('limit') || '50');
   const db = c.get('db');
   
   try {
+    let conditions = [eq(schema.commissions.tenantId, admin.tenantId)];
+    
+    if (status) conditions.push(eq(schema.commissions.status, status));
+    if (from) conditions.push(sql`${schema.commissions.date} >= ${from}`);
+    if (to) conditions.push(sql`${schema.commissions.date} <= ${to}`);
+    if (search) {
+      const searchPattern = `%${search}%`;
+      conditions.push(sql`(${schema.commissions.source} ILIKE ${searchPattern} OR ${schema.commissions.notes} ILIKE ${searchPattern})`);
+    }
+
+    const offset = (page - 1) * limit;
+
+    const [countRes] = await db.select({ count: sql`count(*)`.mapWith(Number) })
+      .from(schema.commissions)
+      .where(and(...conditions));
+    const total = countRes.count;
+
     const records = await db.select({
       commission: schema.commissions,
       client: schema.clients,
@@ -21,12 +44,15 @@ commissionsRoutes.get('/', requireAdmin, async (c) => {
     .from(schema.commissions)
     .leftJoin(schema.clients, eq(schema.commissions.clientId, schema.clients.id))
     .leftJoin(schema.projects, eq(schema.commissions.projectId, schema.projects.id))
-    .where(eq(schema.commissions.tenantId, admin.tenantId))
-    .orderBy(desc(schema.commissions.date));
+    .where(and(...conditions))
+    .orderBy(desc(schema.commissions.date))
+    .limit(limit)
+    .offset(offset);
     
-    return c.json(records);
+    return c.json({ data: records, total, page, limit });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
@@ -69,7 +95,8 @@ commissionsRoutes.post('/', requireAdmin, async (c) => {
 
     return c.json({ success: true, commissionId: newCommission.id }, 201);
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
@@ -87,7 +114,8 @@ commissionsRoutes.put('/:id/status', requireAdmin, async (c) => {
 
     return c.json({ success: true });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
@@ -102,7 +130,8 @@ commissionsRoutes.delete('/:id', requireAdmin, async (c) => {
       .where(and(eq(schema.commissions.id, commissionId), eq(schema.commissions.tenantId, admin.tenantId)));
     return c.json({ success: true });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
@@ -127,9 +156,11 @@ commissionsRoutes.get('/webhook-secret', requireAdmin, async (c) => {
       }).returning();
     }
     
-    return c.json({ secret: setting.settingValue, tenantId: admin.tenantId });
+    const maskedSecret = setting.settingValue ? setting.settingValue.substring(0, 4) + '...***...' + setting.settingValue.substring(setting.settingValue.length - 4) : '';
+    return c.json({ secret: maskedSecret, tenantId: admin.tenantId });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
@@ -158,7 +189,8 @@ commissionsRoutes.post('/webhook-secret/regenerate', requireAdmin, async (c) => 
     
     return c.json({ secret: newSecret, tenantId: admin.tenantId });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 

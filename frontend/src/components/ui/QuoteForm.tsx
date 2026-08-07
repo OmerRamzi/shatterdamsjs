@@ -5,23 +5,34 @@ import { Plus, Trash2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function QuoteForm({ clients, initialData }: { clients: any[], initialData?: any }) {
+export function QuoteForm({ clients, projects, initialData }: { clients: any[], projects: any[], initialData?: any }) {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [clientId, setClientId] = useState<number | "">("");
+  const [projectId, setProjectId] = useState<number | "">("");
   const [validUntil, setValidUntil] = useState("");
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("draft");
+  
+  const [currency, setCurrency] = useState("LKR");
+  const [exchangeRate, setExchangeRate] = useState("1.000000");
+  const [tax, setTax] = useState("0");
+  const [discount, setDiscount] = useState("0");
   
   const [items, setItems] = useState([{ description: "", quantity: 1, unitPrice: 0 }]);
 
   useEffect(() => {
     if (initialData) {
       setClientId(initialData.quote.clientId || "");
+      setProjectId(initialData.quote.projectId || "");
       setValidUntil(initialData.quote.validUntil ? new Date(initialData.quote.validUntil).toISOString().split('T')[0] : "");
       setNotes(initialData.quote.notes || "");
       setStatus(initialData.quote.status || "draft");
+      setCurrency(initialData.quote.currency || "LKR");
+      setExchangeRate(initialData.quote.exchangeRate || "1.000000");
+      setTax(initialData.quote.tax || "0");
+      setDiscount(initialData.quote.discount || "0");
       
       if (initialData.items && initialData.items.length > 0) {
         setItems(initialData.items.map((i: any) => ({
@@ -41,7 +52,10 @@ export function QuoteForm({ clients, initialData }: { clients: any[], initialDat
     setItems(newItems);
   };
 
-  const total = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+  const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+  const taxAmount = parseFloat(tax) || 0;
+  const discountAmount = parseFloat(discount) || 0;
+  const total = subtotal + taxAmount - discountAmount;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,9 +72,14 @@ export function QuoteForm({ clients, initialData }: { clients: any[], initialDat
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId: Number(clientId),
+          projectId: projectId ? Number(projectId) : undefined,
           validUntil: validUntil ? new Date(validUntil) : undefined,
           notes,
           status,
+          currency,
+          exchangeRate,
+          tax,
+          discount,
           items,
         })
       });
@@ -98,6 +117,20 @@ export function QuoteForm({ clients, initialData }: { clients: any[], initialDat
           </div>
 
           <div>
+            <label className="block text-sm font-medium mb-1.5">Project (Optional)</label>
+            <select 
+              value={projectId} 
+              onChange={e => setProjectId(e.target.value as any)}
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              <option value="">None</option>
+              {projects?.filter((p: any) => !clientId || p.clientId === Number(clientId)).map((p: any) => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="block text-sm font-medium mb-1.5">Valid Until</label>
             <input 
               type="date" 
@@ -119,9 +152,40 @@ export function QuoteForm({ clients, initialData }: { clients: any[], initialDat
                 <option value="sent">Sent</option>
                 <option value="accepted">Accepted</option>
                 <option value="rejected">Rejected</option>
+                <option value="expired">Expired</option>
               </select>
             </div>
           )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Currency</label>
+              <select 
+                value={currency} 
+                onChange={e => setCurrency(e.target.value)}
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                <option value="LKR">LKR</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="AUD">AUD</option>
+                <option value="CAD">CAD</option>
+              </select>
+            </div>
+            
+            {currency !== "LKR" && (
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Exchange Rate (to Base)</label>
+                <input 
+                  type="number" step="0.000001"
+                  value={exchangeRate}
+                  onChange={e => setExchangeRate(e.target.value)}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -149,7 +213,7 @@ export function QuoteForm({ clients, initialData }: { clients: any[], initialDat
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="text-xs text-muted-foreground">Price ($)</label>
+                    <label className="text-xs text-muted-foreground">Price</label>
                     <input 
                       type="number" min="0" step="0.01" required
                       value={item.unitPrice}
@@ -177,9 +241,23 @@ export function QuoteForm({ clients, initialData }: { clients: any[], initialDat
             <Plus className="w-4 h-4" /> Add Item
           </button>
           
-          <div className="border-t border-border pt-4 mt-4 flex justify-between items-center font-semibold text-lg">
-            <span>Total:</span>
-            <span>${total.toFixed(2)}</span>
+          <div className="border-t border-border pt-4 mt-4 space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Subtotal:</span>
+              <span>{currency} {subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Tax Amount:</span>
+              <input type="number" step="0.01" min="0" value={tax} onChange={e => setTax(e.target.value)} className="w-24 text-right bg-background border border-border rounded px-2 py-1" />
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Discount Amount:</span>
+              <input type="number" step="0.01" min="0" value={discount} onChange={e => setDiscount(e.target.value)} className="w-24 text-right bg-background border border-border rounded px-2 py-1" />
+            </div>
+            <div className="flex justify-between items-center font-semibold text-lg pt-2 border-t border-border/50">
+              <span>Total:</span>
+              <span>{currency} {total.toFixed(2)}</span>
+            </div>
           </div>
         </div>
       </div>

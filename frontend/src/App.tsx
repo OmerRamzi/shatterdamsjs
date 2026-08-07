@@ -35,6 +35,7 @@ import ClientQuoteDetailsPage from './pages/client/QuoteDetails';
 import TeamDashboardPage from './pages/team/Dashboard';
 import TeamProjectsPage from './pages/team/Projects';
 import TeamProjectDetailsPage from './pages/team/ProjectDetails';
+import TeamTimesheetsPage from './pages/team/Timesheets';
 import AdminLayout from './layouts/AdminLayout';
 import ClientLayout from './layouts/ClientLayout';
 import TeamLayout from './layouts/TeamLayout';
@@ -124,6 +125,7 @@ function AppRoutes() {
           <Route path="dashboard" element={<TeamDashboardPage />} />
           <Route path="projects" element={<TeamProjectsPage />} />
           <Route path="projects/:id" element={<TeamProjectDetailsPage />} />
+          <Route path="timesheets" element={<TeamTimesheetsPage />} />
         </Route>
       )}
 

@@ -9,10 +9,19 @@ export function InvoicePDFGenerator({ data }: { data: any }) {
   const handleGeneratePDF = () => {
     const doc = new jsPDF();
     const { invoice, client, items, project } = data;
-    const currency = invoice.currency || 'USD';
+    const currency = invoice.currency || 'LKR';
+
+    // Watermark
+    if (invoice.status === 'paid' || invoice.status === 'overdue' || invoice.status === 'draft') {
+      doc.setFontSize(60);
+      doc.setTextColor(240, 240, 240); // Very light gray
+      // Rotate for watermark effect
+      doc.text(invoice.status.toUpperCase(), 40, 150, { angle: 45, renderingMode: 'fill' });
+    }
 
     // Header
     doc.setFontSize(22);
+    doc.setTextColor(0, 0, 0); // reset color
     doc.text("INVOICE", 14, 20);
 
     doc.setFontSize(10);

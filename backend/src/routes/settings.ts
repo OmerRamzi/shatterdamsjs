@@ -13,6 +13,14 @@ settingsRoutes.get('/', async (c) => {
   
   try {
     const tenantSettings = await db.select({ key: schema.settings.settingKey, value: schema.settings.settingValue }).from(schema.settings).where(eq(schema.settings.tenantId, user.tenantId));
+    
+    // Fallback defaults
+    const defaults: Record<string, string> = {
+      currency: 'LKR',
+      currencySymbol: 'Rs.',
+      default_tax_rate: '0.00'
+    };
+    
     const formattedSettings = tenantSettings.reduce((acc: any, curr: any) => {
       let val = curr.value;
       if (curr.key.includes('secret') || curr.key.includes('token') || curr.key.includes('password') || curr.key.includes('key')) {
@@ -20,9 +28,11 @@ settingsRoutes.get('/', async (c) => {
       }
       return { ...acc, [curr.key]: val };
     }, {});
-    return c.json(formattedSettings);
+    
+    return c.json({ ...defaults, ...formattedSettings });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
@@ -44,7 +54,8 @@ settingsRoutes.put('/', async (c) => {
     }
     return c.json({ success: true });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 

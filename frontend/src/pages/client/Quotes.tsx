@@ -1,17 +1,49 @@
-import { useState, useEffect } from 'react';
-import { FileText, ArrowRight } from "lucide-react";
+import { useState, useEffect, useCallback } from 'react';
+import { FileText, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function ClientQuotesPage() {
   const [quotesList, setQuotesList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetch('/api/portal/client/quotes')
+  // Pagination & Search state
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const limit = 10;
+
+  const fetchQuotes = useCallback(() => {
+    setIsLoading(true);
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+
+    fetch(`/api/portal/client/quotes?${params.toString()}`)
       .then(res => res.json())
-      .then(data => setQuotesList(data))
+      .then(res => {
+        if (res.data) {
+          setQuotesList(res.data);
+          setTotal(res.total || 0);
+        } else {
+          setQuotesList(res);
+        }
+      })
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [status, page]);
+
+  useEffect(() => {
+    fetchQuotes();
+  }, [fetchQuotes]);
+
+  const totalPages = Math.ceil(total / limit) || 1;
+
+  const statuses = [
+    { label: 'All', value: '' },
+    { label: 'Sent', value: 'sent' },
+    { label: 'Accepted', value: 'accepted' },
+    { label: 'Rejected', value: 'rejected' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -21,6 +53,24 @@ export default function ClientQuotesPage() {
       </div>
 
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-border">
+          <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar w-full sm:w-auto">
+            {statuses.map(s => (
+              <button
+                key={s.value}
+                onClick={() => { setStatus(s.value); setPage(1); }}
+                className={`whitespace-nowrap px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  status === s.value 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-muted-foreground uppercase bg-secondary/30 border-b border-border">
@@ -50,16 +100,16 @@ export default function ClientQuotesPage() {
                   </td>
                 </tr>
               ) : (
-                quotesList.map(({ quote }) => (
+                quotesList.map(({ quote, project }) => (
                   <tr key={quote.id} className="hover:bg-secondary/20 transition-colors">
                     <td className="px-6 py-4 font-medium text-foreground">
                       {quote.quoteNumber}
                     </td>
-                    <td className="px-6 py-4">N/A</td>
+                    <td className="px-6 py-4">{project?.title || "N/A"}</td>
                     <td className="px-6 py-4 text-muted-foreground">
                       {new Date(quote.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 font-medium">${parseFloat(quote.total).toFixed(2)}</td>
+                    <td className="px-6 py-4 font-medium">{quote.currency || 'LKR'} {parseFloat(quote.total).toFixed(2)}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                         quote.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-500' :
@@ -81,6 +131,31 @@ export default function ClientQuotesPage() {
             </tbody>
           </table>
         </div>
+
+        {total > 0 && (
+          <div className="p-4 border-t border-border flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              Showing {(page - 1) * limit + 1} to {Math.min(page * limit, total)} of {total}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-1.5 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-medium px-2">Page {page} of {totalPages}</span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-1.5 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

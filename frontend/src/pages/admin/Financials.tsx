@@ -1,11 +1,20 @@
-import { useState, useEffect } from "react";
-import { DollarSign, Plus, Loader2, PlayCircle, PauseCircle, Trash2, Edit, FileText, Receipt, CheckCircle, Clock } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { DollarSign, Plus, Loader2, PlayCircle, PauseCircle, Trash2, Edit, FileText, Receipt, CheckCircle, Clock, Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function AdminFinancialsPage() {
   const [streams, setStreams] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [clients, setClients] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
+
+  // Pagination & Search state
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const limit = 10;
+  const [activeCount, setActiveCount] = useState(0);
+  const [totalMrr, setTotalMrr] = useState(0);
 
   // Modal & Details State
   const [modalMode, setModalMode] = useState<'create'|'view'|'edit'|null>(null);
@@ -27,18 +36,50 @@ export default function AdminFinancialsPage() {
     description: ""
   });
 
-  const fetchStreams = async () => {
+  const fetchStreams = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const res = await fetch("/api/revenue/streams");
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (status) params.append('status', status);
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+
+      const res = await fetch(`/api/revenue/streams?${params.toString()}`);
       if (res.ok) {
-        setStreams(await res.json());
+        const data = await res.json();
+        if (data.data) {
+          setStreams(data.data);
+          setTotal(data.total || 0);
+
+          // Approximate MRR calculation from the current page
+          // In Phase 7 this will be done server-side
+          let mrr = 0;
+          let active = 0;
+          data.data.forEach(({ stream }: any) => {
+            if (stream.status === 'active') {
+              active++;
+              if (stream.currency === 'USD' || stream.currency === 'LKR') { // Just simple sum
+                let val = parseFloat(stream.amount);
+                if (stream.frequency === 'yearly') val /= 12;
+                if (stream.frequency === 'quarterly') val /= 3;
+                if (stream.frequency === 'weekly') val = (val * 52) / 12;
+                if (stream.frequency !== 'one_time') mrr += val;
+              }
+            }
+          });
+          setTotalMrr(mrr);
+          setActiveCount(active);
+        } else {
+          setStreams(data);
+        }
       }
     } catch (e) {
       console.error("Failed to fetch streams", e);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [search, status, page]);
 
   const fetchClientsAndProjects = async () => {
     try {
@@ -54,25 +95,13 @@ export default function AdminFinancialsPage() {
   };
 
   useEffect(() => {
-    fetchStreams();
+    const delay = setTimeout(() => fetchStreams(), 300);
+    return () => clearTimeout(delay);
+  }, [fetchStreams]);
+
+  useEffect(() => {
     fetchClientsAndProjects();
   }, []);
-
-  const calculateMRR = () => {
-    let mrr = 0;
-    streams.forEach(({ stream }) => {
-      if (stream.status === 'active' && stream.currency === 'USD') { // Assuming base currency USD for aggregate
-        let val = parseFloat(stream.amount);
-        if (stream.frequency === 'yearly') val /= 12;
-        if (stream.frequency === 'quarterly') val /= 3;
-        if (stream.frequency === 'weekly') val = (val * 52) / 12;
-        if (stream.frequency !== 'one_time') {
-          mrr += val;
-        }
-      }
-    });
-    return mrr;
-  };
 
   const openCreateModal = () => {
     setSelectedStreamId(null);
@@ -216,6 +245,14 @@ export default function AdminFinancialsPage() {
   // Filter projects based on selected client
   const clientProjects = formData.clientId ? projects.filter(p => p.clientId === parseInt(formData.clientId)) : [];
 
+  const totalPages = Math.ceil(total / limit) || 1;
+
+  const statuses = [
+    { label: 'All', value: '' },
+    { label: 'Active', value: 'active' },
+    { label: 'Paused', value: 'paused' },
+  ];
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
       <div className="flex justify-between items-center">
@@ -231,72 +268,130 @@ export default function AdminFinancialsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
           <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <DollarSign className="w-4 h-4 text-emerald-500" /> Total MRR (USD)
+            <DollarSign className="w-4 h-4 text-emerald-500" /> Total MRR (View)
           </h3>
-          <p className="text-4xl font-bold mt-2">${calculateMRR().toFixed(2)}</p>
+          <p className="text-4xl font-bold mt-2">{totalMrr.toFixed(2)}</p>
         </div>
         <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
           <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <PlayCircle className="w-4 h-4 text-blue-500" /> Active Streams
+            <PlayCircle className="w-4 h-4 text-blue-500" /> Active Streams (View)
           </h3>
-          <p className="text-4xl font-bold mt-2">{streams.filter(s => s.stream.status === 'active').length}</p>
+          <p className="text-4xl font-bold mt-2">{activeCount}</p>
         </div>
       </div>
 
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-secondary/50 text-muted-foreground uppercase text-xs">
-            <tr>
-              <th className="px-6 py-4 font-medium">Stream Name</th>
-              <th className="px-6 py-4 font-medium">Client</th>
-              <th className="px-6 py-4 font-medium">Amount</th>
-              <th className="px-6 py-4 font-medium">Billing</th>
-              <th className="px-6 py-4 font-medium">Status</th>
-              <th className="px-6 py-4 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {isLoading ? (
-              <tr><td colSpan={6} className="px-6 py-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
-            ) : streams.length === 0 ? (
-              <tr><td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">No revenue streams found.</td></tr>
-            ) : (
-              streams.map(({ stream, client }) => (
-                <tr key={stream.id} onClick={() => openViewModal(stream.id)} className="hover:bg-secondary/20 transition-colors cursor-pointer">
-                  <td className="px-6 py-4 font-medium">{stream.name}</td>
-                  <td className="px-6 py-4">{client?.companyName}</td>
-                  <td className="px-6 py-4 font-semibold">{stream.currency} {parseFloat(stream.amount).toFixed(2)}</td>
-                  <td className="px-6 py-4">
-                    <span className="capitalize">{stream.frequency.replace('_', ' ')}</span>
-                    <br />
-                    {stream.autoGenerateInvoice ? (
-                      <span className="text-xs text-emerald-500">Auto-Invoice ON (Next: {stream.nextBillingDate ? new Date(stream.nextBillingDate).toLocaleDateString() : 'N/A'})</span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Auto-Invoice OFF</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                      stream.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-secondary text-muted-foreground'
-                    }`}>
-                      {stream.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2 items-center">
-                      <button onClick={(e) => { e.stopPropagation(); toggleStatus(stream.id, stream.status); }} className="p-2 text-muted-foreground hover:text-primary transition-colors" title="Toggle Status">
-                        {stream.status === 'active' ? <PauseCircle className="w-4 h-4" /> : <PlayCircle className="w-4 h-4" />}
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); deleteStream(stream.id); }} className="p-2 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        <div className="p-4 border-b border-border space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar w-full sm:w-auto">
+              {statuses.map(s => (
+                <button
+                  key={s.value}
+                  onClick={() => { setStatus(s.value); setPage(1); }}
+                  className={`whitespace-nowrap px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    status === s.value 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            
+            <div className="relative flex-1 max-w-sm w-full">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search streams..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                className="w-full bg-secondary/50 border-none rounded-md pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-secondary/50 text-muted-foreground uppercase text-xs">
+              <tr>
+                <th className="px-6 py-4 font-medium">Stream Name</th>
+                <th className="px-6 py-4 font-medium">Client</th>
+                <th className="px-6 py-4 font-medium">Amount</th>
+                <th className="px-6 py-4 font-medium">Billing</th>
+                <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-6 py-4 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {isLoading ? (
+                <tr><td colSpan={6} className="px-6 py-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
+              ) : streams.length === 0 ? (
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">No revenue streams found.</td></tr>
+              ) : (
+                streams.map(({ stream, client }) => (
+                  <tr key={stream.id} onClick={() => openViewModal(stream.id)} className="hover:bg-secondary/20 transition-colors cursor-pointer group">
+                    <td className="px-6 py-4 font-medium group-hover:text-primary transition-colors">{stream.name}</td>
+                    <td className="px-6 py-4">{client?.companyName}</td>
+                    <td className="px-6 py-4 font-semibold">{stream.currency} {parseFloat(stream.amount).toFixed(2)}</td>
+                    <td className="px-6 py-4">
+                      <span className="capitalize">{stream.frequency.replace('_', ' ')}</span>
+                      <br />
+                      {stream.autoGenerateInvoice ? (
+                        <span className="text-xs text-emerald-500">Auto-Invoice ON (Next: {stream.nextBillingDate ? new Date(stream.nextBillingDate).toLocaleDateString() : 'N/A'})</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Auto-Invoice OFF</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                        stream.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-secondary text-muted-foreground'
+                      }`}>
+                        {stream.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={(e) => { e.stopPropagation(); toggleStatus(stream.id, stream.status); }} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-primary transition-colors" title="Toggle Status">
+                          {stream.status === 'active' ? <PauseCircle className="w-4 h-4" /> : <PlayCircle className="w-4 h-4" />}
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteStream(stream.id); }} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {total > 0 && (
+          <div className="p-4 border-t border-border flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              Showing {(page - 1) * limit + 1} to {Math.min(page * limit, total)} of {total} entries
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-1.5 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-medium px-2">Page {page} of {totalPages}</span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-1.5 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Unified Modal */}
