@@ -12,17 +12,26 @@ export default function AdminProjectDetailsPage() {
   const [projectData, setProjectData] = useState<any>(null);
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'tasks'>('overview');
 
   const fetchProjectData = () => {
+    setError(null);
     fetch(`/api/projects/${projectId}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to load project (${res.status})`);
+        return res.json();
+      })
       .then(data => {
+        if (!data.project) throw new Error('Project data missing from response');
         setProjectData(data.project);
         setProjectFiles(data.files || []);
       })
-      .catch(err => console.error("Error fetching project data:", err))
+      .catch(err => {
+        console.error("Error fetching project data:", err);
+        setError(err.message || 'Failed to load project');
+      })
       .finally(() => setIsLoading(false));
   };
 
@@ -40,8 +49,8 @@ export default function AdminProjectDetailsPage() {
     return <div className="p-6">Loading project details...</div>;
   }
 
-  if (!projectData) {
-    return <div className="p-6 text-destructive">Project not found.</div>;
+  if (error || !projectData) {
+    return <div className="p-6 text-destructive">{error || 'Project not found.'}</div>;
   }
 
   return (

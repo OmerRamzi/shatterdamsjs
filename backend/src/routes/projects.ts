@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
 import * as schema from '../db/schema';
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { eq, and, desc, inArray, isNull } from 'drizzle-orm';
 
 const projectsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
@@ -10,10 +10,16 @@ projectsRoutes.use('*', requireAuth);
 projectsRoutes.get('/', async (c) => {
   const user = c.get('user');
   const db = c.get('db');
+  const clientId = c.req.query('clientId');
+  const status = c.req.query('status');
   
   try {
+    let conditions = [eq(schema.projects.tenantId, user.tenantId)];
+    if (clientId) conditions.push(eq(schema.projects.clientId, parseInt(clientId)));
+    if (status) conditions.push(eq(schema.projects.status, status as any));
+
     const data = await db.select().from(schema.projects)
-      .where(eq(schema.projects.tenantId, user.tenantId))
+      .where(and(...conditions))
       .orderBy(desc(schema.projects.createdAt));
       
     const clientIds = [...new Set(data.map(i => i.clientId).filter(Boolean))] as number[];
@@ -26,7 +32,51 @@ projectsRoutes.get('/', async (c) => {
 
     return c.json(formatted);
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+projectsRoutes.get('/:id', requireAuth, async (c) => {
+  const user = c.get('user');
+  const projectId = parseInt(c.req.param('id'));
+  const db = c.get('db');
+
+  try {
+    const [project] = await db.select().from(schema.projects)
+      .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, user.tenantId)))
+      .limit(1);
+
+    if (!project) return c.json({ error: 'Project not found' }, 404);
+
+    // Fetch related client
+    const [client] = project.clientId
+      ? await db.select().from(schema.clients).where(eq(schema.clients.id, project.clientId)).limit(1)
+      : [null];
+
+    // Fetch project team members
+    const teamRows = await db.select().from(schema.projectTeam).where(eq(schema.projectTeam.projectId, projectId));
+    const teamUserIds = teamRows.map(r => r.userId).filter(Boolean) as number[];
+    const teamUsers = teamUserIds.length > 0
+      ? await db.select({ id: schema.users.id, name: schema.users.name, email: schema.users.email, role: schema.users.role })
+          .from(schema.users)
+          .where(inArray(schema.users.id, teamUserIds))
+      : [];
+
+    // Fetch tasks
+    const tasks = await db.select().from(schema.tasks)
+      .where(eq(schema.tasks.projectId, projectId))
+      .orderBy(desc(schema.tasks.createdAt));
+
+    // Fetch files
+    const files = await db.select().from(schema.files)
+      .where(and(eq(schema.files.projectId, projectId), isNull(schema.files.deletedAt)))
+      .orderBy(desc(schema.files.createdAt));
+
+    return c.json({ project: { ...project, client }, tasks, files, teamUsers });
+  } catch (error: any) {
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 

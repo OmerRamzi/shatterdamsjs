@@ -29,9 +29,21 @@ export default function AdminClientDetailsPage() {
       ]);
       
       if (clientRes.ok) setClient(await clientRes.json());
-      if (projectsRes.ok) setProjects(await projectsRes.json());
-      if (invoicesRes.ok) setInvoices(await invoicesRes.json());
-      if (quotesRes.ok) setQuotes(await quotesRes.json());
+      if (projectsRes.ok) {
+        const pData = await projectsRes.json();
+        // Projects returns a flat array (each item has project fields inline)
+        setProjects(Array.isArray(pData) ? pData : (pData.data || []));
+      }
+      if (invoicesRes.ok) {
+        const iData = await invoicesRes.json();
+        // Invoices returns a paginated { data: [...] } object
+        setInvoices(Array.isArray(iData) ? iData : (iData.data || []));
+      }
+      if (quotesRes.ok) {
+        const qData = await quotesRes.json();
+        // Quotes returns a paginated { data: [...] } object
+        setQuotes(Array.isArray(qData) ? qData : (qData.data || []));
+      }
     } catch (error) {
       console.error("Error fetching client data:", error);
     } finally {
@@ -48,8 +60,8 @@ export default function AdminClientDetailsPage() {
   if (isNaN(clientId) || (!isLoading && !client)) return <div className="p-6 text-destructive">Client not found</div>;
   if (isLoading) return <div className="p-6">Loading client details...</div>;
 
-  const totalBilled = invoices.reduce((sum, inv) => sum + (parseFloat(inv.invoice.total) || 0), 0);
-  const totalPaid = invoices.reduce((sum, inv) => sum + (parseFloat(inv.invoice.paidAmount) || 0), 0);
+  const totalBilled = invoices.reduce((sum: number, inv: any) => sum + (parseFloat(inv.invoice?.total ?? inv.total) || 0), 0);
+  const totalPaid = invoices.reduce((sum: number, inv: any) => sum + (parseFloat(inv.invoice?.paidAmount ?? inv.paidAmount) || 0), 0);
 
   return (
     <div className="space-y-6">
