@@ -1,4 +1,4 @@
-import { pgTable, foreignKey, serial, integer, varchar, text, timestamp, boolean, unique, date, numeric, pgEnum, index } from "drizzle-orm/pg-core"
+import { pgTable, foreignKey, serial, integer, varchar, text, timestamp, boolean, unique, date, numeric, pgEnum, index, json } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const invoiceStatus = pgEnum("invoice_status", ['draft', 'sent', 'paid', 'overdue', 'cancelled'])
@@ -185,6 +185,7 @@ export const invoices = pgTable("invoices", {
 
 export const milestones = pgTable("milestones", {
 	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
 	projectId: integer("project_id").notNull(),
 	title: varchar({ length: 255 }).notNull(),
 	description: text(),
@@ -196,10 +197,17 @@ export const milestones = pgTable("milestones", {
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
 }, (table) => [
 	foreignKey({
-			columns: [table.projectId],
-			foreignColumns: [projects.id],
-			name: "milestones_project_id_projects_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "milestones_tenant_id_tenants_id_fk"
+	}),
+	foreignKey({
+		columns: [table.projectId],
+		foreignColumns: [projects.id],
+		name: "milestones_project_id_projects_id_fk"
+	}).onDelete("cascade"),
+	index("milestones_tenant_id_idx").on(table.tenantId),
+	index("milestones_project_id_idx").on(table.projectId),
 ]);
 
 export const quotationItems = pgTable("quotation_items", {
@@ -453,6 +461,7 @@ export const settings = pgTable("settings", {
 
 export const tasks = pgTable("tasks", {
 	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
 	projectId: integer("project_id").notNull(),
 	milestoneId: integer("milestone_id"),
 	assignedTo: integer("assigned_to"),
@@ -461,25 +470,67 @@ export const tasks = pgTable("tasks", {
 	status: taskStatus().default('todo'),
 	priority: taskPriority().default('medium'),
 	dueDate: date("due_date"),
+	estimatedHours: numeric("estimated_hours", { precision: 5, scale: 2 }).default('0.00'),
+	subtasks: json("subtasks").$type<Array<{ id: string; title: string; completed: boolean }>>().default([]),
+	orderIndex: integer("order_index").default(0),
 	completedAt: timestamp("completed_at", { mode: 'string' }),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+	deletedAt: timestamp("deleted_at", { mode: 'string' }),
+}, (table) => [
+	foreignKey({
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "tasks_tenant_id_tenants_id_fk"
+	}),
+	foreignKey({
+		columns: [table.assignedTo],
+		foreignColumns: [users.id],
+		name: "tasks_assigned_to_users_id_fk"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.milestoneId],
+		foreignColumns: [milestones.id],
+		name: "tasks_milestone_id_milestones_id_fk"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.projectId],
+		foreignColumns: [projects.id],
+		name: "tasks_project_id_projects_id_fk"
+	}).onDelete("cascade"),
+	index("tasks_tenant_id_idx").on(table.tenantId),
+	index("tasks_project_id_idx").on(table.projectId),
+	index("tasks_milestone_id_idx").on(table.milestoneId),
+	index("tasks_assigned_to_idx").on(table.assignedTo),
+	index("tasks_status_idx").on(table.status),
+]);
+
+export const taskComments = pgTable("task_comments", {
+	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
+	taskId: integer("task_id").notNull(),
+	userId: integer("user_id").notNull(),
+	comment: text().notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
 }, (table) => [
 	foreignKey({
-			columns: [table.assignedTo],
-			foreignColumns: [users.id],
-			name: "tasks_assigned_to_users_id_fk"
-		}).onDelete("set null"),
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "task_comments_tenant_id_tenants_id_fk"
+	}),
 	foreignKey({
-			columns: [table.milestoneId],
-			foreignColumns: [milestones.id],
-			name: "tasks_milestone_id_milestones_id_fk"
-		}).onDelete("set null"),
+		columns: [table.taskId],
+		foreignColumns: [tasks.id],
+		name: "task_comments_task_id_tasks_id_fk"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.projectId],
-			foreignColumns: [projects.id],
-			name: "tasks_project_id_projects_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "task_comments_user_id_users_id_fk"
+	}).onDelete("cascade"),
+	index("task_comments_tenant_id_idx").on(table.tenantId),
+	index("task_comments_task_id_idx").on(table.taskId),
 ]);
 
 export const users = pgTable("users", {

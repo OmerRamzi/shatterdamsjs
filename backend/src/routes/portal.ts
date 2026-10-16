@@ -58,7 +58,13 @@ portalRoutes.get('/client/dashboard', async (c) => {
     if (activeProjects.length > 0) {
       const projectIds = activeProjects.map(p => p.id);
       
-      const tasks = await db.select({ projectId: schema.tasks.projectId, status: schema.tasks.status }).from(schema.tasks).where(inArray(schema.tasks.projectId, projectIds));
+      const tasks = await db.select({ projectId: schema.tasks.projectId, status: schema.tasks.status })
+        .from(schema.tasks)
+        .where(and(
+          inArray(schema.tasks.projectId, projectIds),
+          eq(schema.tasks.tenantId, user.tenantId),
+          isNull(schema.tasks.deletedAt)
+        ));
       
       projectsWithProgress = activeProjects.map(project => {
         const projectTasks = tasks.filter((t: any) => t.projectId === project.id);

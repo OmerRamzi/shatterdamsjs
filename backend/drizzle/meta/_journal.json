@@ -36,6 +36,13 @@
       "when": 1785953470255,
       "tag": "0004_marvelous_leopardon",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792168045371,
+      "tag": "0005_silly_vance_astro",
+      "breakpoints": true
     }
   ]
 }

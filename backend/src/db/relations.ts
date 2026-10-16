@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { tenants, activityLogs, users, clients, files, projects, fileComments, invoices, milestones, quotations, quotationItems, timesheets, tasks, userRoles, projectTeam, invoiceItems, payrollLogs, settings } from "./schema";
+import { tenants, activityLogs, users, clients, files, projects, fileComments, invoices, milestones, quotations, quotationItems, timesheets, tasks, userRoles, projectTeam, invoiceItems, payrollLogs, settings, taskComments } from "./schema";
 
 export const activityLogsRelations = relations(activityLogs, ({one}) => ({
 	tenant: one(tenants, {
@@ -18,6 +18,9 @@ export const tenantsRelations = relations(tenants, ({many}) => ({
 	files: many(files),
 	invoices: many(invoices),
 	projects: many(projects),
+	milestones: many(milestones),
+	tasks: many(tasks),
+	taskComments: many(taskComments),
 	quotations: many(quotations),
 	timesheets: many(timesheets),
 	payrollLogs: many(payrollLogs),
@@ -48,6 +51,7 @@ export const usersRelations = relations(users, ({one, many}) => ({
 	projectTeams: many(projectTeam),
 	payrollLogs: many(payrollLogs),
 	tasks: many(tasks),
+	taskComments: many(taskComments),
 	tenant: one(tenants, {
 		fields: [users.tenantId],
 		references: [tenants.id]
@@ -147,6 +151,10 @@ export const milestonesRelations = relations(milestones, ({one, many}) => ({
 		fields: [milestones.projectId],
 		references: [projects.id]
 	}),
+	tenant: one(tenants, {
+		fields: [milestones.tenantId],
+		references: [tenants.id]
+	}),
 	tasks: many(tasks),
 }));
 
@@ -211,6 +219,26 @@ export const tasksRelations = relations(tasks, ({one, many}) => ({
 	project: one(projects, {
 		fields: [tasks.projectId],
 		references: [projects.id]
+	}),
+	tenant: one(tenants, {
+		fields: [tasks.tenantId],
+		references: [tenants.id]
+	}),
+	comments: many(taskComments),
+}));
+
+export const taskCommentsRelations = relations(taskComments, ({one}) => ({
+	tenant: one(tenants, {
+		fields: [taskComments.tenantId],
+		references: [tenants.id]
+	}),
+	task: one(tasks, {
+		fields: [taskComments.taskId],
+		references: [tasks.id]
+	}),
+	user: one(users, {
+		fields: [taskComments.userId],
+		references: [users.id]
 	}),
 }));
 
