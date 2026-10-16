@@ -7,6 +7,7 @@ import { ProjectKanban } from '../../components/admin/project/ProjectKanban';
 import { ProjectTaskList } from '../../components/admin/project/ProjectTaskList';
 import { ProjectMilestones } from '../../components/admin/project/ProjectMilestones';
 import { TaskModal } from '../../components/admin/project/TaskModal';
+import { TaskDetailModal } from '../../components/admin/project/TaskDetailModal';
 import { ProjectAISidepanel } from '../../components/admin/project/ProjectAISidepanel';
 import type { Task, Milestone, TeamMember } from '../../components/admin/project/types';
 import { 
@@ -40,10 +41,14 @@ export default function AdminProjectDetailsPage() {
 
   const [activeTab, setActiveTab] = useState<'kanban' | 'list' | 'milestones' | 'files' | 'overview'>('kanban');
 
-  // Task Modal state
+  // Task Modal state (for full creation/editing)
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState<Task | null>(null);
   const [initialTaskStatus, setInitialTaskStatus] = useState<string>('todo');
+
+  // Task Detail Modal state (for task inspection, subtasks checklist, comments & timesheets)
+  const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<Task | null>(null);
+  const [isTaskDetailModalOpen, setIsTaskDetailModalOpen] = useState(false);
 
   // AI Sidepanel state
   const [isAISidepanelOpen, setIsAISidepanelOpen] = useState(false);
@@ -62,6 +67,12 @@ export default function AdminProjectDetailsPage() {
         setProjectMilestones(data.milestones || []);
         setProjectFiles(data.files || []);
         setTeamMembers(data.teamUsers || []);
+
+        // Keep detail modal updated if a task is currently inspected
+        setSelectedTaskForDetail(prev => {
+          if (!prev) return null;
+          return (data.tasks || []).find((t: Task) => t.id === prev.id) || prev;
+        });
       })
       .catch(err => {
         console.error('Error fetching project data:', err);
@@ -82,9 +93,9 @@ export default function AdminProjectDetailsPage() {
     setIsTaskModalOpen(true);
   };
 
-  const openEditTask = (task: Task) => {
-    setSelectedTaskForEdit(task);
-    setIsTaskModalOpen(true);
+  const openTaskDetail = (task: Task) => {
+    setSelectedTaskForDetail(task);
+    setIsTaskDetailModalOpen(true);
   };
 
   const handleOpenAIAssistant = () => {
@@ -304,7 +315,7 @@ export default function AdminProjectDetailsPage() {
             milestones={projectMilestones}
             teamMembers={teamMembers}
             onTasksUpdate={fetchProjectData}
-            onTaskClick={openEditTask}
+            onTaskClick={openTaskDetail}
             onAddTask={openCreateTask}
           />
         )}
@@ -315,7 +326,7 @@ export default function AdminProjectDetailsPage() {
             milestones={projectMilestones}
             teamMembers={teamMembers}
             onTasksUpdate={fetchProjectData}
-            onTaskClick={openEditTask}
+            onTaskClick={openTaskDetail}
             onAddTask={openCreateTask}
           />
         )}
@@ -327,7 +338,7 @@ export default function AdminProjectDetailsPage() {
             tasks={projectTasks}
             onMilestonesUpdate={fetchProjectData}
             onOpenAIAssistant={handleOpenAIAssistant}
-            onTaskClick={openEditTask}
+            onTaskClick={openTaskDetail}
           />
         )}
 
@@ -474,6 +485,24 @@ export default function AdminProjectDetailsPage() {
         initialStatus={initialTaskStatus}
         milestones={projectMilestones}
         teamMembers={teamMembers}
+      />
+
+      {/* Task Inspection & Detail Modal (Subtasks, Comments & Timesheets) */}
+      <TaskDetailModal
+        isOpen={isTaskDetailModalOpen}
+        onClose={() => {
+          setIsTaskDetailModalOpen(false);
+          setSelectedTaskForDetail(null);
+        }}
+        task={selectedTaskForDetail}
+        milestones={projectMilestones}
+        teamMembers={teamMembers}
+        onTaskUpdated={fetchProjectData}
+        onTaskDeleted={() => {
+          setIsTaskDetailModalOpen(false);
+          setSelectedTaskForDetail(null);
+          fetchProjectData();
+        }}
       />
 
       {/* AI Conversational Sidepanel & Breakdown Copilot */}

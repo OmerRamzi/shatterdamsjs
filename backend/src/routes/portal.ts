@@ -310,15 +310,17 @@ portalRoutes.get('/client/quotes', async (c) => {
 
 portalRoutes.get('/team/projects', async (c) => {
   const user = c.get('user');
-  if (!['employee', 'freelancer'].includes(user.role)) return c.json({ error: 'Unauthorized' }, 403);
+  if (!['employee', 'freelancer', 'team', 'administrator'].includes(user.role)) return c.json({ error: 'Unauthorized' }, 403);
   const db = c.get('db');
   
   try {
     const assigned = await db.select({ projectId: schema.projectTeam.projectId }).from(schema.projectTeam).where(eq(schema.projectTeam.userId, parseInt(user.sub as string)));
-    if (assigned.length === 0) return c.json([]);
+    if (assigned.length === 0 && user.role !== 'administrator') return c.json([]);
 
     const projectIds = assigned.map(a => a.projectId);
-    const data = await db.select().from(schema.projects).where(inArray(schema.projects.id, projectIds)).orderBy(desc(schema.projects.createdAt));
+    const data = user.role === 'administrator'
+      ? await db.select().from(schema.projects).where(eq(schema.projects.tenantId, user.tenantId)).orderBy(desc(schema.projects.createdAt))
+      : await db.select().from(schema.projects).where(and(inArray(schema.projects.id, projectIds), eq(schema.projects.tenantId, user.tenantId))).orderBy(desc(schema.projects.createdAt));
     
     const clientIds = [...new Set(data.map(i => i.clientId).filter(Boolean))] as number[];
     const clients = clientIds.length > 0 ? await db.select().from(schema.clients).where(inArray(schema.clients.id, clientIds)) : [];
@@ -334,4 +336,116 @@ portalRoutes.get('/team/projects', async (c) => {
   }
 });
 
+portalRoutes.get('/team/projects/:id', async (c) => {
+  const user = c.get('user');
+  if (!['employee', 'freelancer', 'team', 'administrator'].includes(user.role)) return c.json({ error: 'Unauthorized' }, 403);
+  const projectId = parseInt(c.req.param('id'));
+  const db = c.get('db');
+
+  if (isNaN(projectId)) {
+    return c.json({ error: 'Invalid project ID' }, 400);
+  }
+
+  try {
+    // Check if team member is assigned or is admin
+    if (user.role !== 'administrator') {
+      const [assigned] = await db.select()
+        .from(schema.projectTeam)
+        .where(and(
+          eq(schema.projectTeam.projectId, projectId),
+          eq(schema.projectTeam.userId, parseInt(user.sub as string))
+        ))
+        .limit(1);
+      if (!assigned) {
+        return c.json({ error: 'You are not assigned to this project' }, 403);
+      }
+    }
+
+    const [project] = await db.select().from(schema.projects)
+      .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, user.tenantId)))
+      .limit(1);
+
+    if (!project) return c.json({ error: 'Project not found' }, 404);
+
+    // Fetch related client
+    const [client] = project.clientId
+      ? await db.select().from(schema.clients)
+          .where(and(eq(schema.clients.id, project.clientId), eq(schema.clients.tenantId, user.tenantId)))
+          .limit(1)
+      : [null];
+
+    // Fetch project team members
+    const teamRows = await db.select().from(schema.projectTeam).where(eq(schema.projectTeam.projectId, projectId));
+    const teamUserIds = teamRows.map(r => r.userId).filter(Boolean) as number[];
+    const teamUsers = teamUserIds.length > 0
+      ? await db.select({
+          id: schema.users.id,
+          name: schema.users.displayName,
+          email: schema.users.email,
+          profileImage: schema.users.profileImage
+        })
+        .from(schema.users)
+        .where(and(inArray(schema.users.id, teamUserIds), eq(schema.users.tenantId, user.tenantId)))
+      : [];
+
+    // Fetch milestones
+    const milestones = await db.select().from(schema.milestones)
+      .where(and(eq(schema.milestones.tenantId, user.tenantId), eq(schema.milestones.projectId, projectId)))
+      .orderBy(schema.milestones.orderIndex, schema.milestones.id);
+
+    // Fetch tasks
+    const tasksList = await db.select().from(schema.tasks)
+      .where(and(
+        eq(schema.tasks.tenantId, user.tenantId),
+        eq(schema.tasks.projectId, projectId),
+        isNull(schema.tasks.deletedAt)
+      ))
+      .orderBy(schema.tasks.orderIndex, desc(schema.tasks.createdAt));
+
+    // Enrich tasks with assignees and milestone
+    const assignedUserIds = [...new Set(tasksList.map(t => t.assignedTo).filter(Boolean))] as number[];
+    const usersMap = new Map<number, { id: number; name: string; email: string; profileImage: string | null }>();
+    if (assignedUserIds.length > 0) {
+      const uRows = await db.select({
+        id: schema.users.id,
+        name: schema.users.displayName,
+        email: schema.users.email,
+        profileImage: schema.users.profileImage
+      })
+      .from(schema.users)
+      .where(and(inArray(schema.users.id, assignedUserIds), eq(schema.users.tenantId, user.tenantId)));
+      for (const u of uRows) usersMap.set(u.id, u);
+    }
+
+    const milestonesMap = new Map<number, { id: number; title: string }>();
+    for (const m of milestones) milestonesMap.set(m.id, m);
+
+    const tasks = tasksList.map(t => ({
+      ...t,
+      assignee: t.assignedTo ? usersMap.get(t.assignedTo) || null : null,
+      milestone: t.milestoneId ? milestonesMap.get(t.milestoneId) || null : null,
+      subtasksCount: Array.isArray(t.subtasks) ? (t.subtasks as any[]).length : 0,
+      completedSubtasksCount: Array.isArray(t.subtasks) ? (t.subtasks as any[]).filter(st => st.completed).length : 0
+    }));
+
+    // Fetch files
+    const files = await db.select().from(schema.files)
+      .where(and(eq(schema.files.projectId, projectId), eq(schema.files.tenantId, user.tenantId)))
+      .orderBy(desc(schema.files.uploadedAt));
+
+    return c.json({
+      project,
+      client,
+      teamUsers,
+      milestones,
+      tasks,
+      files
+    });
+  } catch (error: any) {
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
 export default portalRoutes;
+
