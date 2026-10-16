@@ -7,6 +7,7 @@ import { ProjectKanban } from '../../components/admin/project/ProjectKanban';
 import { ProjectTaskList } from '../../components/admin/project/ProjectTaskList';
 import { ProjectMilestones } from '../../components/admin/project/ProjectMilestones';
 import { TaskModal } from '../../components/admin/project/TaskModal';
+import { ProjectAISidepanel } from '../../components/admin/project/ProjectAISidepanel';
 import type { Task, Milestone, TeamMember } from '../../components/admin/project/types';
 import { 
   File as FileIcon, 
@@ -43,6 +44,9 @@ export default function AdminProjectDetailsPage() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState<Task | null>(null);
   const [initialTaskStatus, setInitialTaskStatus] = useState<string>('todo');
+
+  // AI Sidepanel state
+  const [isAISidepanelOpen, setIsAISidepanelOpen] = useState(false);
 
   const fetchProjectData = () => {
     setError(null);
@@ -84,10 +88,7 @@ export default function AdminProjectDetailsPage() {
   };
 
   const handleOpenAIAssistant = () => {
-    // Phase 4 will mount the full interactive dockable AI sidepanel here!
-    // Alert user that sidepanel will launch in Phase 4
-    const btn = document.getElementById('ai-assistant-toggle-btn');
-    if (btn) btn.click();
+    setIsAISidepanelOpen(true);
   };
 
   if (isNaN(projectId)) {
@@ -473,6 +474,15 @@ export default function AdminProjectDetailsPage() {
         initialStatus={initialTaskStatus}
         milestones={projectMilestones}
         teamMembers={teamMembers}
+      />
+
+      {/* AI Conversational Sidepanel & Breakdown Copilot */}
+      <ProjectAISidepanel
+        isOpen={isAISidepanelOpen}
+        onClose={() => setIsAISidepanelOpen(false)}
+        projectId={projectId}
+        projectTitle={projectData.title}
+        onBreakdownApplied={fetchProjectData}
       />
     </div>
   );
