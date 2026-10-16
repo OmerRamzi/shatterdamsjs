@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { requireAuth, requireAdmin } from '../middleware';
 import * as schema from '../db/schema';
-import { eq, and, desc, inArray, isNull } from 'drizzle-orm';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 
 const projectsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
@@ -70,8 +70,8 @@ projectsRoutes.get('/:id', requireAuth, async (c) => {
 
     // Fetch files
     const files = await db.select().from(schema.files)
-      .where(and(eq(schema.files.projectId, projectId), isNull(schema.files.deletedAt)))
-      .orderBy(desc(schema.files.createdAt));
+      .where(eq(schema.files.projectId, projectId))
+      .orderBy(desc(schema.files.uploadedAt));
 
     return c.json({ project: { ...project, client }, tasks, files, teamUsers });
   } catch (error: any) {
