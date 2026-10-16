@@ -5,12 +5,18 @@ import { QuoteForm } from "../../components/ui/QuoteForm";
 
 export default function AdminNewQuotePage() {
   const [clients, setClients] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/clients')
-      .then(res => res.json())
-      .then(clientsData => setClients(clientsData || []))
+    Promise.all([
+      fetch('/api/clients').then(res => res.json()),
+      fetch('/api/projects').then(res => res.json()),
+    ])
+      .then(([clientsData, projectsData]) => {
+        setClients(Array.isArray(clientsData) ? clientsData : (clientsData.data || []));
+        setProjects(Array.isArray(projectsData) ? projectsData : (projectsData.data || []));
+      })
       .catch(console.error)
       .finally(() => setIsLoading(false));
   }, []);
@@ -30,7 +36,8 @@ export default function AdminNewQuotePage() {
       </div>
 
       <QuoteForm 
-        clients={clients} 
+        clients={clients}
+        projects={projects}
       />
     </div>
   );

@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { ClientSidebar } from '../components/layout/ClientSidebar';
 import { useAuth } from '../context/AuthContext';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 export default function ClientLayout() {
   const { user } = useAuth();
@@ -10,7 +11,9 @@ export default function ClientLayout() {
     <div className="flex h-screen overflow-hidden bg-white text-slate-900">
       <ClientSidebar />
       <main className="flex-1 overflow-y-auto bg-white">
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   );

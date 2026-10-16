@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import { PortalLayout } from '../components/layout/PortalLayout';
 import { LayoutDashboard, FolderKanban, Clock } from "lucide-react";
 import { useAuth } from '../context/AuthContext';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 export default function TeamLayout() {
   const { user } = useAuth();
@@ -18,7 +19,9 @@ export default function TeamLayout() {
       navItems={navItems}
       basePath="/"
     >
-      <Outlet />
+      <ErrorBoundary>
+        <Outlet />
+      </ErrorBoundary>
     </PortalLayout>
   );
 }

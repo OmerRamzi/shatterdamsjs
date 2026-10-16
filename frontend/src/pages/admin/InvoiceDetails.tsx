@@ -252,7 +252,7 @@ export default function AdminInvoiceDetailsPage() {
             </h3>
             
             <div className="space-y-4 relative before:absolute before:inset-0 before:ml-1.5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
-              {statusLogs.map((log: any, idx: number) => (
+              {statusLogs.map((log: any, _idx: number) => (
                 <div key={log.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
                   {/* Icon */}
                   <div className="flex items-center justify-center w-3 h-3 rounded-full bg-primary/20 border-2 border-primary shrink-0 z-10 md:absolute md:left-1/2 md:-translate-x-1/2"></div>

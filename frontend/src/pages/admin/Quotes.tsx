@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, FileText, Pencil, Trash2, Eye, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, FileText, Pencil, Trash2, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function AdminQuotesPage() {
@@ -22,14 +22,19 @@ export default function AdminQuotesPage() {
     params.append('limit', limit.toString());
 
     fetch(`/api/quotes?${params.toString()}`)
-      .then(res => res.json())
       .then(res => {
-        if (res.data) {
-          setQuotesList(res.data);
-          setTotal(res.total || 0);
-        } else {
-          setQuotesList(res);
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(res => {
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        setQuotesList(list);
+        setTotal(typeof res?.total === 'number' ? res.total : list.length);
+      })
+      .catch(err => {
+        console.error("Failed to load quotes:", err);
+        setQuotesList([]);
+        setTotal(0);
       })
       .finally(() => setIsLoading(false));
   }, [search, status, page]);
@@ -140,12 +145,14 @@ export default function AdminQuotesPage() {
                   </td>
                 </tr>
               ) : (
-                quotesList.map(({ quote, client }) => (
-                  <tr key={quote.id} className="hover:bg-secondary/20 transition-colors group">
-                    <td className="px-6 py-4 font-medium text-foreground">
-                      <Link to={`/quotes/${quote.id}`} className="hover:text-primary transition-colors">
-                        {quote.quoteNumber}
-                      </Link>
+                Array.isArray(quotesList) && quotesList.map(({ quote, client }: any) => {
+                  if (!quote) return null;
+                  return (
+                    <tr key={quote.id} className="hover:bg-secondary/20 transition-colors group">
+                      <td className="px-6 py-4 font-medium text-foreground">
+                        <Link to={`/quotes/${quote.id}`} className="hover:text-primary transition-colors">
+                          {quote.quoteNumber}
+                        </Link>
                     </td>
                     <td className="px-6 py-4">
                       {client?.companyName || "Unknown Client"}
@@ -191,8 +198,9 @@ export default function AdminQuotesPage() {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              })
+            )}
             </tbody>
           </table>
         </div>

@@ -8,6 +8,7 @@ export default function AdminEditQuotePage() {
   const quoteId = parseInt(id || "");
   
   const [clients, setClients] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [quoteData, setQuoteData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -15,10 +16,12 @@ export default function AdminEditQuotePage() {
     if (!isNaN(quoteId)) {
       Promise.all([
         fetch('/api/clients').then(res => res.json()),
+        fetch('/api/projects').then(res => res.json()),
         fetch(`/api/quotes/${quoteId}`).then(res => res.ok ? res.json() : null)
       ])
-      .then(([clientsData, qData]) => {
-        setClients(clientsData || []);
+      .then(([clientsData, projectsData, qData]) => {
+        setClients(Array.isArray(clientsData) ? clientsData : (clientsData.data || []));
+        setProjects(Array.isArray(projectsData) ? projectsData : (projectsData.data || []));
         setQuoteData(qData);
       })
       .finally(() => setIsLoading(false));
@@ -43,7 +46,8 @@ export default function AdminEditQuotePage() {
       </div>
 
       <QuoteForm 
-        clients={clients} 
+        clients={clients}
+        projects={projects}
         initialData={quoteData}
       />
     </div>

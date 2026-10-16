@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link2, Plus, Loader2, Trash2, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { Link2, Plus, Loader2, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { IntegrationSettingsModal } from "../../components/admin/IntegrationSettingsModal";
 
@@ -50,26 +50,28 @@ const AdminCommissionsPage = () => {
       const resCommissions = await fetch(`/api/commissions?${params.toString()}`);
       if (resCommissions.ok) {
         const res = await resCommissions.json();
-        if (res.data) {
-          setCommissions(res.data);
-          setTotal(res.total || 0);
-          
-          // Simple local metrics, in Phase 7 this will be SQL backed
-          const earned = res.data
-            .filter((c: any) => c.commission.status === 'paid')
-            .reduce((acc: number, curr: any) => acc + parseFloat(curr.commission.amount), 0);
-          setTotalEarned(earned);
-          
-          const pending = res.data.filter((c: any) => c.commission.status === 'pending').length;
-          setPendingCount(pending);
-        } else {
-          setCommissions(res);
-        }
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        setCommissions(list);
+        setTotal(typeof res?.total === 'number' ? res.total : list.length);
+        
+        const earned = list
+          .filter((c: any) => c?.commission?.status === 'paid')
+          .reduce((acc: number, curr: any) => acc + (parseFloat(curr?.commission?.amount) || 0), 0);
+        setTotalEarned(earned);
+        
+        const pending = list.filter((c: any) => c?.commission?.status === 'pending').length;
+        setPendingCount(pending);
+      } else {
+        setCommissions([]);
+        setTotal(0);
       }
 
       if (clients.length === 0) {
         const resClients = await fetch("/api/clients");
-        if (resClients.ok) setClients(await resClients.json());
+        if (resClients.ok) {
+          const cData = await resClients.json();
+          setClients(Array.isArray(cData) ? cData : (cData?.data || []));
+        }
       }
     } catch (e) {
       console.error(e);
@@ -227,29 +229,32 @@ const AdminCommissionsPage = () => {
               ) : commissions.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">No commission records found.</td></tr>
               ) : (
-                commissions.map(({ commission, client }) => (
-                  <tr key={commission.id} className="hover:bg-secondary/20 transition-colors">
-                    <td className="px-6 py-4">{new Date(commission.date).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 font-medium">
-                      {commission.source}
-                      {commission.referenceId && <span className="block text-xs text-muted-foreground">Ref: {commission.referenceId}</span>}
-                    </td>
-                    <td className="px-6 py-4">{client?.companyName || <span className="text-muted-foreground">-</span>}</td>
-                    <td className="px-6 py-4 font-semibold">{commission.currency} {parseFloat(commission.amount).toFixed(2)}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        commission.status === 'paid' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
-                      }`}>
-                        {commission.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => deleteCommission(commission.id)} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                Array.isArray(commissions) && commissions.map(({ commission, client }: any) => {
+                  if (!commission) return null;
+                  return (
+                    <tr key={commission.id} className="hover:bg-secondary/20 transition-colors">
+                      <td className="px-6 py-4">{new Date(commission.date).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 font-medium">
+                        {commission.source}
+                        {commission.referenceId && <span className="block text-xs text-muted-foreground">Ref: {commission.referenceId}</span>}
+                      </td>
+                      <td className="px-6 py-4">{client?.companyName || <span className="text-muted-foreground">-</span>}</td>
+                      <td className="px-6 py-4 font-semibold">{commission.currency} {parseFloat(commission.amount).toFixed(2)}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          commission.status === 'paid' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
+                        }`}>
+                          {commission.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button onClick={() => deleteCommission(commission.id)} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

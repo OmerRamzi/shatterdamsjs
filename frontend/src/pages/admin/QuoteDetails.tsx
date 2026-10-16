@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Clock, FileText } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
 import { QuoteActions } from "../../components/ui/QuoteActions";
 import { QuotePDFGenerator } from "../../components/ui/QuotePDFGenerator";
 

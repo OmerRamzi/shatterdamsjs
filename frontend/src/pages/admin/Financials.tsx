@@ -48,34 +48,34 @@ export default function AdminFinancialsPage() {
       const res = await fetch(`/api/revenue/streams?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.data) {
-          setStreams(data.data);
-          setTotal(data.total || 0);
+        const list = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+        setStreams(list);
+        setTotal(typeof data?.total === 'number' ? data.total : list.length);
 
-          // Approximate MRR calculation from the current page
-          // In Phase 7 this will be done server-side
-          let mrr = 0;
-          let active = 0;
-          data.data.forEach(({ stream }: any) => {
-            if (stream.status === 'active') {
-              active++;
-              if (stream.currency === 'USD' || stream.currency === 'LKR') { // Just simple sum
-                let val = parseFloat(stream.amount);
-                if (stream.frequency === 'yearly') val /= 12;
-                if (stream.frequency === 'quarterly') val /= 3;
-                if (stream.frequency === 'weekly') val = (val * 52) / 12;
-                if (stream.frequency !== 'one_time') mrr += val;
-              }
+        let mrr = 0;
+        let active = 0;
+        list.forEach(({ stream }: any) => {
+          if (stream?.status === 'active') {
+            active++;
+            if (stream.currency === 'USD' || stream.currency === 'LKR') {
+              let val = parseFloat(stream.amount) || 0;
+              if (stream.frequency === 'yearly') val /= 12;
+              if (stream.frequency === 'quarterly') val /= 3;
+              if (stream.frequency === 'weekly') val = (val * 52) / 12;
+              if (stream.frequency !== 'one_time') mrr += val;
             }
-          });
-          setTotalMrr(mrr);
-          setActiveCount(active);
-        } else {
-          setStreams(data);
-        }
+          }
+        });
+        setTotalMrr(mrr);
+        setActiveCount(active);
+      } else {
+        setStreams([]);
+        setTotal(0);
       }
     } catch (e) {
       console.error("Failed to fetch streams", e);
+      setStreams([]);
+      setTotal(0);
     } finally {
       setIsLoading(false);
     }
@@ -87,8 +87,14 @@ export default function AdminFinancialsPage() {
         fetch("/api/clients"),
         fetch("/api/projects")
       ]);
-      if (clientsRes.ok) setClients(await clientsRes.json());
-      if (projectsRes.ok) setProjects(await projectsRes.json());
+      if (clientsRes.ok) {
+        const cData = await clientsRes.json();
+        setClients(Array.isArray(cData) ? cData : (cData?.data || []));
+      }
+      if (projectsRes.ok) {
+        const pData = await projectsRes.json();
+        setProjects(Array.isArray(pData) ? pData : (pData?.data || []));
+      }
     } catch (e) {
       console.error(e);
     }
@@ -243,7 +249,9 @@ export default function AdminFinancialsPage() {
   };
 
   // Filter projects based on selected client
-  const clientProjects = formData.clientId ? projects.filter(p => p.clientId === parseInt(formData.clientId)) : [];
+  const clientProjects = (formData.clientId && Array.isArray(projects)) 
+    ? projects.filter(p => p && p.clientId === parseInt(formData.clientId)) 
+    : [];
 
   const totalPages = Math.ceil(total / limit) || 1;
 
@@ -330,39 +338,42 @@ export default function AdminFinancialsPage() {
               ) : streams.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">No revenue streams found.</td></tr>
               ) : (
-                streams.map(({ stream, client }) => (
-                  <tr key={stream.id} onClick={() => openViewModal(stream.id)} className="hover:bg-secondary/20 transition-colors cursor-pointer group">
-                    <td className="px-6 py-4 font-medium group-hover:text-primary transition-colors">{stream.name}</td>
-                    <td className="px-6 py-4">{client?.companyName}</td>
-                    <td className="px-6 py-4 font-semibold">{stream.currency} {parseFloat(stream.amount).toFixed(2)}</td>
-                    <td className="px-6 py-4">
-                      <span className="capitalize">{stream.frequency.replace('_', ' ')}</span>
-                      <br />
-                      {stream.autoGenerateInvoice ? (
-                        <span className="text-xs text-emerald-500">Auto-Invoice ON (Next: {stream.nextBillingDate ? new Date(stream.nextBillingDate).toLocaleDateString() : 'N/A'})</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Auto-Invoice OFF</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        stream.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-secondary text-muted-foreground'
-                      }`}>
-                        {stream.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={(e) => { e.stopPropagation(); toggleStatus(stream.id, stream.status); }} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-primary transition-colors" title="Toggle Status">
-                          {stream.status === 'active' ? <PauseCircle className="w-4 h-4" /> : <PlayCircle className="w-4 h-4" />}
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); deleteStream(stream.id); }} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                Array.isArray(streams) && streams.map(({ stream, client }: any) => {
+                  if (!stream) return null;
+                  return (
+                    <tr key={stream.id} onClick={() => openViewModal(stream.id)} className="hover:bg-secondary/20 transition-colors cursor-pointer group">
+                      <td className="px-6 py-4 font-medium group-hover:text-primary transition-colors">{stream.name}</td>
+                      <td className="px-6 py-4">{client?.companyName || 'Unknown'}</td>
+                      <td className="px-6 py-4 font-semibold">{stream.currency} {(parseFloat(stream.amount) || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4">
+                        <span className="capitalize">{stream.frequency ? stream.frequency.replace('_', ' ') : 'monthly'}</span>
+                        <br />
+                        {stream.autoGenerateInvoice ? (
+                          <span className="text-xs text-emerald-500">Auto-Invoice ON (Next: {stream.nextBillingDate ? new Date(stream.nextBillingDate).toLocaleDateString() : 'N/A'})</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Auto-Invoice OFF</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          stream.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-secondary text-muted-foreground'
+                        }`}>
+                          {stream.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={(e) => { e.stopPropagation(); toggleStatus(stream.id, stream.status); }} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-primary transition-colors" title="Toggle Status">
+                            {stream.status === 'active' ? <PauseCircle className="w-4 h-4" /> : <PlayCircle className="w-4 h-4" />}
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); deleteStream(stream.id); }} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -547,7 +558,7 @@ export default function AdminFinancialsPage() {
                       <label className="block text-sm font-medium mb-1">Project (Optional)</label>
                       <select value={formData.projectId} onChange={e => setFormData({...formData, projectId: e.target.value})} disabled={!formData.clientId || clientProjects.length === 0} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm disabled:opacity-50">
                         <option value="">No Project</option>
-                        {clientProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        {clientProjects.map(p => <option key={p.id} value={p.id}>{p.title || p.name}</option>)}
                       </select>
                     </div>
                   </div>

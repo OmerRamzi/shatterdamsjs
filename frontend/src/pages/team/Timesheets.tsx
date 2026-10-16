@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Clock, Plus, Loader2, Save, Trash2 } from "lucide-react";
-import { format } from "date-fns";
 
 export default function TeamTimesheetsPage() {
   const [timesheets, setTimesheets] = useState<any[]>([]);
@@ -12,7 +11,7 @@ export default function TeamTimesheetsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     projectId: "",
-    date: format(new Date(), "yyyy-MM-dd"),
+    date: new Date().toISOString().split('T')[0],
     hours: "1",
     description: ""
   });

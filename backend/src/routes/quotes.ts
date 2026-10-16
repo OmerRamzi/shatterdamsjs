@@ -40,7 +40,7 @@ quotesRoutes.get('/', requireAdmin, async (c) => {
   const db = c.get('db');
   
   try {
-    const today = new Date().toISOString();
+    const today = new Date().toISOString().split('T')[0];
     await db.update(schema.quotations)
       .set({ status: 'expired' })
       .where(and(

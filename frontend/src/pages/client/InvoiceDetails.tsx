@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Clock, Receipt, CheckCircle, ExternalLink } from "lucide-react";
+import { ArrowLeft, Receipt, CheckCircle } from "lucide-react";
 import { InvoicePDFGenerator } from "../../components/ui/InvoicePDFGenerator";
 
 export default function ClientInvoiceDetailsPage() {
@@ -39,7 +39,6 @@ export default function ClientInvoiceDetailsPage() {
   const { invoice, client, items, logs = [], proofs = [] } = data;
 
   const paymentLogs = logs.filter((l: any) => l.action.toLowerCase().includes('payment'));
-  const statusLogs = logs.filter((l: any) => l.action.toLowerCase().includes('status') || l.action.toLowerCase().includes('created') || l.action.toLowerCase().includes('sent'));
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">

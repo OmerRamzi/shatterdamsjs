@@ -103,7 +103,6 @@ export function QuoteActions({ quoteId, currentStatus, convertedToInvoiceId, onS
     setConfirmModal({ isOpen: true, title, message, onConfirm });
   };
 
-  const canEdit = currentStatus === 'draft';
   const canSend = currentStatus === 'draft' || currentStatus === 'sent';
   const canAccept = currentStatus === 'sent';
   const canConvert = currentStatus === 'accepted' && !convertedToInvoiceId;

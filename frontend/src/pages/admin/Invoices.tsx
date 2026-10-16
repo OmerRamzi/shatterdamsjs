@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Receipt, Pencil, Trash2, Eye, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function AdminInvoicesPage() {
@@ -24,23 +24,27 @@ export default function AdminInvoicesPage() {
     params.append('limit', limit.toString());
 
     fetch(`/api/invoices?${params.toString()}`)
-      .then(res => res.json())
       .then(res => {
-        if (res.data) {
-          setInvoicesList(res.data);
-          setTotal(res.total || 0);
-          
-          // Compute simple outstanding total from the current view or ideally backend should provide
-          const outstanding = res.data.reduce((acc: number, cur: any) => {
-             if (cur.invoice.status !== 'paid' && cur.invoice.status !== 'cancelled') {
-               return acc + parseFloat(cur.invoice.total) - parseFloat(cur.invoice.paidAmount || '0');
-             }
-             return acc;
-          }, 0);
-          setTotalOutstanding(outstanding);
-        } else {
-          setInvoicesList(res);
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(res => {
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        setInvoicesList(list);
+        setTotal(typeof res?.total === 'number' ? res.total : list.length);
+        
+        const outstanding = list.reduce((acc: number, cur: any) => {
+           if (cur?.invoice && cur.invoice.status !== 'paid' && cur.invoice.status !== 'cancelled') {
+             return acc + (parseFloat(cur.invoice.total) || 0) - (parseFloat(cur.invoice.paidAmount || '0') || 0);
+           }
+           return acc;
+        }, 0);
+        setTotalOutstanding(outstanding);
+      })
+      .catch(err => {
+        console.error("Failed to load invoices:", err);
+        setInvoicesList([]);
+        setTotal(0);
       })
       .finally(() => setIsLoading(false));
   }, [search, status, page]);
@@ -159,12 +163,14 @@ export default function AdminInvoicesPage() {
                   </td>
                 </tr>
               ) : (
-                invoicesList.map(({ invoice, client }) => (
-                  <tr key={invoice.id} className={`hover:bg-secondary/20 transition-colors group ${invoice.status === 'overdue' ? 'bg-destructive/5' : ''}`}>
-                    <td className="px-6 py-4 font-medium">
-                      <Link to={`/invoices/${invoice.id}`} className="hover:text-primary transition-colors">
-                        {invoice.invoiceNumber}
-                      </Link>
+                Array.isArray(invoicesList) && invoicesList.map(({ invoice, client }: any) => {
+                  if (!invoice) return null;
+                  return (
+                    <tr key={invoice.id} className={`hover:bg-secondary/20 transition-colors group ${invoice.status === 'overdue' ? 'bg-destructive/5' : ''}`}>
+                      <td className="px-6 py-4 font-medium">
+                        <Link to={`/invoices/${invoice.id}`} className="hover:text-primary transition-colors">
+                          {invoice.invoiceNumber}
+                        </Link>
                     </td>
                     <td className="px-6 py-4">{client?.companyName || 'Unknown'}</td>
                     <td className="px-6 py-4 text-muted-foreground">
@@ -211,7 +217,8 @@ export default function AdminInvoicesPage() {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

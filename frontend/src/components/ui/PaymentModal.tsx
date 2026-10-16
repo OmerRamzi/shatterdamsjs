@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, UploadCloud, File, CheckCircle, Receipt, Trash2 } from "lucide-react";
+import { Loader2, UploadCloud, CheckCircle, Receipt } from "lucide-react";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -24,7 +24,6 @@ export function PaymentModal({ isOpen, onClose, invoiceId, total, paidAmount, cu
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingProofs, setExistingProofs] = useState<any[]>([]);
-  const [isLoadingProofs, setIsLoadingProofs] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -34,7 +33,6 @@ export function PaymentModal({ isOpen, onClose, invoiceId, total, paidAmount, cu
   }, [isOpen, balanceDue]);
 
   const fetchProofs = async () => {
-    setIsLoadingProofs(true);
     try {
       const res = await fetch(`/api/invoices/${invoiceId}/payment-proofs`);
       if (res.ok) {
@@ -42,8 +40,6 @@ export function PaymentModal({ isOpen, onClose, invoiceId, total, paidAmount, cu
       }
     } catch (e) {
       console.error(e);
-    } finally {
-      setIsLoadingProofs(false);
     }
   };
 
@@ -219,6 +215,17 @@ export function PaymentModal({ isOpen, onClose, invoiceId, total, paidAmount, cu
                 onChange={e => setReference(e.target.value)} 
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm" 
                 placeholder="e.g. Transaction ID, Cheque No." 
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Notes (Optional)</label>
+              <textarea 
+                rows={2}
+                value={notes} 
+                onChange={e => setNotes(e.target.value)} 
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm" 
+                placeholder="Additional payment notes..." 
               />
             </div>
 
