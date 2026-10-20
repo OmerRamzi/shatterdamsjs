@@ -3,7 +3,7 @@ import { requireAuth } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
-const activityRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
+const activityRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any, db: any } }>();
 
 activityRoutes.use('*', requireAuth);
 
@@ -16,10 +16,15 @@ activityRoutes.get('/', async (c) => {
     const data = await db.select({
       id: schema.activityLogs.id,
       action: schema.activityLogs.action,
+      entityType: schema.activityLogs.entityType,
+      entityId: schema.activityLogs.entityId,
+      description: schema.activityLogs.description,
       createdAt: schema.activityLogs.createdAt,
       user: {
         id: schema.users.id,
-        displayName: schema.users.displayName
+        displayName: schema.users.displayName,
+        email: schema.users.email,
+        profileImage: schema.users.profileImage
       }
     })
     .from(schema.activityLogs)

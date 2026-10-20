@@ -4,7 +4,7 @@ import * as schema from '../db/schema';
 import { eq, inArray, desc, ne, and, isNull, sql } from 'drizzle-orm';
 import { fromCents, toCents } from '../lib/calculations';
 
-const portalRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
+const portalRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any, db: any } }>();
 
 portalRoutes.use('*', requireAuth);
 
@@ -23,11 +23,24 @@ portalRoutes.get('/stats', async (c) => {
     const revenueCents = invoices.reduce((acc: number, inv: any) => acc + toCents(inv.amount || '0.00'), 0);
     const revenue = fromCents(revenueCents);
 
+    const pendingInvoices = await db.select({ amount: schema.invoices.total, status: schema.invoices.status })
+      .from(schema.invoices)
+      .where(and(
+        eq(schema.invoices.tenantId, user.tenantId),
+        inArray(schema.invoices.status, ['sent', 'overdue']),
+        isNull(schema.invoices.deletedAt)
+      ));
+    const pendingRevenueCents = pendingInvoices.reduce((acc: number, inv: any) => acc + toCents(inv.amount || '0.00'), 0);
+    const pendingRevenue = fromCents(pendingRevenueCents);
+    const overdueCount = pendingInvoices.filter((i: any) => i.status === 'overdue').length;
+
     return c.json({
       totalClients: clients.length,
       activeProjects: activeProjects.length,
       allProjects: allProjects.length,
       revenue: revenue,
+      pendingRevenue,
+      overdueCount,
     });
   } catch (error: any) {
     console.error(error);
