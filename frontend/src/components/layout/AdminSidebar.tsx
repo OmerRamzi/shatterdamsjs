@@ -1,7 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
-  Users, 
   FolderKanban, 
   ShieldAlert, 
   Receipt, 
@@ -15,24 +14,63 @@ import {
   DollarSign, 
   Link2,
   X,
-  ChevronRight
+  ChevronRight,
+  Target,
+  UserPlus,
+  BookUser,
+  Building2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const navItems = [
-  { name: 'Overview', to: '/', icon: LayoutDashboard },
-  { name: 'Projects', to: '/projects', icon: FolderKanban },
-  { name: 'Clients', to: '/clients', icon: Users },
-  { name: 'Team', to: '/team', icon: ShieldAlert },
-  { name: 'Timesheets', to: '/timesheets', icon: Clock },
-  { name: 'Financials', to: '/financials', icon: DollarSign },
-  { name: 'Commissions', to: '/commissions', icon: Link2 },
-  { name: 'Invoices', to: '/invoices', icon: Receipt },
-  { name: 'Quotations', to: '/quotes', icon: FileText },
-  { name: 'Tasks', to: '/tasks', icon: CheckSquare },
-  { name: 'Reports', to: '/reports', icon: BarChart3 },
-  { name: 'Manage Users', to: '/users', icon: UserCog },
-  { name: 'Settings', to: '/settings', icon: Settings },
+interface NavItem {
+  name: string;
+  to: string;
+  icon: any;
+  badge?: string;
+}
+
+interface NavGroup {
+  groupTitle: string;
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
+  {
+    groupTitle: 'Operations',
+    items: [
+      { name: 'Overview', to: '/', icon: LayoutDashboard },
+      { name: 'Projects', to: '/projects', icon: FolderKanban },
+      { name: 'Tasks', to: '/tasks', icon: CheckSquare },
+      { name: 'Timesheets', to: '/timesheets', icon: Clock },
+    ],
+  },
+  {
+    groupTitle: 'CRM & Sales',
+    items: [
+      { name: 'Deals & Pipeline', to: '/crm', icon: Target },
+      { name: 'Leads', to: '/crm/leads', icon: UserPlus },
+      { name: 'Contacts', to: '/crm/contacts', icon: BookUser },
+      { name: 'Clients', to: '/clients', icon: Building2 },
+    ],
+  },
+  {
+    groupTitle: 'Financials & Billing',
+    items: [
+      { name: 'Financials', to: '/financials', icon: DollarSign },
+      { name: 'Invoices', to: '/invoices', icon: Receipt },
+      { name: 'Quotations', to: '/quotes', icon: FileText },
+      { name: 'Commissions', to: '/commissions', icon: Link2 },
+      { name: 'Reports', to: '/reports', icon: BarChart3 },
+    ],
+  },
+  {
+    groupTitle: 'Administration',
+    items: [
+      { name: 'Team', to: '/team', icon: ShieldAlert },
+      { name: 'Manage Users', to: '/users', icon: UserCog },
+      { name: 'Settings', to: '/settings', icon: Settings },
+    ],
+  },
 ];
 
 interface AdminSidebarProps {
@@ -63,35 +101,46 @@ export function AdminSidebar({ mobileOpen = false, onCloseMobile }: AdminSidebar
         )}
       </div>
 
-      {/* Nav Items List */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.to || 
-                           (item.to !== '/' && location.pathname.startsWith(item.to));
-          
-          return (
-            <Link
-              key={item.name}
-              to={item.to}
-              onClick={() => onCloseMobile && onCloseMobile()}
-              className={`group flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 ${
-                isActive 
-                  ? 'bg-amber-400/15 text-amber-900 shadow-xs ring-1 ring-amber-400/30' 
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <item.icon className={`w-4 h-4 transition-colors ${
-                  isActive ? 'text-amber-600' : 'text-slate-400 group-hover:text-slate-700'
-                }`} />
-                <span>{item.name}</span>
-              </div>
-              {isActive && (
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              )}
-            </Link>
-          );
-        })}
+      {/* Grouped Nav Items List */}
+      <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto scrollbar-thin">
+        {navGroups.map((group, groupIdx) => (
+          <div key={groupIdx} className="space-y-1">
+            <div className="px-3 pt-1 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+              {group.groupTitle}
+            </div>
+            
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const isActive = item.to === '/'
+                  ? location.pathname === '/'
+                  : location.pathname === item.to || location.pathname.startsWith(item.to + '/');
+
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.to}
+                    onClick={() => onCloseMobile && onCloseMobile()}
+                    className={`group flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 ${
+                      isActive 
+                        ? 'bg-amber-400/15 text-amber-900 shadow-xs ring-1 ring-amber-400/30' 
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <item.icon className={`w-4 h-4 transition-colors ${
+                        isActive ? 'text-amber-600' : 'text-slate-400 group-hover:text-slate-700'
+                      }`} />
+                      <span>{item.name}</span>
+                    </div>
+                    {isActive && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
       
       {/* Sign Out Footer */}

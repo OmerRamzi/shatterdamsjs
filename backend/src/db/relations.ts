@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { tenants, activityLogs, users, clients, files, projects, fileComments, invoices, milestones, quotations, quotationItems, timesheets, tasks, userRoles, projectTeam, invoiceItems, payrollLogs, settings, taskComments } from "./schema";
+import { tenants, activityLogs, users, clients, files, projects, fileComments, invoices, milestones, quotations, quotationItems, timesheets, tasks, userRoles, projectTeam, invoiceItems, payrollLogs, settings, taskComments, leads, deals, contacts, crmInteractions } from "./schema";
 
 export const activityLogsRelations = relations(activityLogs, ({one}) => ({
 	tenant: one(tenants, {
@@ -282,5 +282,94 @@ export const settingsRelations = relations(settings, ({one}) => ({
 	tenant: one(tenants, {
 		fields: [settings.tenantId],
 		references: [tenants.id]
+	}),
+}));
+
+export const leadsRelations = relations(leads, ({one, many}) => ({
+	tenant: one(tenants, {
+		fields: [leads.tenantId],
+		references: [tenants.id]
+	}),
+	assignee: one(users, {
+		fields: [leads.assignedTo],
+		references: [users.id]
+	}),
+	convertedClient: one(clients, {
+		fields: [leads.convertedToClientId],
+		references: [clients.id]
+	}),
+	contacts: many(contacts),
+	deals: many(deals),
+	interactions: many(crmInteractions),
+}));
+
+export const dealsRelations = relations(deals, ({one, many}) => ({
+	tenant: one(tenants, {
+		fields: [deals.tenantId],
+		references: [tenants.id]
+	}),
+	lead: one(leads, {
+		fields: [deals.leadId],
+		references: [leads.id]
+	}),
+	client: one(clients, {
+		fields: [deals.clientId],
+		references: [clients.id]
+	}),
+	assignee: one(users, {
+		fields: [deals.assignedTo],
+		references: [users.id]
+	}),
+	quotation: one(quotations, {
+		fields: [deals.quotationId],
+		references: [quotations.id]
+	}),
+	project: one(projects, {
+		fields: [deals.projectId],
+		references: [projects.id]
+	}),
+	interactions: many(crmInteractions),
+}));
+
+export const contactsRelations = relations(contacts, ({one, many}) => ({
+	tenant: one(tenants, {
+		fields: [contacts.tenantId],
+		references: [tenants.id]
+	}),
+	lead: one(leads, {
+		fields: [contacts.leadId],
+		references: [leads.id]
+	}),
+	client: one(clients, {
+		fields: [contacts.clientId],
+		references: [clients.id]
+	}),
+	interactions: many(crmInteractions),
+}));
+
+export const crmInteractionsRelations = relations(crmInteractions, ({one}) => ({
+	tenant: one(tenants, {
+		fields: [crmInteractions.tenantId],
+		references: [tenants.id]
+	}),
+	performer: one(users, {
+		fields: [crmInteractions.performedBy],
+		references: [users.id]
+	}),
+	lead: one(leads, {
+		fields: [crmInteractions.leadId],
+		references: [leads.id]
+	}),
+	deal: one(deals, {
+		fields: [crmInteractions.dealId],
+		references: [deals.id]
+	}),
+	client: one(clients, {
+		fields: [crmInteractions.clientId],
+		references: [clients.id]
+	}),
+	contact: one(contacts, {
+		fields: [crmInteractions.contactId],
+		references: [contacts.id]
 	}),
 }));

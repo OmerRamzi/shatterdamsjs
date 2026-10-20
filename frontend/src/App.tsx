@@ -25,6 +25,9 @@ import AdminReportsPage from './pages/admin/Reports';
 import AdminFinancialsPage from './pages/admin/Financials';
 import AdminCommissionsPage from './pages/admin/Commissions';
 import AdminSettingsPage from './pages/admin/Settings';
+import CrmDashboard from './pages/admin/crm/CrmDashboard';
+import AdminLeadsPage from './pages/admin/crm/Leads';
+import AdminContactsPage from './pages/admin/crm/Contacts';
 import ClientDashboardPage from './pages/client/Dashboard';
 import ClientProjectsPage from './pages/client/Projects';
 import ClientProjectDetailsPage from './pages/client/ProjectDetails';
@@ -92,6 +95,10 @@ function AppRoutes() {
           </ProtectedRoute>
         }>
           <Route index element={<AdminDashboard />} />
+          <Route path="crm" element={<CrmDashboard />} />
+          <Route path="crm/deals" element={<CrmDashboard />} />
+          <Route path="crm/leads" element={<AdminLeadsPage />} />
+          <Route path="crm/contacts" element={<AdminContactsPage />} />
           <Route path="clients" element={<AdminClientsPage />} />
           <Route path="clients/:id" element={<AdminClientDetailsPage />} />
           <Route path="projects" element={<AdminProjectsPage />} />

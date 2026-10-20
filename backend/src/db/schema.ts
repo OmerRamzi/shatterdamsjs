@@ -16,6 +16,12 @@ export const commissionStatus = pgEnum("commission_status", ['pending', 'paid', 
 export const creditNoteStatus = pgEnum("credit_note_status", ['draft', 'applied', 'void'])
 export const notificationType = pgEnum("notification_type", ['invoice_send', 'quote_send', 'payment_reminder', 'overdue_alert'])
 export const notificationStatus = pgEnum("notification_status", ['pending', 'approved', 'rejected', 'expired'])
+export const leadStatus = pgEnum("lead_status", ['new', 'contacted', 'qualified', 'unqualified', 'converted', 'lost'])
+export const leadSource = pgEnum("lead_source", ['website', 'referral', 'linkedin', 'instagram', 'outreach', 'partner', 'other'])
+export const leadPriority = pgEnum("lead_priority", ['low', 'medium', 'high', 'hot'])
+export const dealStage = pgEnum("deal_stage", ['discovery', 'qualified', 'proposal', 'negotiation', 'won', 'lost'])
+export const contactRole = pgEnum("contact_role", ['decision_maker', 'influencer', 'billing', 'technical', 'primary', 'other'])
+export const interactionType = pgEnum("interaction_type", ['call', 'meeting', 'email', 'note', 'task', 'whatsapp'])
 
 
 export const activityLogs = pgTable("activity_logs", {
@@ -792,4 +798,192 @@ export const paymentProofs = pgTable("payment_proofs", {
 		name: "payment_proofs_uploaded_by_users_id_fk"
 	}),
 	index("payment_proofs_invoice_id_idx").on(table.invoiceId),
+]);
+
+export const leads = pgTable("leads", {
+	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
+	title: varchar({ length: 255 }).notNull(),
+	companyName: varchar("company_name", { length: 255 }),
+	contactName: varchar("contact_name", { length: 255 }),
+	email: varchar({ length: 255 }),
+	phone: varchar({ length: 50 }),
+	source: leadSource().default('website'),
+	status: leadStatus().default('new'),
+	priority: leadPriority().default('medium'),
+	estimatedValue: numeric("estimated_value", { precision: 15, scale: 2 }).default('0.00'),
+	currency: varchar({ length: 10 }).default('LKR'),
+	assignedTo: integer("assigned_to"),
+	convertedToClientId: integer("converted_to_client_id"),
+	convertedToDealId: integer("converted_to_deal_id"),
+	lostReason: text("lost_reason"),
+	notes: text(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+	deletedAt: timestamp("deleted_at", { mode: 'string' }),
+}, (table) => [
+	foreignKey({
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "leads_tenant_id_tenants_id_fk"
+	}),
+	foreignKey({
+		columns: [table.assignedTo],
+		foreignColumns: [users.id],
+		name: "leads_assigned_to_users_id_fk"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.convertedToClientId],
+		foreignColumns: [clients.id],
+		name: "leads_converted_to_client_id_clients_id_fk"
+	}).onDelete("set null"),
+	index("leads_tenant_id_idx").on(table.tenantId),
+	index("leads_status_idx").on(table.status),
+	index("leads_assigned_to_idx").on(table.assignedTo),
+]);
+
+export const deals = pgTable("deals", {
+	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
+	title: varchar({ length: 255 }).notNull(),
+	stage: dealStage().default('discovery'),
+	amount: numeric({ precision: 15, scale: 2 }).default('0.00').notNull(),
+	currency: varchar({ length: 10 }).default('LKR'),
+	probability: integer().default(20),
+	expectedCloseDate: date("expected_close_date"),
+	leadId: integer("lead_id"),
+	clientId: integer("client_id"),
+	assignedTo: integer("assigned_to"),
+	quotationId: integer("quotation_id"),
+	projectId: integer("project_id"),
+	lostReason: text("lost_reason"),
+	orderIndex: integer("order_index").default(0),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+	deletedAt: timestamp("deleted_at", { mode: 'string' }),
+}, (table) => [
+	foreignKey({
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "deals_tenant_id_tenants_id_fk"
+	}),
+	foreignKey({
+		columns: [table.leadId],
+		foreignColumns: [leads.id],
+		name: "deals_lead_id_leads_id_fk"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.clientId],
+		foreignColumns: [clients.id],
+		name: "deals_client_id_clients_id_fk"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.assignedTo],
+		foreignColumns: [users.id],
+		name: "deals_assigned_to_users_id_fk"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.quotationId],
+		foreignColumns: [quotations.id],
+		name: "deals_quotation_id_quotations_id_fk"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.projectId],
+		foreignColumns: [projects.id],
+		name: "deals_project_id_projects_id_fk"
+	}).onDelete("set null"),
+	index("deals_tenant_id_idx").on(table.tenantId),
+	index("deals_stage_idx").on(table.stage),
+	index("deals_client_id_idx").on(table.clientId),
+	index("deals_assigned_to_idx").on(table.assignedTo),
+]);
+
+export const contacts = pgTable("contacts", {
+	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
+	leadId: integer("lead_id"),
+	clientId: integer("client_id"),
+	firstName: varchar("first_name", { length: 100 }).notNull(),
+	lastName: varchar("last_name", { length: 100 }),
+	email: varchar({ length: 255 }),
+	phone: varchar({ length: 50 }),
+	jobTitle: varchar("job_title", { length: 100 }),
+	role: contactRole().default('decision_maker'),
+	isPrimary: boolean("is_primary").default(false),
+	linkedinUrl: varchar("linkedin_url", { length: 255 }),
+	notes: text(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+	deletedAt: timestamp("deleted_at", { mode: 'string' }),
+}, (table) => [
+	foreignKey({
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "contacts_tenant_id_tenants_id_fk"
+	}),
+	foreignKey({
+		columns: [table.leadId],
+		foreignColumns: [leads.id],
+		name: "contacts_lead_id_leads_id_fk"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.clientId],
+		foreignColumns: [clients.id],
+		name: "contacts_client_id_clients_id_fk"
+	}).onDelete("cascade"),
+	index("contacts_tenant_id_idx").on(table.tenantId),
+	index("contacts_client_id_idx").on(table.clientId),
+	index("contacts_lead_id_idx").on(table.leadId),
+]);
+
+export const crmInteractions = pgTable("crm_interactions", {
+	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
+	type: interactionType().default('note'),
+	title: varchar({ length: 255 }).notNull(),
+	content: text(),
+	leadId: integer("lead_id"),
+	dealId: integer("deal_id"),
+	clientId: integer("client_id"),
+	contactId: integer("contact_id"),
+	performedBy: integer("performed_by").notNull(),
+	dueDate: timestamp("due_date", { mode: 'string' }),
+	isCompleted: boolean("is_completed").default(false),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	foreignKey({
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "crm_interactions_tenant_id_tenants_id_fk"
+	}),
+	foreignKey({
+		columns: [table.leadId],
+		foreignColumns: [leads.id],
+		name: "crm_interactions_lead_id_leads_id_fk"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.dealId],
+		foreignColumns: [deals.id],
+		name: "crm_interactions_deal_id_deals_id_fk"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.clientId],
+		foreignColumns: [clients.id],
+		name: "crm_interactions_client_id_clients_id_fk"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.contactId],
+		foreignColumns: [contacts.id],
+		name: "crm_interactions_contact_id_contacts_id_fk"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.performedBy],
+		foreignColumns: [users.id],
+		name: "crm_interactions_performed_by_users_id_fk"
+	}),
+	index("crm_interactions_tenant_id_idx").on(table.tenantId),
+	index("crm_interactions_lead_id_idx").on(table.leadId),
+	index("crm_interactions_deal_id_idx").on(table.dealId),
+	index("crm_interactions_client_id_idx").on(table.clientId),
 ]);
