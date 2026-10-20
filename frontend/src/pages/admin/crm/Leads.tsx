@@ -8,11 +8,13 @@ import {
   Building2, 
   ArrowRight, 
   Pencil, 
-  Trash2
+  Trash2,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LeadModal } from '../../../components/admin/crm/LeadModal';
 import { ConvertLeadModal } from '../../../components/admin/crm/ConvertLeadModal';
+import { CsvImportModal } from '../../../components/admin/crm/CsvImportModal';
 
 interface Lead {
   id: number;
@@ -47,6 +49,8 @@ export default function AdminLeadsPage() {
 
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
+
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
 
   const fetchLeads = useCallback(async () => {
     setIsLoading(true);
@@ -152,6 +156,14 @@ export default function AdminLeadsPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setIsCsvModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-bold text-xs sm:text-sm transition-all shadow-xs"
+            title="Import leads from Zoho CRM or CSV"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <span>Import CSV</span>
+          </button>
           <Link
             to="/crm"
             className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-bold text-xs sm:text-sm transition-all shadow-xs"
@@ -378,6 +390,15 @@ export default function AdminLeadsPage() {
           }
         }}
         lead={convertingLead}
+      />
+
+      <CsvImportModal
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        onImportComplete={() => {
+          fetchLeads();
+        }}
+        defaultType="leads"
       />
     </div>
   );

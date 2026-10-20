@@ -12,10 +12,12 @@ import {
   Search,
   Building2,
   Pencil,
-  Trash2
+  Trash2,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DealModal } from '../../../components/admin/crm/DealModal';
+import { CsvImportModal } from '../../../components/admin/crm/CsvImportModal';
 
 interface Deal {
   id: number;
@@ -71,6 +73,7 @@ export default function CrmDashboard() {
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [defaultStage, setDefaultStage] = useState('discovery');
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -159,7 +162,15 @@ export default function CrmDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() => setIsCsvModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 font-bold text-xs sm:text-sm transition-all shadow-xs"
+            title="Import Leads or Contacts from Zoho CRM or CSV"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <span>Import CSV</span>
+          </button>
           <Link
             to="/crm/leads"
             className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-bold text-xs sm:text-sm transition-all shadow-xs"
@@ -494,6 +505,17 @@ export default function CrmDashboard() {
         }}
         deal={selectedDeal}
         defaultStage={defaultStage}
+      />
+
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        onImportComplete={() => {
+          setIsCsvModalOpen(false);
+          fetchData();
+        }}
+        defaultType="leads"
       />
     </div>
   );

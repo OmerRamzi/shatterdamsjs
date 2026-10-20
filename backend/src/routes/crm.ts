@@ -873,4 +873,214 @@ crmRoutes.put('/interactions/:id', async (c) => {
   }
 });
 
+/**
+ * POST /api/crm/import/leads
+ * Bulk import leads from CSV (Zoho CRM, HubSpot, custom CSV)
+ */
+crmRoutes.post('/import/leads', async (c) => {
+  const user = c.get('user');
+  const db = c.get('db');
+  const body = await c.req.json();
+  const items = Array.isArray(body.items) ? body.items : [];
+
+  if (items.length === 0) {
+    return c.json({ error: 'No lead items provided for import' }, 400);
+  }
+
+  try {
+    const validSources = ['website', 'referral', 'linkedin', 'instagram', 'outreach', 'partner', 'other'];
+    const validStatuses = ['new', 'contacted', 'qualified', 'unqualified', 'converted', 'lost'];
+    const validPriorities = ['low', 'medium', 'high', 'hot'];
+
+    const insertedIds: number[] = [];
+    const chunkSize = 50;
+
+    for (let i = 0; i < items.length; i += chunkSize) {
+      const chunk = items.slice(i, i + chunkSize);
+      const rowsToInsert = chunk.map((item: any) => {
+        // Source normalization
+        let source = (item.source || 'other').toLowerCase();
+        if (!validSources.includes(source)) {
+          if (source.includes('web')) source = 'website';
+          else if (source.includes('referral') || source.includes('word')) source = 'referral';
+          else if (source.includes('linkedin')) source = 'linkedin';
+          else if (source.includes('instagram') || source.includes('ig')) source = 'instagram';
+          else if (source.includes('outreach') || source.includes('cold') || source.includes('campaign')) source = 'outreach';
+          else if (source.includes('partner')) source = 'partner';
+          else source = 'other';
+        }
+
+        // Status normalization
+        let status = (item.status || 'new').toLowerCase();
+        if (!validStatuses.includes(status)) {
+          if (status.includes('contact')) status = 'contacted';
+          else if (status.includes('qualif')) status = 'qualified';
+          else if (status.includes('convert') || status.includes('customer') || status.includes('won')) status = 'converted';
+          else if (status.includes('lost') || status.includes('dead') || status.includes('junk')) status = 'lost';
+          else status = 'new';
+        }
+
+        // Priority normalization
+        let priority = (item.priority || 'medium').toLowerCase();
+        if (!validPriorities.includes(priority)) {
+          if (priority.includes('hot') || priority.includes('urgent')) priority = 'hot';
+          else if (priority.includes('high')) priority = 'high';
+          else if (priority.includes('low')) priority = 'low';
+          else priority = 'medium';
+        }
+
+        // Clean estimated value (remove currency symbols, commas)
+        let estVal = '0.00';
+        if (item.estimatedValue) {
+          const cleaned = String(item.estimatedValue).replace(/[^0-9.]/g, '');
+          if (!isNaN(parseFloat(cleaned))) estVal = parseFloat(cleaned).toFixed(2);
+        }
+
+        // Clean title
+        const company = item.companyName?.trim() || '';
+        const contact = item.contactName?.trim() || '';
+        let title = item.title?.trim();
+        if (!title) {
+          if (company) title = `${company} Inquiry`;
+          else if (contact) title = `Lead - ${contact}`;
+          else title = `Imported Lead #${Date.now().toString().slice(-4)}`;
+        }
+
+        return {
+          tenantId: user.tenantId,
+          title,
+          companyName: company || null,
+          contactName: contact || null,
+          email: item.email?.trim() || null,
+          phone: item.phone?.trim() || null,
+          source,
+          status,
+          priority,
+          estimatedValue: estVal,
+          currency: item.currency || 'LKR',
+          assignedTo: user.id,
+          notes: item.notes?.trim() || null,
+        };
+      });
+
+      const inserted = await db.insert(schema.leads).values(rowsToInsert).returning({ id: schema.leads.id });
+      for (const row of inserted) insertedIds.push(row.id);
+    }
+
+    // Log Activity
+    await db.insert(schema.activityLogs).values({
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: `Imported ${insertedIds.length} leads from CSV`,
+      entityType: 'lead',
+      description: `Source system import completed successfully.`,
+    }).catch(() => {});
+
+    return c.json({
+      success: true,
+      importedCount: insertedIds.length,
+      ids: insertedIds,
+    });
+  } catch (error: any) {
+    console.error('Lead import error:', error);
+    return c.json({ error: error.message || 'Failed to import leads' }, 500);
+  }
+});
+
+/**
+ * POST /api/crm/import/contacts
+ * Bulk import contacts from CSV
+ */
+crmRoutes.post('/import/contacts', async (c) => {
+  const user = c.get('user');
+  const db = c.get('db');
+  const body = await c.req.json();
+  const items = Array.isArray(body.items) ? body.items : [];
+
+  if (items.length === 0) {
+    return c.json({ error: 'No contact items provided for import' }, 400);
+  }
+
+  try {
+    const validRoles = ['decision_maker', 'influencer', 'billing', 'technical', 'primary', 'other'];
+
+    // Preload clients in tenant to match by company name
+    const existingClients = await db.select({ id: schema.clients.id, name: schema.clients.companyName })
+      .from(schema.clients)
+      .where(and(eq(schema.clients.tenantId, user.tenantId), isNull(schema.clients.deletedAt)));
+    const clientMap = new Map<string, number>();
+    for (const cl of existingClients) {
+      clientMap.set(cl.name.toLowerCase().trim(), cl.id);
+    }
+
+    const insertedIds: number[] = [];
+    const chunkSize = 50;
+
+    for (let i = 0; i < items.length; i += chunkSize) {
+      const chunk = items.slice(i, i + chunkSize);
+      const rowsToInsert = chunk.map((item: any) => {
+        let role = (item.role || 'decision_maker').toLowerCase();
+        if (!validRoles.includes(role)) {
+          if (role.includes('decis') || role.includes('ceo') || role.includes('director')) role = 'decision_maker';
+          else if (role.includes('bill') || role.includes('account') || role.includes('financ')) role = 'billing';
+          else if (role.includes('prim')) role = 'primary';
+          else if (role.includes('tech') || role.includes('dev')) role = 'technical';
+          else role = 'decision_maker';
+        }
+
+        let firstName = item.firstName?.trim() || '';
+        let lastName = item.lastName?.trim() || null;
+        if (!firstName && item.fullName) {
+          const parts = item.fullName.trim().split(' ');
+          firstName = parts[0] || 'Contact';
+          lastName = parts.slice(1).join(' ') || null;
+        }
+        if (!firstName) firstName = 'Contact';
+
+        // Check if company matches existing client
+        let matchedClientId = item.clientId ? parseInt(item.clientId) : null;
+        if (!matchedClientId && item.companyName) {
+          const lookup = clientMap.get(item.companyName.toLowerCase().trim());
+          if (lookup) matchedClientId = lookup;
+        }
+
+        return {
+          tenantId: user.tenantId,
+          firstName,
+          lastName,
+          email: item.email?.trim() || null,
+          phone: item.phone?.trim() || null,
+          jobTitle: item.jobTitle?.trim() || null,
+          role,
+          clientId: matchedClientId,
+          isPrimary: Boolean(item.isPrimary),
+          linkedinUrl: item.linkedinUrl?.trim() || null,
+          notes: item.notes?.trim() || null,
+        };
+      });
+
+      const inserted = await db.insert(schema.contacts).values(rowsToInsert).returning({ id: schema.contacts.id });
+      for (const row of inserted) insertedIds.push(row.id);
+    }
+
+    // Log Activity
+    await db.insert(schema.activityLogs).values({
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: `Imported ${insertedIds.length} contacts from CSV`,
+      entityType: 'contact',
+      description: `Bulk contact import completed.`,
+    }).catch(() => {});
+
+    return c.json({
+      success: true,
+      importedCount: insertedIds.length,
+      ids: insertedIds,
+    });
+  } catch (error: any) {
+    console.error('Contact import error:', error);
+    return c.json({ error: error.message || 'Failed to import contacts' }, 500);
+  }
+});
+
 export default crmRoutes;

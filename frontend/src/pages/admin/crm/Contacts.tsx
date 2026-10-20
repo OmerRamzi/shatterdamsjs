@@ -9,9 +9,11 @@ import {
   ExternalLink, 
   Star, 
   Pencil, 
-  Trash2 
+  Trash2,
+  FileSpreadsheet
 } from 'lucide-react';
 import { ContactModal } from '../../../components/admin/crm/ContactModal';
+import { CsvImportModal } from '../../../components/admin/crm/CsvImportModal';
 
 interface Contact {
   id: number;
@@ -37,6 +39,7 @@ export default function AdminContactsPage() {
   // Contact Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
 
   const fetchContacts = useCallback(async () => {
     setIsLoading(true);
@@ -118,13 +121,23 @@ export default function AdminContactsPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl shadow-xs hover:shadow transition-all text-xs sm:text-sm"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>Add Contact</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setIsCsvModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-bold text-xs sm:text-sm transition-all shadow-xs"
+            title="Import contacts from Zoho CRM or CSV"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <span>Import CSV</span>
+          </button>
+          <button
+            onClick={handleOpenAdd}
+            className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl shadow-xs hover:shadow transition-all text-xs sm:text-sm"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Add Contact</span>
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}
@@ -273,6 +286,16 @@ export default function AdminContactsPage() {
           fetchContacts();
         }}
         contact={selectedContact}
+      />
+
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        onImportComplete={() => {
+          fetchContacts();
+        }}
+        defaultType="contacts"
       />
     </div>
   );
