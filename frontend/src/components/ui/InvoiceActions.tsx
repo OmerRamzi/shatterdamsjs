@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Send, CheckCircle, Loader2, Copy, XCircle } from "lucide-react";
+import { Send, CheckCircle, Loader2, Copy, XCircle, BellRing } from "lucide-react";
 import { PaymentModal } from "./PaymentModal";
+import { SendInvoiceModal } from "./SendInvoiceModal";
 
 export function InvoiceActions({ 
   invoiceId, 
@@ -10,6 +11,7 @@ export function InvoiceActions({
   total,
   paidAmount = 0,
   currency = "LKR",
+  invoiceData,
   onStatusUpdate 
 }: { 
   invoiceId: number; 
@@ -17,24 +19,24 @@ export function InvoiceActions({
   total: number;
   paidAmount?: number;
   currency?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  invoiceData?: any;
   onStatusUpdate?: () => void;
 }) {
-  const [isSending, setIsSending] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
 
-  const handleSend = async () => {
-    setIsSending(true);
-    try {
-      const res = await fetch(`/api/invoices/${invoiceId}/send`, { method: 'POST' });
-      if (!res.ok) throw new Error("Failed to send invoice");
-      if (onStatusUpdate) onStatusUpdate();
-    } catch (error) {
-      console.error(error);
-      alert("Failed to send invoice.");
-    } finally {
-      setIsSending(false);
+  // Fallback composite data for modal if raw invoiceData not passed
+  const modalData = invoiceData || {
+    invoice: {
+      id: invoiceId,
+      invoiceNumber: `INV-${invoiceId}`,
+      status: currentStatus,
+      total,
+      paidAmount,
+      currency
     }
   };
 
@@ -78,49 +80,73 @@ export function InvoiceActions({
 
   return (
     <>
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
+        {/* Record Payment */}
         {currentStatus !== 'paid' && currentStatus !== 'cancelled' && (
           <button 
             onClick={() => setIsPaymentModalOpen(true)} 
-            className="btn-secondary text-emerald-500 hover:bg-emerald-500/10 flex items-center gap-2 border-emerald-500/20"
+            className="btn-secondary text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-2 border-emerald-500/20"
           >
             <CheckCircle className="w-4 h-4" />
-            Record Payment
+            <span>Record Payment</span>
           </button>
         )}
         
+        {/* Send / Resend Email with CC & Attachment */}
         {currentStatus !== 'paid' && currentStatus !== 'cancelled' && (
           <button 
-            onClick={handleSend} 
-            disabled={isSending}
-            className="btn-primary flex items-center gap-2"
+            onClick={() => setIsSendModalOpen(true)} 
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-xs transition-all ${
+              currentStatus === 'overdue'
+                ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950'
+            }`}
           >
-            {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Send to Client
+            {currentStatus === 'overdue' ? (
+              <>
+                <BellRing className="w-4 h-4" />
+                <span>Send Reminder</span>
+              </>
+            ) : currentStatus === 'sent' ? (
+              <>
+                <Send className="w-4 h-4" />
+                <span>Resend Email</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                <span>Send to Client</span>
+              </>
+            )}
           </button>
         )}
 
+        {/* Duplicate */}
         <button 
           onClick={handleDuplicate} 
           disabled={isDuplicating}
           className="btn-secondary flex items-center gap-2"
+          title="Duplicate this invoice"
         >
           {isDuplicating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-          Duplicate
+          <span>Duplicate</span>
         </button>
 
+        {/* Cancel */}
         {currentStatus !== 'paid' && currentStatus !== 'cancelled' && (
           <button 
             onClick={handleCancel} 
             disabled={isCancelling}
             className="btn-secondary text-destructive hover:bg-destructive/10 flex items-center gap-2 border-destructive/20"
+            title="Cancel invoice"
           >
             {isCancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-            Cancel Invoice
+            <span>Cancel</span>
           </button>
         )}
       </div>
 
+      {/* Payment Modal */}
       <PaymentModal 
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
@@ -130,6 +156,17 @@ export function InvoiceActions({
         currency={currency}
         onSuccess={() => {
           setIsPaymentModalOpen(false);
+          if (onStatusUpdate) onStatusUpdate();
+        }}
+      />
+
+      {/* Send Invoice Modal */}
+      <SendInvoiceModal
+        isOpen={isSendModalOpen}
+        onClose={() => setIsSendModalOpen(false)}
+        invoiceData={modalData}
+        onSent={() => {
+          setIsSendModalOpen(false);
           if (onStatusUpdate) onStatusUpdate();
         }}
       />

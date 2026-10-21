@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Clock, Receipt, CheckCircle, ExternalLink } from "lucide-react";
+import { ArrowLeft, Clock, Receipt, CheckCircle, ExternalLink, Printer } from "lucide-react";
 import { InvoiceActions } from "../../components/ui/InvoiceActions";
 import { InvoicePDFGenerator } from "../../components/ui/InvoicePDFGenerator";
 
@@ -69,7 +69,15 @@ export default function AdminInvoiceDetailsPage() {
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => window.print()}
+              className="btn-secondary flex items-center gap-2"
+              title="Print Invoice"
+            >
+              <Printer className="w-4 h-4" />
+              <span className="hidden sm:inline">Print</span>
+            </button>
             <InvoicePDFGenerator data={data} />
             <InvoiceActions 
               invoiceId={invoice.id} 
@@ -77,6 +85,7 @@ export default function AdminInvoiceDetailsPage() {
               total={parseFloat(invoice.total)}
               paidAmount={parseFloat(invoice.paidAmount || '0')}
               currency={settings.currency}
+              invoiceData={data}
               onStatusUpdate={fetchInvoice} 
             />
           </div>
