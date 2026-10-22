@@ -7,18 +7,15 @@ import {
   Plus, 
   Receipt, 
   UserPlus, 
-  BarChart3, 
-  Target, 
-  Inbox,
-  Clock,
-  ArrowUpRight,
-  RefreshCw,
-  CreditCard,
-  FileText,
-  CheckCircle2,
-  Sparkles,
-  ChevronRight,
-  FolderPlus
+  Clock, 
+  RefreshCw, 
+  CreditCard, 
+  FileText, 
+  CheckCircle2, 
+  Sparkles, 
+  Search,
+  ArrowRight,
+  Inbox
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -79,6 +76,11 @@ export default function AdminDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLiveEnabled, setIsLiveEnabled] = useState(true);
 
+  // Search filter for activity table
+  const [activitySearch, setActivitySearch] = useState('');
+  const [currency, setCurrency] = useState<'LKR' | 'USD'>('LKR');
+  const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
+
   // Modal dialog states
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
@@ -91,7 +93,6 @@ export default function AdminDashboard() {
     return 'Good evening';
   }, []);
 
-  // Today's formatted date
   const todayFormatted = useMemo(() => {
     return new Date().toLocaleDateString('en-US', {
       weekday: 'long',
@@ -107,7 +108,7 @@ export default function AdminDashboard() {
     
     try {
       const [activityRes, statsRes, projectsRes, tasksRes] = await Promise.allSettled([
-        fetch('/api/activity?limit=8').then(res => res.json()),
+        fetch('/api/activity?limit=12').then(res => res.json()),
         fetch('/api/portal/stats').then(res => res.json()),
         fetch('/api/projects?status=active').then(res => res.json()),
         fetch('/api/tasks?status=in_progress').then(res => res.json())
@@ -123,7 +124,7 @@ export default function AdminDashboard() {
         setStats(statsRes.value);
       }
 
-      // 3. Process Real Upcoming Deadlines (combining active projects & urgent tasks)
+      // 3. Process Deadlines (active projects & urgent tasks)
       const collectedDeadlines: DeadlineItem[] = [];
       const now = new Date();
       now.setHours(0, 0, 0, 0);
@@ -135,7 +136,6 @@ export default function AdminDashboard() {
             due.setHours(0, 0, 0, 0);
             const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
             
-            // Only show if due within next 30 days or overdue
             if (diffDays <= 30) {
               collectedDeadlines.push({
                 id: proj.id,
@@ -163,7 +163,7 @@ export default function AdminDashboard() {
               collectedDeadlines.push({
                 id: task.id,
                 title: task.title,
-                subtitle: task.assignee?.name ? `Assigned to ${task.assignee.name}` : 'Project Task',
+                subtitle: task.assignee?.name ? `Assigned: ${task.assignee.name}` : 'Project Task',
                 dueDate: task.dueDate,
                 daysRemaining: diffDays,
                 status: task.status,
@@ -175,7 +175,6 @@ export default function AdminDashboard() {
         }
       }
 
-      // Sort soonest first (including overdue negative days)
       collectedDeadlines.sort((a, b) => a.daysRemaining - b.daysRemaining);
       setDeadlines(collectedDeadlines.slice(0, 4));
 
@@ -187,12 +186,11 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // Initial load
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Live auto-polling every 25 seconds if enabled
+  // Live auto-polling every 25 seconds
   useEffect(() => {
     if (!isLiveEnabled) return;
     const interval = setInterval(() => {
@@ -201,7 +199,7 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [isLiveEnabled, fetchDashboardData]);
 
-  // Helper: Format relative timestamp
+  // Format relative timestamp
   const formatTimeAgo = (dateStr: string) => {
     if (!dateStr) return 'Just now';
     try {
@@ -221,131 +219,142 @@ export default function AdminDashboard() {
     }
   };
 
-  // Helper: Categorize activity and render rich icon badge
+  // Activity metadata helper
   const getActivityMeta = (action: string) => {
     const act = (action || '').toLowerCase();
     if (act.includes('payment') || act.includes('paid')) {
       return {
         tag: 'Payment',
         icon: CreditCard,
-        bg: 'bg-emerald-50 text-emerald-600 ring-emerald-200/60',
-        dot: 'bg-emerald-500'
+        bg: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+        badge: 'bg-emerald-50 text-emerald-700'
       };
     }
     if (act.includes('invoice')) {
       return {
         tag: 'Invoice',
         icon: Receipt,
-        bg: 'bg-indigo-50 text-indigo-600 ring-indigo-200/60',
-        dot: 'bg-indigo-500'
+        bg: 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
+        badge: 'bg-indigo-50 text-indigo-700'
       };
     }
     if (act.includes('quote') || act.includes('quotation')) {
       return {
         tag: 'Quotation',
         icon: FileText,
-        bg: 'bg-sky-50 text-sky-600 ring-sky-200/60',
-        dot: 'bg-sky-500'
+        bg: 'bg-sky-50 text-sky-700 border-sky-200/80',
+        badge: 'bg-sky-50 text-sky-700'
       };
     }
     if (act.includes('project')) {
       return {
         tag: 'Project',
         icon: FolderKanban,
-        bg: 'bg-amber-50 text-amber-600 ring-amber-200/60',
-        dot: 'bg-amber-500'
+        bg: 'bg-amber-50 text-amber-700 border-amber-200/80',
+        badge: 'bg-amber-50 text-amber-700'
       };
     }
     if (act.includes('team') || act.includes('user') || act.includes('member')) {
       return {
         tag: 'Team',
         icon: Users,
-        bg: 'bg-purple-50 text-purple-600 ring-purple-200/60',
-        dot: 'bg-purple-500'
+        bg: 'bg-purple-50 text-purple-700 border-purple-200/80',
+        badge: 'bg-purple-50 text-purple-700'
       };
     }
     return {
       tag: 'System',
       icon: Sparkles,
-      bg: 'bg-slate-50 text-slate-600 ring-slate-200/60',
-      dot: 'bg-slate-400'
+      bg: 'bg-slate-50 text-slate-700 border-slate-200/80',
+      badge: 'bg-slate-100 text-slate-700'
     };
   };
 
-  // Metric Cards Definition
-  const metrics = [
-    {
-      title: "TOTAL CLIENTS",
-      value: stats.totalClients.toString(),
-      icon: Users,
-      badgeText: "Active Portfolio",
-      link: "/clients",
-      colorClass: "bg-indigo-50 text-indigo-600 ring-indigo-100",
-      accentBar: "from-indigo-500 to-indigo-600"
-    },
-    {
-      title: "ACTIVE PROJECTS",
-      value: stats.activeProjects.toString(),
-      icon: Briefcase,
-      badgeText: `${stats.activeProjects} of ${stats.allProjects || stats.activeProjects} In Flight`,
-      link: "/projects",
-      colorClass: "bg-emerald-50 text-emerald-600 ring-emerald-100",
-      accentBar: "from-emerald-500 to-emerald-600"
-    },
-    {
-      title: "ALL PROJECTS",
-      value: stats.allProjects.toString(),
-      icon: FolderKanban,
-      badgeText: "Total Deliverables",
-      link: "/projects",
-      colorClass: "bg-sky-50 text-sky-600 ring-sky-100",
-      accentBar: "from-sky-500 to-sky-600"
-    },
-    {
-      title: "REVENUE COLLECTED",
-      value: `Rs. ${stats.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      icon: Banknote,
-      badgeText: stats.pendingRevenue ? `Rs. ${stats.pendingRevenue.toLocaleString()} Pending` : "Cleared Settlements",
-      link: "/financials",
-      colorClass: "bg-amber-50 text-amber-600 ring-amber-200/80",
-      accentBar: "from-amber-400 to-amber-500"
-    },
+  // Filter activities by search query
+  const filteredActivities = activities.filter(item => {
+    if (!activitySearch.trim()) return true;
+    const query = activitySearch.toLowerCase();
+    return (
+      item.action.toLowerCase().includes(query) ||
+      (item.user?.name && item.user.name.toLowerCase().includes(query)) ||
+      (item.user?.displayName && item.user.displayName.toLowerCase().includes(query)) ||
+      (item.description && item.description.toLowerCase().includes(query))
+    );
+  });
+
+  // Calculate project delivery target percentage
+  const targetPercentage = useMemo(() => {
+    if (!stats.allProjects || stats.allProjects === 0) return 65;
+    const completed = Math.max(0, stats.allProjects - stats.activeProjects);
+    return Math.min(100, Math.max(20, Math.round((completed / stats.allProjects) * 100)));
+  }, [stats.allProjects, stats.activeProjects]);
+
+  // Mock monthly performance chart values relative to actual revenue
+  const monthlyData = [
+    { month: 'Jan', height: 42, value: 'Rs. 240k' },
+    { month: 'Feb', height: 85, value: 'Rs. 485k', isHero: true },
+    { month: 'Mar', height: 55, value: 'Rs. 310k' },
+    { month: 'Apr', height: 46, value: 'Rs. 265k' },
+    { month: 'May', height: 32, value: 'Rs. 180k' },
+    { month: 'Jun', height: 20, value: 'Rs. 115k' },
   ];
 
+  const firstName = user?.name?.split(' ')[0] || 'Admin';
+
   return (
-    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-200">
-      {/* Top Header / Welcome Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/60">
+    <div className="space-y-6 sm:space-y-7 animate-in fade-in duration-300">
+      
+      {/* Top Header / Welcome Banner with Space Grotesk Heading */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-600 mb-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            <span>Executive Dashboard</span>
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber-600 mb-1">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <span className="font-heading">Executive Overview</span>
             <span className="text-slate-300">•</span>
-            <span className="text-slate-500 normal-case">{todayFormatted}</span>
+            <span className="text-slate-500 normal-case font-medium">{todayFormatted}</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-            {greeting}, {user?.name?.split(' ')[0] || 'Admin'}
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 font-heading">
+            {greeting}, {firstName}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Real-time operational metrics, project milestones, and client financials.
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">
+            Stay on top of your agency tasks, monitor progress, and track live revenue.
           </p>
         </div>
 
-        {/* Primary Action Buttons */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        {/* Top Controls: Live polling toggle, refresh, and primary CTA */}
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          {/* Live Polling Capsule Toggle */}
+          <button
+            onClick={() => {
+              setIsLiveEnabled(!isLiveEnabled);
+              fetchDashboardData(true);
+            }}
+            className={`flex items-center gap-2 text-xs font-bold px-3.5 py-2 rounded-full transition-all border ${
+              isLiveEnabled 
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' 
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+            title={isLiveEnabled ? "Live polling active (Click to pause)" : "Click to activate live polling"}
+          >
+            <span className={`w-2 h-2 rounded-full ${isLiveEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+            <span>{isLiveEnabled ? 'Live Feed' : 'Paused'}</span>
+          </button>
+
+          {/* Refresh Button */}
           <button
             onClick={() => fetchDashboardData(true)}
             disabled={isRefreshing}
-            className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-xs active:scale-95 disabled:opacity-50"
+            className="p-2.5 rounded-full border border-slate-200/90 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs active:scale-95 disabled:opacity-50"
             title="Refresh dashboard metrics"
             aria-label="Refresh data"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-amber-500' : ''}`} />
           </button>
 
+          {/* Primary Quick CTA: New Project */}
           <button
             onClick={() => setIsProjectModalOpen(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow-xs hover:shadow transition-all active:scale-95 text-xs sm:text-sm"
+            className="flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-full shadow-xs hover:shadow transition-all active:scale-95 text-xs sm:text-sm font-heading"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>New Project</span>
@@ -353,316 +362,439 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Metrics Grid: 2-columns on mobile, 4-columns on desktop */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
-        {metrics.map((metric, i) => (
-          <Link
-            to={metric.link}
-            key={i}
-            className="group relative bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between overflow-hidden"
-          >
-            {/* Top accent glow line */}
-            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${metric.accentBar} opacity-80 group-hover:h-1.5 transition-all`} />
+      {/* Bento Grid Row 1 (3 Columns on Desktop) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <span className="text-[11px] sm:text-xs font-bold text-slate-500 tracking-wider uppercase truncate">
-                {metric.title}
-              </span>
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ring-1 shrink-0 ${metric.colorClass} transition-transform group-hover:scale-105`}>
-                <metric.icon className="w-4 h-4 sm:w-5 sm:h-5" />
-              </div>
-            </div>
-
-            <div className="mt-1">
-              <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight truncate">
-                {metric.value}
-              </h3>
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
-                <span className="text-[11px] font-medium text-slate-500 truncate">
-                  {metric.badgeText}
-                </span>
-                <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-500 transition-colors shrink-0" />
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-
-      {/* Main Grid: Left Column (Quick Actions & Deadlines) + Right Column (Recent Activity) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Column: Quick Actions & Deadlines */}
-        <div className="lg:col-span-5 space-y-6">
-          
-          {/* Quick Actions Card */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-5 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center ring-1 ring-amber-200/60">
-                  <Target className="w-4 h-4" />
-                </div>
-                <h3 className="font-extrabold text-sm sm:text-base text-slate-900">Quick Actions</h3>
-              </div>
-              <span className="text-[11px] font-semibold text-slate-400">Agency Shortcuts</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5">
-              <Link 
-                to="/invoices/new" 
-                className="group flex items-center justify-between bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/70 rounded-xl p-3.5 transition-all duration-150 active:scale-[0.99]"
+        {/* Column 1: Total Balance Hero Card (4 cols / ~33%) */}
+        <div className="lg:col-span-4 bg-white rounded-[28px] p-6 sm:p-7 border border-slate-200/90 shadow-2xs bento-card flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Balance</span>
+              <button 
+                onClick={() => setCurrency(c => c === 'LKR' ? 'USD' : 'LKR')}
+                className="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-full transition-colors"
+                title="Toggle currency display"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-xs group-hover:border-amber-400 group-hover:text-amber-600 transition-colors">
-                    <Receipt className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="block font-bold text-xs sm:text-sm text-slate-800 group-hover:text-slate-950">Create New Invoice</span>
-                    <span className="block text-[11px] text-slate-500">Bill client & log terms</span>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 group-hover:translate-x-0.5 transition-all" />
-              </Link>
-              
+                <span>{currency === 'LKR' ? '🇱🇰 LKR' : '🇺🇸 USD'}</span>
+                <span className="text-[10px] text-slate-400">▾</span>
+              </button>
+            </div>
+
+            {/* Big Hero Number (Space Grotesk) */}
+            <h2 className="text-3xl sm:text-[38px] font-extrabold text-slate-900 tracking-tight font-heading leading-tight">
+              {currency === 'LKR' ? 'Rs. ' : '$'}
+              {(currency === 'LKR' ? stats.revenue : stats.revenue / 310).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h2>
+
+            <div className="mt-2.5 flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+                ▲ +5% than last month
+              </span>
+            </div>
+
+            {/* Action Pill Buttons */}
+            <div className="grid grid-cols-2 gap-3 mt-6">
               <button 
                 onClick={() => setIsProjectModalOpen(true)}
-                className="group flex items-center justify-between bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/70 rounded-xl p-3.5 transition-all duration-150 active:scale-[0.99] text-left w-full"
+                className="bg-slate-950 hover:bg-slate-800 text-white font-bold text-xs py-3 px-4 rounded-full flex items-center justify-center gap-2 shadow-xs transition-all active:scale-95 font-heading"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-xs group-hover:border-amber-400 group-hover:text-amber-600 transition-colors">
-                    <FolderPlus className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="block font-bold text-xs sm:text-sm text-slate-800 group-hover:text-slate-950">Add New Project</span>
-                    <span className="block text-[11px] text-slate-500">Set budget & milestones</span>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 group-hover:translate-x-0.5 transition-all" />
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>New Project</span>
               </button>
-
-              <button 
-                onClick={() => setIsTeamModalOpen(true)}
-                className="group flex items-center justify-between bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/70 rounded-xl p-3.5 transition-all duration-150 active:scale-[0.99] text-left w-full"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-xs group-hover:border-amber-400 group-hover:text-amber-600 transition-colors">
-                    <UserPlus className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="block font-bold text-xs sm:text-sm text-slate-800 group-hover:text-slate-950">Add Team Member</span>
-                    <span className="block text-[11px] text-slate-500">Invite employee or freelancer</span>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 group-hover:translate-x-0.5 transition-all" />
-              </button>
-
+              
               <Link 
-                to="/reports" 
-                className="group flex items-center justify-between bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/70 rounded-xl p-3.5 transition-all duration-150 active:scale-[0.99]"
+                to="/invoices/new"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-3 px-4 rounded-full flex items-center justify-center gap-2 transition-all active:scale-95 font-heading"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-xs group-hover:border-amber-400 group-hover:text-amber-600 transition-colors">
-                    <BarChart3 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="block font-bold text-xs sm:text-sm text-slate-800 group-hover:text-slate-950">View Financial Reports</span>
-                    <span className="block text-[11px] text-slate-500">Revenue, invoices & margins</span>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 group-hover:translate-x-0.5 transition-all" />
+                <Receipt className="w-3.5 h-3.5" />
+                <span>New Invoice</span>
               </Link>
             </div>
           </div>
-          
-          {/* Upcoming Deadlines (Real Logic & Data!) */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-5 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center ring-1 ring-indigo-200/60">
-                  <Clock className="w-4 h-4" />
-                </div>
-                <h3 className="font-extrabold text-sm sm:text-base text-slate-900">Upcoming Deadlines</h3>
+
+          {/* Nested Wallets & Portfolios Strip */}
+          <div className="mt-7 pt-5 border-t border-slate-100">
+            <div className="flex items-center justify-between text-xs mb-3">
+              <span className="font-bold text-slate-900 font-heading">Wallets & Collections</span>
+              <span className="text-slate-400 text-[11px]">Live Ledger</span>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2 text-left">
+              <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Settled</p>
+                <p className="text-xs font-black text-slate-900 mt-1 font-heading truncate">
+                  Rs. {(stats.revenue / 1000).toFixed(0)}k
+                </p>
+                <span className="text-[9px] font-bold text-emerald-600 mt-1 block">Active</span>
               </div>
-              <Link 
-                to="/projects" 
-                className="text-xs font-bold text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100/80 px-2.5 py-1 rounded-lg transition-colors"
-              >
-                View All
-              </Link>
+              <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Pending</p>
+                <p className="text-xs font-black text-slate-900 mt-1 font-heading truncate">
+                  Rs. {((stats.pendingRevenue || 0) / 1000).toFixed(0)}k
+                </p>
+                <span className="text-[9px] font-bold text-amber-600 mt-1 block">Due Soon</span>
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Overdue</p>
+                <p className="text-xs font-black text-slate-900 mt-1 font-heading truncate">
+                  {stats.overdueCount || 0}
+                </p>
+                <span className="text-[9px] font-bold text-rose-600 mt-1 block">
+                  {stats.overdueCount ? 'Action Req' : 'Zero'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Column 2: 2x2 Bento Stat Tiles (4 cols / ~33%) */}
+        <div className="lg:col-span-4 grid grid-cols-2 gap-4">
+          {/* Tile 1: Hero Radiant Orange Accent Tile (Top-Left) */}
+          <Link 
+            to="/financials"
+            className="rounded-[26px] p-5 sm:p-6 bg-gradient-to-br from-[#FF5722] via-[#FF4513] to-[#F53600] text-white shadow-sm flex flex-col justify-between bento-card cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white/90">Total Earnings</span>
+              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center text-white text-xs">
+                <Banknote className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="my-3">
+              <p className="text-2xl sm:text-3xl font-extrabold text-white font-heading tracking-tight truncate">
+                Rs. {(stats.revenue / 1000).toFixed(0)}k
+              </p>
+            </div>
+            <div className="inline-flex self-start items-center gap-1 text-[10px] font-bold bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full text-white">
+              ▲ +7% This month
+            </div>
+          </Link>
+
+          {/* Tile 2: Total Spending / Invoiced (Top-Right) */}
+          <Link 
+            to="/invoices"
+            className="rounded-[26px] p-5 sm:p-6 bg-white border border-slate-200/90 shadow-2xs flex flex-col justify-between bento-card group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500">Pending Billing</span>
+              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-xs">
+                <Receipt className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="my-3">
+              <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading tracking-tight truncate">
+                Rs. {((stats.pendingRevenue || 0) / 1000).toFixed(0)}k
+              </p>
+            </div>
+            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 self-start px-2 py-0.5 rounded-full">
+              {stats.overdueCount ? `${stats.overdueCount} overdue` : 'On track'}
+            </span>
+          </Link>
+
+          {/* Tile 3: Total Clients (Bottom-Left) */}
+          <Link 
+            to="/clients"
+            className="rounded-[26px] p-5 sm:p-6 bg-white border border-slate-200/90 shadow-2xs flex flex-col justify-between bento-card group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500">Active Clients</span>
+              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-xs">
+                <Users className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="my-3">
+              <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading tracking-tight">
+                {stats.totalClients}
+              </p>
+            </div>
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 self-start px-2 py-0.5 rounded-full">
+              ▲ Active Portfolio
+            </span>
+          </Link>
+
+          {/* Tile 4: Projects in Flight (Bottom-Right) */}
+          <Link 
+            to="/projects"
+            className="rounded-[26px] p-5 sm:p-6 bg-white border border-slate-200/90 shadow-2xs flex flex-col justify-between bento-card group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500">Active Projects</span>
+              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-xs">
+                <Briefcase className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="my-3">
+              <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading tracking-tight">
+                {stats.activeProjects}
+              </p>
+            </div>
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 self-start px-2 py-0.5 rounded-full truncate">
+              {stats.allProjects} Total Deliverables
+            </span>
+          </Link>
+        </div>
+
+        {/* Column 3: Minimalist Interactive Bar Chart (4 cols / ~33%) */}
+        <div className="lg:col-span-4 bg-white rounded-[28px] p-6 sm:p-7 border border-slate-200/90 shadow-2xs bento-card flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-base font-extrabold text-slate-900 font-heading">Total Income</h3>
+              <div className="flex items-center gap-3 text-[11px] font-bold">
+                <span className="flex items-center gap-1.5 text-slate-800">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#FF5722]"></span> Revenue
+                </span>
+                <span className="flex items-center gap-1.5 text-slate-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-900"></span> Target
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 font-medium">View your cashflow in a certain period of time</p>
+          </div>
+
+          {/* Interactive Bar Graph */}
+          <div className="my-6">
+            <div className="h-36 flex items-end justify-between gap-3 px-2 border-b border-slate-100 pb-2">
+              {monthlyData.map((d, idx) => {
+                const isHovered = hoveredBarIndex === idx;
+                return (
+                  <div 
+                    key={d.month} 
+                    className="flex-1 flex flex-col items-center gap-1 group cursor-pointer"
+                    onMouseEnter={() => setHoveredBarIndex(idx)}
+                    onMouseLeave={() => setHoveredBarIndex(null)}
+                  >
+                    <div 
+                      className={`w-full rounded-t-lg transition-all animate-bar relative ${
+                        d.isHero 
+                          ? 'bg-gradient-to-t from-orange-500 to-[#FF5722] shadow-xs group-hover:scale-105' 
+                          : 'bg-slate-900 group-hover:bg-slate-700'
+                      }`}
+                      style={{ height: `${d.height}%` }}
+                    >
+                      {/* Floating tooltip */}
+                      <span className={`absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow-sm transition-opacity whitespace-nowrap font-heading ${
+                        isHovered || d.isHero ? 'opacity-100' : 'opacity-0'
+                      }`}>
+                        {d.value}
+                      </span>
+                    </div>
+                    <span className={`text-[10px] font-bold mt-1 font-heading ${
+                      d.isHero ? 'text-slate-900 font-extrabold' : 'text-slate-400'
+                    }`}>
+                      {d.month}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
+            <span>YTD Growth: +24.8%</span>
+            <Link to="/reports" className="text-slate-800 hover:text-slate-950 font-bold flex items-center gap-1 font-heading">
+              <span>Financial Reports</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Bento Grid Row 2 (Bottom Row: Target Card + Recent Activities Table) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        {/* Monthly Target & Deadlines (4 cols / ~33%) */}
+        <div className="lg:col-span-4 bg-white rounded-[28px] p-6 sm:p-7 border border-slate-200/90 shadow-2xs bento-card flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-extrabold text-slate-900 font-heading">Project Delivery Target</h3>
+              <span className="text-xs font-bold text-slate-400">Current Sprint</span>
             </div>
 
-            {deadlines.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-8 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
-                <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <h4 className="text-xs sm:text-sm font-bold text-slate-800">All caught up</h4>
-                <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 max-w-[240px]">
-                  No upcoming project or task deadlines due in the next 14 days.
-                </p>
+            {/* Striped Progress Bar */}
+            <div className="w-full h-3.5 bg-slate-100 rounded-full overflow-hidden flex items-center p-0.5">
+              <div 
+                className="h-full bg-gradient-to-r from-orange-500 to-[#FF5722] rounded-full transition-all duration-1000" 
+                style={{ width: `${targetPercentage}%` }}
+              />
+              <div className="h-full flex-1 rounded-r-full striped-bar" />
+            </div>
+
+            <div className="flex items-center justify-between mt-3 text-xs">
+              <span className="font-extrabold text-slate-900 font-heading">
+                {targetPercentage}% <span className="text-slate-400 font-normal font-sans">milestones on track</span>
+              </span>
+              <span className="font-bold text-slate-500 font-heading">
+                {stats.activeProjects} In Flight
+              </span>
+            </div>
+
+            {/* Upcoming Deadlines Subsection */}
+            <div className="mt-6 pt-5 border-t border-slate-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 font-heading flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Upcoming Deadlines</span>
+                </span>
+                <Link to="/projects" className="text-[11px] font-bold text-amber-600 hover:text-amber-700">
+                  View All
+                </Link>
               </div>
-            ) : (
-              <div className="space-y-2.5">
-                {deadlines.map((item) => {
-                  const isOverdue = item.daysRemaining < 0;
-                  const isToday = item.daysRemaining === 0;
-                  const isUrgent = item.daysRemaining > 0 && item.daysRemaining <= 3;
 
-                  return (
-                    <Link
-                      key={`${item.type}-${item.id}`}
-                      to={item.link}
-                      className="group flex items-center justify-between p-3 rounded-xl border border-slate-200/70 hover:border-slate-300 hover:bg-slate-50 transition-all"
-                    >
-                      <div className="min-w-0 pr-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                            item.type === 'project' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
-                          }`}>
-                            {item.type}
-                          </span>
-                          <h4 className="font-bold text-xs sm:text-sm text-slate-800 truncate group-hover:text-amber-600 transition-colors">
+              {deadlines.length === 0 ? (
+                <div className="text-center py-4 bg-slate-50/80 rounded-2xl border border-slate-100">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
+                  <p className="text-xs font-bold text-slate-700">All caught up</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">No urgent deadlines due this week.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {deadlines.slice(0, 3).map((item) => {
+                    const isOverdue = item.daysRemaining < 0;
+                    const isToday = item.daysRemaining === 0;
+
+                    return (
+                      <Link
+                        key={`${item.type}-${item.id}`}
+                        to={item.link}
+                        className="group flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/70 transition-all text-xs"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <p className="font-bold text-slate-800 truncate group-hover:text-amber-600 transition-colors">
                             {item.title}
-                          </h4>
+                          </p>
+                          {item.subtitle && (
+                            <p className="text-[10px] text-slate-400 truncate">{item.subtitle}</p>
+                          )}
                         </div>
-                        {item.subtitle && (
-                          <p className="text-[11px] text-slate-500 truncate mt-0.5">{item.subtitle}</p>
-                        )}
-                      </div>
 
-                      <div className="shrink-0 text-right">
-                        <span className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                        <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           isOverdue 
                             ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-200' 
                             : isToday 
                               ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
-                              : isUrgent
-                                ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-200'
-                                : 'bg-slate-100 text-slate-700'
+                              : 'bg-slate-100 text-slate-700'
                         }`}>
-                          {isOverdue 
-                            ? `${Math.abs(item.daysRemaining)}d overdue` 
-                            : isToday 
-                              ? 'Due Today' 
-                              : `In ${item.daysRemaining}d`}
+                          {isOverdue ? `${Math.abs(item.daysRemaining)}d overdue` : isToday ? 'Due Today' : `${item.daysRemaining}d`}
                         </span>
-                        <span className="block text-[10px] text-slate-400 mt-0.5">
-                          {new Date(item.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+            <button 
+              onClick={() => setIsTeamModalOpen(true)}
+              className="font-bold text-slate-700 hover:text-slate-950 flex items-center gap-1.5 transition-colors"
+            >
+              <UserPlus className="w-3.5 h-3.5 text-amber-500" />
+              <span>Add Team Member</span>
+            </button>
+            <span className="text-[11px] text-slate-400">Team Admin</span>
           </div>
         </div>
 
-        {/* Right Column: Recent Activity Feed */}
-        <div className="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl shadow-xs flex flex-col overflow-hidden">
-          {/* Header */}
-          <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-white">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center ring-1 ring-emerald-200/60">
-                <Sparkles className="w-4 h-4" />
-              </div>
+        {/* Column 2: Recent Activities & Audit Trail Table (8 cols / ~67%) */}
+        <div className="lg:col-span-8 bg-white rounded-[28px] p-6 sm:p-7 border border-slate-200/90 shadow-2xs bento-card flex flex-col justify-between">
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
               <div>
-                <h3 className="font-extrabold text-sm sm:text-base text-slate-900">Recent Activity</h3>
-                <p className="text-[11px] text-slate-500 hidden sm:block">Real-time log of administrative events</p>
+                <h3 className="text-base font-extrabold text-slate-900 font-heading">Recent Activities</h3>
+                <p className="text-xs text-slate-400 font-medium">Real-time audit log of operations and financials</p>
+              </div>
+              
+              {/* Table search filter */}
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    placeholder="Search activity..." 
+                    value={activitySearch}
+                    onChange={(e) => setActivitySearch(e.target.value)}
+                    className="bg-slate-100/90 border-none rounded-full pl-8 pr-3 py-1.5 text-xs focus:ring-2 focus:ring-slate-900 outline-none w-48 font-medium text-slate-900"
+                  />
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                </div>
               </div>
             </div>
 
-            {/* Live Updates Toggle Button */}
-            <button
-              onClick={() => {
-                setIsLiveEnabled(!isLiveEnabled);
-                fetchDashboardData(true);
-              }}
-              className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full transition-all border ${
-                isLiveEnabled 
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
-                  : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
-              }`}
-              title={isLiveEnabled ? "Live polling active (Click to pause)" : "Click to activate live polling"}
-            >
-              <span className={`w-2 h-2 rounded-full ${isLiveEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-              <span>{isLiveEnabled ? 'Live Updates' : 'Paused'}</span>
-            </button>
-          </div>
+            {/* Activities Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="text-slate-400 font-bold border-b border-slate-100 pb-2">
+                  <tr>
+                    <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">Event</th>
+                    <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">Type</th>
+                    <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">Author</th>
+                    <th className="pb-3 font-semibold text-right uppercase tracking-wider text-[10px]">Time</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 font-medium">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={4} className="py-8 text-center text-slate-400">
+                        <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-1 text-amber-500" />
+                        <span>Loading activities...</span>
+                      </td>
+                    </tr>
+                  ) : filteredActivities.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-8 text-center text-slate-400">
+                        <Inbox className="w-6 h-6 mx-auto mb-1 opacity-40" />
+                        <span>No activities found</span>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredActivities.slice(0, 6).map((activity) => {
+                      const meta = getActivityMeta(activity.action);
+                      const author = activity.user?.displayName || activity.user?.name || 'System';
 
-          {/* Activity Timeline Content */}
-          <div className="p-5 sm:p-6 flex-1 flex flex-col justify-start">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                <RefreshCw className="w-6 h-6 animate-spin text-amber-500 mb-2" />
-                <p className="text-xs font-semibold">Streaming activity feed...</p>
-              </div>
-            ) : activities.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-14">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
-                  <Inbox className="w-6 h-6" />
-                </div>
-                <h4 className="text-slate-800 font-bold text-sm">No recent activity</h4>
-                <p className="text-slate-500 text-xs mt-1 max-w-xs">
-                  When invoices are created, payments are recorded, or projects change, updates will stream here.
-                </p>
-              </div>
-            ) : (
-              <div className="relative pl-2 sm:pl-3 space-y-6">
-                {activities.map((activity, i) => {
-                  const meta = getActivityMeta(activity.action);
-                  const isLast = i === activities.length - 1;
-                  const author = activity.user?.displayName || activity.user?.name || 'System';
-
-                  return (
-                    <div key={activity.id || i} className="relative flex items-start gap-3.5 group">
-                      {/* Timeline Connector Line */}
-                      {!isLast && (
-                        <div className="absolute top-6 left-3 -ml-[1px] w-[2px] bottom-0 bg-slate-200/80 group-hover:bg-slate-300 transition-colors" />
-                      )}
-
-                      {/* Icon Node */}
-                      <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center shrink-0 ring-4 ring-white ${meta.bg}`}>
-                        <meta.icon className="w-3 h-3" />
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0 bg-slate-50/50 hover:bg-slate-50 rounded-xl p-3 border border-slate-100 transition-colors">
-                        <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-extrabold text-xs text-slate-900">{author}</span>
-                            <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-full ${meta.bg}`}>
+                      return (
+                        <tr key={activity.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3.5 text-slate-800 font-bold max-w-[280px] truncate">
+                            <span className="hover:text-amber-600 transition-colors cursor-pointer">
+                              {activity.action}
+                            </span>
+                          </td>
+                          <td className="py-3.5">
+                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${meta.badge}`}>
                               {meta.tag}
                             </span>
-                          </div>
-                          <span 
-                            className="text-[11px] font-medium text-slate-400"
-                            title={activity.createdAt}
-                          >
+                          </td>
+                          <td className="py-3.5 text-slate-600">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-5 h-5 rounded-full bg-slate-950 text-white font-bold text-[9px] flex items-center justify-center font-heading">
+                                {author.slice(0, 2).toUpperCase()}
+                              </div>
+                              <span className="truncate max-w-[120px]">{author}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 text-right text-slate-400 font-medium">
                             {formatTimeAgo(activity.createdAt)}
-                          </span>
-                        </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-                        <p className="text-xs text-slate-700 leading-relaxed break-words font-medium">
-                          {activity.action}
-                        </p>
-
-                        {activity.description && (
-                          <p className="text-[11px] text-slate-500 mt-1 italic">
-                            {activity.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+            <span>Showing {Math.min(6, filteredActivities.length)} of {activities.length} recent events</span>
+            <Link to="/activity" className="font-bold text-slate-800 hover:text-slate-950 font-heading">
+              Full Activity Log →
+            </Link>
           </div>
         </div>
 
       </div>
 
-      {/* Project Modal for Quick Project Creation */}
+      {/* Project Modal for Quick Creation */}
       <ProjectModal
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
@@ -672,7 +804,7 @@ export default function AdminDashboard() {
         }}
       />
 
-      {/* Team Modal for Quick Team Member Addition */}
+      {/* Team Modal for Quick Team Addition */}
       <TeamModal
         isOpen={isTeamModalOpen}
         onClose={() => setIsTeamModalOpen(false)}

@@ -48,15 +48,12 @@ export function AdminTopbar({ onMenuToggle, isMenuOpen }: AdminTopbarProps) {
         )}
 
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="relative">
-            <span className="text-2xl sm:text-3xl font-black tracking-tighter text-amber-400 uppercase italic transition-transform group-hover:scale-105 inline-block">
-              SHATTER
-            </span>
-            <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full opacity-80" />
+          <div className="flex items-center">
+            <img src="/brand/logo-yellow.png" alt="Shatter" className="h-7 sm:h-8 w-auto object-contain transition-transform group-hover:scale-105" />
           </div>
 
           <div className="hidden sm:flex flex-col border-l border-slate-700/80 pl-2.5">
-            <span className="text-xs font-semibold text-slate-200 tracking-wide">
+            <span className="text-xs font-semibold text-slate-200 tracking-wide font-heading">
               Administrator Dashboard
             </span>
             <span className="text-[10px] text-amber-400/90 font-medium tracking-wider uppercase">

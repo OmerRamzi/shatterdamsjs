@@ -86,9 +86,8 @@ export function AdminSidebar({ mobileOpen = false, onCloseMobile }: AdminSidebar
     <div className="flex flex-col h-full bg-white select-none">
       {/* Mobile Header if inside Drawer */}
       <div className="p-4 border-b border-slate-100 flex items-center justify-between lg:hidden">
-        <div className="flex items-center gap-2">
-          <span className="text-xl font-black italic tracking-tighter text-amber-500">SHATTER</span>
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Navigation</span>
+        <div className="flex items-center gap-2 bg-slate-950 px-3.5 py-1.5 rounded-full shadow-xs">
+          <img src="/brand/logo-yellow.png" alt="Shatter" className="h-5 w-auto object-contain" />
         </div>
         {onCloseMobile && (
           <button

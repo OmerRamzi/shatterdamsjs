@@ -18,7 +18,7 @@ export default function AdminLayout() {
           mobileOpen={mobileMenuOpen} 
           onCloseMobile={() => setMobileMenuOpen(false)} 
         />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#f8fafc] text-slate-900 rounded-tl-2xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.06)] transition-all">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#F2F4F7] text-slate-900 rounded-tl-2xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.04)] transition-all">
           <div className="max-w-7xl mx-auto">
             <ErrorBoundary>
               <Outlet />
