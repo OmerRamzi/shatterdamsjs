@@ -15,35 +15,270 @@ portalRoutes.get('/stats', async (c) => {
   const db = c.get('db');
   
   try {
-    const clients = await db.select({ id: schema.clients.id }).from(schema.clients).where(eq(schema.clients.tenantId, user.tenantId));
-    const activeProjects = await db.select({ id: schema.projects.id }).from(schema.projects).where(and(eq(schema.projects.tenantId, user.tenantId), eq(schema.projects.status, 'active')));
-    const allProjects = await db.select({ id: schema.projects.id }).from(schema.projects).where(eq(schema.projects.tenantId, user.tenantId));
-    const invoices = await db.select({ amount: schema.invoices.total }).from(schema.invoices).where(and(eq(schema.invoices.tenantId, user.tenantId), eq(schema.invoices.status, 'paid'), isNull(schema.invoices.deletedAt)));
-    
-    const revenueCents = invoices.reduce((acc: number, inv: any) => acc + toCents(inv.amount || '0.00'), 0);
-    const revenue = fromCents(revenueCents);
+    // 1. Clients
+    const clients = await db.select({ 
+      id: schema.clients.id, 
+      createdAt: schema.clients.createdAt 
+    }).from(schema.clients).where(and(eq(schema.clients.tenantId, user.tenantId), isNull(schema.clients.deletedAt)));
 
-    const pendingInvoices = await db.select({ amount: schema.invoices.total, status: schema.invoices.status })
-      .from(schema.invoices)
-      .where(and(
-        eq(schema.invoices.tenantId, user.tenantId),
-        inArray(schema.invoices.status, ['sent', 'overdue']),
-        isNull(schema.invoices.deletedAt)
-      ));
-    const pendingRevenueCents = pendingInvoices.reduce((acc: number, inv: any) => acc + toCents(inv.amount || '0.00'), 0);
-    const pendingRevenue = fromCents(pendingRevenueCents);
-    const overdueCount = pendingInvoices.filter((i: any) => i.status === 'overdue').length;
+    // 2. Projects
+    const allProjects = await db.select({ 
+      id: schema.projects.id, 
+      status: schema.projects.status 
+    }).from(schema.projects).where(and(eq(schema.projects.tenantId, user.tenantId), isNull(schema.projects.deletedAt)));
+
+    const activeProjects = allProjects.filter((p: any) => p.status === 'active' || p.status === 'in_progress');
+    const completedProjects = allProjects.filter((p: any) => p.status === 'completed');
+
+    // 3. Tasks
+    const allTasks = await db.select({ 
+      id: schema.tasks.id, 
+      status: schema.tasks.status 
+    }).from(schema.tasks).where(and(eq(schema.tasks.tenantId, user.tenantId), isNull(schema.tasks.deletedAt)));
+
+    const totalTasks = allTasks.length;
+    const completedTasks = allTasks.filter((t: any) => t.status === 'completed').length;
+
+    // Delivery / Milestone completion rate (0-100%)
+    let deliveryRate = 0;
+    if (totalTasks > 0) {
+      deliveryRate = Math.round((completedTasks / totalTasks) * 100);
+    } else if (allProjects.length > 0) {
+      deliveryRate = Math.round((completedProjects.length / allProjects.length) * 100);
+    }
+
+    // 4. Invoices
+    const invoices = await db.select({
+      id: schema.invoices.id,
+      total: schema.invoices.total,
+      paidAmount: schema.invoices.paidAmount,
+      status: schema.invoices.status,
+      issueDate: schema.invoices.issueDate,
+      paidDate: schema.invoices.paidDate,
+      dueDate: schema.invoices.dueDate,
+      currency: schema.invoices.currency,
+      createdAt: schema.invoices.createdAt,
+    }).from(schema.invoices).where(and(eq(schema.invoices.tenantId, user.tenantId), isNull(schema.invoices.deletedAt)));
+
+    // 5. Tenant Settings (Currency & formatting)
+    const tenantSettings = await db.select({ 
+      key: schema.settings.settingKey, 
+      value: schema.settings.settingValue 
+    }).from(schema.settings).where(eq(schema.settings.tenantId, user.tenantId));
+
+    const settingsMap = tenantSettings.reduce((acc: any, curr: any) => {
+      acc[curr.key] = curr.value;
+      return acc;
+    }, {});
+
+    const currencyCode = settingsMap.default_currency || settingsMap.currency || 'LKR';
+    const currencySymbol = currencyCode === 'USD' ? '$' 
+      : currencyCode === 'EUR' ? '€' 
+      : currencyCode === 'GBP' ? '£' 
+      : currencyCode === 'AUD' ? 'A$' 
+      : 'Rs.';
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-indexed
+
+    // Calculate Settled, Pending, and Overdue
+    let totalSettledCents = 0;
+    let totalPendingCents = 0;
+    let overdueCount = 0;
+
+    for (const inv of invoices) {
+      const totCents = toCents(inv.total || '0.00');
+      const paidCents = toCents(inv.paidAmount || '0.00');
+
+      if (inv.status === 'paid') {
+        totalSettledCents += Math.max(totCents, paidCents);
+      } else {
+        totalSettledCents += paidCents;
+        const balance = Math.max(0, totCents - paidCents);
+        if (balance > 0 && ['sent', 'overdue', 'draft'].includes(inv.status || '')) {
+          totalPendingCents += balance;
+          if (inv.status === 'overdue' || (inv.dueDate && inv.dueDate < todayStr)) {
+            overdueCount++;
+          }
+        }
+      }
+    }
+
+    // 6. 6-Month Monthly Rolling Window for Bar Chart
+    const monthsData: Array<{
+      month: string;
+      year: number;
+      monthIndex: number;
+      revenueCents: number;
+    }> = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(currentYear, currentMonth - i, 1);
+      monthsData.push({
+        month: d.toLocaleDateString('en-US', { month: 'short' }),
+        year: d.getFullYear(),
+        monthIndex: d.getMonth(),
+        revenueCents: 0,
+      });
+    }
+
+    // Aggregate monthly revenue from paid invoices / paid amounts
+    for (const inv of invoices) {
+      const dateStr = inv.paidDate || inv.issueDate || (inv.createdAt ? inv.createdAt.split('T')[0] : null);
+      if (!dateStr) continue;
+
+      const parts = dateStr.split('-');
+      if (parts.length >= 2) {
+        const invYear = parseInt(parts[0], 10);
+        const invMonth = parseInt(parts[1], 10) - 1; // 0-indexed
+
+        const slot = monthsData.find(m => m.year === invYear && m.monthIndex === invMonth);
+        if (slot) {
+          const totCents = toCents(inv.total || '0.00');
+          const paidCents = toCents(inv.paidAmount || '0.00');
+          const collected = inv.status === 'paid' ? Math.max(totCents, paidCents) : paidCents;
+          slot.revenueCents += collected;
+        }
+      }
+    }
+
+    // Proportional Heights and Tooltip Values
+    const maxRevCents = Math.max(...monthsData.map(m => m.revenueCents), 0);
+    
+    // Pick hero month: month with maximum revenue > 0, or the current month if none
+    let heroIndex = monthsData.length - 1; // default to current month
+    let maxFound = 0;
+    monthsData.forEach((m, idx) => {
+      if (m.revenueCents > maxFound) {
+        maxFound = m.revenueCents;
+        heroIndex = idx;
+      }
+    });
+
+    const monthlyChart = monthsData.map((m, idx) => {
+      const revNum = parseFloat(fromCents(m.revenueCents));
+      let height = 6;
+      if (maxRevCents > 0 && m.revenueCents > 0) {
+        height = Math.round((m.revenueCents / maxRevCents) * 75) + 15; // 15% to 90%
+      }
+
+      let formattedValue = `${currencySymbol} 0`;
+      if (revNum >= 1000000) {
+        formattedValue = `${currencySymbol} ${(revNum / 1000000).toFixed(1)}M`;
+      } else if (revNum >= 1000) {
+        formattedValue = `${currencySymbol} ${(revNum / 1000).toFixed(revNum >= 10000 ? 0 : 1)}k`;
+      } else if (revNum > 0) {
+        formattedValue = `${currencySymbol} ${revNum.toFixed(0)}`;
+      }
+
+      return {
+        month: m.month,
+        year: m.year,
+        revenue: revNum,
+        height,
+        value: formattedValue,
+        isHero: idx === heroIndex
+      };
+    });
+
+    // 7. Month-over-Month Revenue Growth
+    const currentMonthRevCents = monthsData[monthsData.length - 1].revenueCents;
+    const prevMonthRevCents = monthsData[monthsData.length - 2].revenueCents;
+
+    let monthOverMonthChange: number | null = null;
+    let monthOverMonthLabel = '0% vs last month';
+    let isMonthGrowthPositive = true;
+
+    if (prevMonthRevCents > 0) {
+      const diff = currentMonthRevCents - prevMonthRevCents;
+      monthOverMonthChange = Math.round((diff / prevMonthRevCents) * 1000) / 10;
+      monthOverMonthLabel = `${monthOverMonthChange >= 0 ? '+' : ''}${monthOverMonthChange}% vs last month`;
+      isMonthGrowthPositive = monthOverMonthChange >= 0;
+    } else if (prevMonthRevCents === 0 && currentMonthRevCents > 0) {
+      monthOverMonthChange = 100;
+      monthOverMonthLabel = '+100% (New this month)';
+      isMonthGrowthPositive = true;
+    } else {
+      monthOverMonthChange = 0;
+      monthOverMonthLabel = '0% vs last month';
+      isMonthGrowthPositive = true;
+    }
+
+    // Tile 1 badge
+    const thisMonthRevNum = parseFloat(fromCents(currentMonthRevCents));
+    const thisMonthGrowthBadge = monthOverMonthChange !== null && monthOverMonthChange !== 0
+      ? `${monthOverMonthChange > 0 ? '▲ +' : '▼ '}${Math.abs(monthOverMonthChange)}% this month`
+      : (currentMonthRevCents > 0 ? '▲ Active this month' : 'No revenue this month');
+
+    // 8. Year-To-Date (YTD) Revenue & Comparison with Previous Year
+    let currentYtdCents = 0;
+    let prevYearTotalCents = 0;
+
+    for (const inv of invoices) {
+      const dateStr = inv.paidDate || inv.issueDate || (inv.createdAt ? inv.createdAt.split('T')[0] : null);
+      if (!dateStr) continue;
+      const invYear = parseInt(dateStr.split('-')[0], 10);
+      const totCents = toCents(inv.total || '0.00');
+      const paidCents = toCents(inv.paidAmount || '0.00');
+      const collected = inv.status === 'paid' ? Math.max(totCents, paidCents) : paidCents;
+
+      if (invYear === currentYear) {
+        currentYtdCents += collected;
+      } else if (invYear === currentYear - 1) {
+        prevYearTotalCents += collected;
+      }
+    }
+
+    const currentYtdNum = parseFloat(fromCents(currentYtdCents));
+    let ytdLabel = 'YTD Growth: 0%';
+    let ytdPercent: number | null = null;
+
+    if (prevYearTotalCents > 0) {
+      ytdPercent = Math.round(((currentYtdCents - prevYearTotalCents) / prevYearTotalCents) * 1000) / 10;
+      ytdLabel = `YTD Growth: ${ytdPercent >= 0 ? '+' : ''}${ytdPercent}%`;
+    } else if (currentYtdNum > 0) {
+      const formattedYtd = currentYtdNum >= 1000 ? `${(currentYtdNum / 1000).toFixed(0)}k` : currentYtdNum.toFixed(0);
+      ytdLabel = `YTD Total: ${currencySymbol} ${formattedYtd}`;
+    } else {
+      ytdLabel = 'YTD: Zero revenue';
+    }
+
+    // 9. New clients this month
+    const currentMonthPrefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+    const newClientsThisMonth = clients.filter((c: any) => c.createdAt && c.createdAt.startsWith(currentMonthPrefix)).length;
 
     return c.json({
       totalClients: clients.length,
+      newClientsThisMonth,
       activeProjects: activeProjects.length,
+      completedProjects: completedProjects.length,
       allProjects: allProjects.length,
-      revenue: revenue,
-      pendingRevenue,
+      totalTasks,
+      completedTasks,
+      deliveryRate,
+      revenue: parseFloat(fromCents(totalSettledCents)),
+      pendingRevenue: parseFloat(fromCents(totalPendingCents)),
       overdueCount,
+      thisMonthRevenue: thisMonthRevNum,
+      monthOverMonthGrowth: {
+        percentage: monthOverMonthChange,
+        label: monthOverMonthLabel,
+        isPositive: isMonthGrowthPositive,
+      },
+      thisMonthLabel: thisMonthGrowthBadge,
+      ytd: {
+        revenue: currentYtdNum,
+        growthPercent: ytdPercent,
+        label: ytdLabel,
+      },
+      monthlyChart,
+      currencyCode,
+      currencySymbol,
     });
   } catch (error: any) {
-    console.error(error);
+    console.error('Error calculating dashboard stats:', error);
     return c.json({ error: 'Internal server error' }, 500);
   }
 });

@@ -51,13 +51,46 @@ interface DeadlineItem {
   type: 'project' | 'task';
 }
 
-interface DashboardStats {
-  totalClients: number;
-  activeProjects: number;
-  allProjects: number;
+export interface MonthlyChartItem {
+  month: string;
+  year: number;
   revenue: number;
-  pendingRevenue?: number;
-  overdueCount?: number;
+  height: number;
+  value: string;
+  isHero: boolean;
+}
+
+export interface MonthGrowth {
+  percentage: number | null;
+  label: string;
+  isPositive: boolean;
+}
+
+export interface YtdStats {
+  revenue: number;
+  growthPercent: number | null;
+  label: string;
+}
+
+export interface DashboardStats {
+  totalClients: number;
+  newClientsThisMonth?: number;
+  activeProjects: number;
+  completedProjects?: number;
+  allProjects: number;
+  totalTasks?: number;
+  completedTasks?: number;
+  deliveryRate?: number;
+  revenue: number;
+  pendingRevenue: number;
+  overdueCount: number;
+  thisMonthRevenue?: number;
+  monthOverMonthGrowth?: MonthGrowth;
+  thisMonthLabel?: string;
+  ytd?: YtdStats;
+  monthlyChart?: MonthlyChartItem[];
+  currencyCode?: string;
+  currencySymbol?: string;
 }
 
 export default function AdminDashboard() {
@@ -65,11 +98,31 @@ export default function AdminDashboard() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalClients: 0,
+    newClientsThisMonth: 0,
     activeProjects: 0,
+    completedProjects: 0,
     allProjects: 0,
+    totalTasks: 0,
+    completedTasks: 0,
+    deliveryRate: 0,
     revenue: 0,
     pendingRevenue: 0,
     overdueCount: 0,
+    thisMonthRevenue: 0,
+    monthOverMonthGrowth: {
+      percentage: 0,
+      label: '0% vs last month',
+      isPositive: true,
+    },
+    thisMonthLabel: 'Active this month',
+    ytd: {
+      revenue: 0,
+      growthPercent: null,
+      label: 'YTD Growth: 0%',
+    },
+    monthlyChart: [],
+    currencyCode: 'LKR',
+    currencySymbol: 'Rs.',
   });
   const [deadlines, setDeadlines] = useState<DeadlineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -78,7 +131,6 @@ export default function AdminDashboard() {
 
   // Search filter for activity table
   const [activitySearch, setActivitySearch] = useState('');
-  const [currency, setCurrency] = useState<'LKR' | 'USD'>('LKR');
   const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
 
   // Modal dialog states
@@ -284,20 +336,44 @@ export default function AdminDashboard() {
 
   // Calculate project delivery target percentage
   const targetPercentage = useMemo(() => {
-    if (!stats.allProjects || stats.allProjects === 0) return 65;
-    const completed = Math.max(0, stats.allProjects - stats.activeProjects);
-    return Math.min(100, Math.max(20, Math.round((completed / stats.allProjects) * 100)));
-  }, [stats.allProjects, stats.activeProjects]);
+    if (stats.deliveryRate !== undefined) return stats.deliveryRate;
+    if (!stats.allProjects || stats.allProjects === 0) return 0;
+    const completed = stats.completedProjects !== undefined
+      ? stats.completedProjects
+      : Math.max(0, stats.allProjects - stats.activeProjects);
+    return Math.min(100, Math.round((completed / stats.allProjects) * 100));
+  }, [stats.deliveryRate, stats.allProjects, stats.activeProjects, stats.completedProjects]);
 
-  // Mock monthly performance chart values relative to actual revenue
-  const monthlyData = [
-    { month: 'Jan', height: 42, value: 'Rs. 240k' },
-    { month: 'Feb', height: 85, value: 'Rs. 485k', isHero: true },
-    { month: 'Mar', height: 55, value: 'Rs. 310k' },
-    { month: 'Apr', height: 46, value: 'Rs. 265k' },
-    { month: 'May', height: 32, value: 'Rs. 180k' },
-    { month: 'Jun', height: 20, value: 'Rs. 115k' },
-  ];
+  const currencySymbol = stats.currencySymbol || 'Rs.';
+  const currencyCode = stats.currencyCode || 'LKR';
+
+  // Dynamic 6-month chart data
+  const monthlyChartData = useMemo(() => {
+    if (stats.monthlyChart && stats.monthlyChart.length > 0) {
+      return stats.monthlyChart;
+    }
+    const months: MonthlyChartItem[] = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        month: d.toLocaleDateString('en-US', { month: 'short' }),
+        year: d.getFullYear(),
+        revenue: 0,
+        height: 6,
+        value: `${currencySymbol} 0`,
+        isHero: i === 0,
+      });
+    }
+    return months;
+  }, [stats.monthlyChart, currencySymbol]);
+
+  const formatShortAmount = (amount: number | string | undefined) => {
+    const val = Number(amount || 0);
+    if (val >= 1000000) return `${currencySymbol} ${(val / 1000000).toFixed(1)}M`;
+    if (val >= 1000) return `${currencySymbol} ${(val / 1000).toFixed(val >= 10000 ? 0 : 1)}k`;
+    return `${currencySymbol} ${val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
 
   const firstName = user?.name?.split(' ')[0] || 'Admin';
 
@@ -370,25 +446,27 @@ export default function AdminDashboard() {
           <div>
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Balance</span>
-              <button 
-                onClick={() => setCurrency(c => c === 'LKR' ? 'USD' : 'LKR')}
-                className="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-full transition-colors"
-                title="Toggle currency display"
+              <div 
+                className="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full"
+                title={`Tenant Base Currency: ${currencyCode}`}
               >
-                <span>{currency === 'LKR' ? '🇱🇰 LKR' : '🇺🇸 USD'}</span>
-                <span className="text-[10px] text-slate-400">▾</span>
-              </button>
+                <span>{currencyCode === 'USD' ? '🇺🇸 USD' : currencyCode === 'EUR' ? '🇪🇺 EUR' : currencyCode === 'GBP' ? '🇬🇧 GBP' : currencyCode === 'AUD' ? '🇦🇺 AUD' : '🇱🇰 LKR'}</span>
+                <span className="text-[10px] text-slate-400 font-medium">Base</span>
+              </div>
             </div>
 
             {/* Big Hero Number (Space Grotesk) */}
             <h2 className="text-3xl sm:text-[38px] font-extrabold text-slate-900 tracking-tight font-heading leading-tight">
-              {currency === 'LKR' ? 'Rs. ' : '$'}
-              {(currency === 'LKR' ? stats.revenue : stats.revenue / 310).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {currencySymbol} {Number(stats.revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
 
             <div className="mt-2.5 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-                ▲ +5% than last month
+              <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                stats.monthOverMonthGrowth?.isPositive 
+                  ? 'text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200/50' 
+                  : 'text-rose-700 bg-rose-50 ring-1 ring-rose-200/50'
+              }`}>
+                {stats.monthOverMonthGrowth?.isPositive ? '▲' : '▼'} {stats.monthOverMonthGrowth?.label || '0% vs last month'}
               </span>
             </div>
 
@@ -423,24 +501,26 @@ export default function AdminDashboard() {
               <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
                 <p className="text-[10px] font-bold text-slate-400 uppercase">Settled</p>
                 <p className="text-xs font-black text-slate-900 mt-1 font-heading truncate">
-                  Rs. {(stats.revenue / 1000).toFixed(0)}k
+                  {formatShortAmount(stats.revenue)}
                 </p>
                 <span className="text-[9px] font-bold text-emerald-600 mt-1 block">Active</span>
               </div>
               <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
                 <p className="text-[10px] font-bold text-slate-400 uppercase">Pending</p>
                 <p className="text-xs font-black text-slate-900 mt-1 font-heading truncate">
-                  Rs. {((stats.pendingRevenue || 0) / 1000).toFixed(0)}k
+                  {formatShortAmount(stats.pendingRevenue)}
                 </p>
-                <span className="text-[9px] font-bold text-amber-600 mt-1 block">Due Soon</span>
+                <span className={`text-[9px] font-bold mt-1 block ${stats.pendingRevenue > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                  {stats.pendingRevenue > 0 ? 'Due Soon' : 'Cleared'}
+                </span>
               </div>
               <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
                 <p className="text-[10px] font-bold text-slate-400 uppercase">Overdue</p>
                 <p className="text-xs font-black text-slate-900 mt-1 font-heading truncate">
                   {stats.overdueCount || 0}
                 </p>
-                <span className="text-[9px] font-bold text-rose-600 mt-1 block">
-                  {stats.overdueCount ? 'Action Req' : 'Zero'}
+                <span className={`text-[9px] font-bold mt-1 block ${stats.overdueCount ? 'text-rose-600' : 'text-emerald-600'}`}>
+                  {stats.overdueCount ? `${stats.overdueCount} Action Req` : 'Zero'}
                 </span>
               </div>
             </div>
@@ -462,11 +542,11 @@ export default function AdminDashboard() {
             </div>
             <div className="my-3">
               <p className="text-2xl sm:text-3xl font-extrabold text-white font-heading tracking-tight truncate">
-                Rs. {(stats.revenue / 1000).toFixed(0)}k
+                {formatShortAmount(stats.revenue)}
               </p>
             </div>
             <div className="inline-flex self-start items-center gap-1 text-[10px] font-bold bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full text-white">
-              ▲ +7% This month
+              {stats.thisMonthLabel || 'Live Revenue'}
             </div>
           </Link>
 
@@ -483,11 +563,17 @@ export default function AdminDashboard() {
             </div>
             <div className="my-3">
               <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading tracking-tight truncate">
-                Rs. {((stats.pendingRevenue || 0) / 1000).toFixed(0)}k
+                {formatShortAmount(stats.pendingRevenue)}
               </p>
             </div>
-            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 self-start px-2 py-0.5 rounded-full">
-              {stats.overdueCount ? `${stats.overdueCount} overdue` : 'On track'}
+            <span className={`text-[10px] font-bold self-start px-2 py-0.5 rounded-full ${
+              stats.overdueCount 
+                ? 'text-rose-700 bg-rose-50' 
+                : stats.pendingRevenue > 0 
+                  ? 'text-amber-700 bg-amber-50' 
+                  : 'text-emerald-700 bg-emerald-50'
+            }`}>
+              {stats.overdueCount ? `${stats.overdueCount} overdue` : stats.pendingRevenue > 0 ? 'Due soon' : 'All Settled'}
             </span>
           </Link>
 
@@ -508,7 +594,7 @@ export default function AdminDashboard() {
               </p>
             </div>
             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 self-start px-2 py-0.5 rounded-full">
-              ▲ Active Portfolio
+              {stats.newClientsThisMonth ? `▲ +${stats.newClientsThisMonth} new this month` : `${stats.totalClients} Active Registered`}
             </span>
           </Link>
 
@@ -544,21 +630,21 @@ export default function AdminDashboard() {
                   <span className="w-2.5 h-2.5 rounded-full bg-[#FF5722]"></span> Revenue
                 </span>
                 <span className="flex items-center gap-1.5 text-slate-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-slate-900"></span> Target
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-900"></span> Previous
                 </span>
               </div>
             </div>
-            <p className="text-xs text-slate-400 font-medium">View your cashflow in a certain period of time</p>
+            <p className="text-xs text-slate-400 font-medium">Past 6 months cashflow breakdown</p>
           </div>
 
           {/* Interactive Bar Graph */}
           <div className="my-6">
             <div className="h-36 flex items-end justify-between gap-3 px-2 border-b border-slate-100 pb-2">
-              {monthlyData.map((d, idx) => {
+              {monthlyChartData.map((d, idx) => {
                 const isHovered = hoveredBarIndex === idx;
                 return (
                   <div 
-                    key={d.month} 
+                    key={`${d.month}-${d.year}`} 
                     className="flex-1 flex flex-col items-center gap-1 group cursor-pointer"
                     onMouseEnter={() => setHoveredBarIndex(idx)}
                     onMouseLeave={() => setHoveredBarIndex(null)}
@@ -569,7 +655,7 @@ export default function AdminDashboard() {
                           ? 'bg-gradient-to-t from-orange-500 to-[#FF5722] shadow-xs group-hover:scale-105' 
                           : 'bg-slate-900 group-hover:bg-slate-700'
                       }`}
-                      style={{ height: `${d.height}%` }}
+                      style={{ height: `${Math.max(6, d.height)}%` }}
                     >
                       {/* Floating tooltip */}
                       <span className={`absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow-sm transition-opacity whitespace-nowrap font-heading ${
@@ -590,7 +676,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
-            <span>YTD Growth: +24.8%</span>
+            <span>{stats.ytd?.label || 'YTD Growth: 0%'}</span>
             <Link to="/reports" className="text-slate-800 hover:text-slate-950 font-bold flex items-center gap-1 font-heading">
               <span>Financial Reports</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -622,7 +708,9 @@ export default function AdminDashboard() {
 
             <div className="flex items-center justify-between mt-3 text-xs">
               <span className="font-extrabold text-slate-900 font-heading">
-                {targetPercentage}% <span className="text-slate-400 font-normal font-sans">milestones on track</span>
+                {targetPercentage}% <span className="text-slate-400 font-normal font-sans">
+                  {stats.totalTasks ? `${stats.completedTasks || 0}/${stats.totalTasks} tasks completed` : 'milestones completed'}
+                </span>
               </span>
               <span className="font-bold text-slate-500 font-heading">
                 {stats.activeProjects} In Flight
