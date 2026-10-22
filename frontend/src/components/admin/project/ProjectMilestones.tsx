@@ -132,49 +132,52 @@ export function ProjectMilestones({
   const overallProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-300">
       {/* Overview Progress Card */}
-      <div className="bg-card border border-border rounded-xl p-5 shadow-xs">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+      <div className="bg-white border border-slate-200/90 rounded-[28px] p-6 sm:p-7 shadow-2xs">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
           <div>
-            <h3 className="font-semibold text-lg flex items-center gap-2">
-              <Layers className="w-5 h-5 text-primary" />
-              Project Phases & Milestones
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber-600 mb-1 font-heading">
+              <Layers className="w-3.5 h-3.5 text-amber-500" />
+              <span>Deliverables Roadmap</span>
+            </div>
+            <h3 className="font-extrabold text-xl text-slate-900 font-heading">
+              Phases & Milestones
             </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-xs text-slate-400 mt-0.5 font-medium">
               Track multi-stage deliverables, timelines, and progress against completion criteria.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 flex-wrap">
             {onOpenAIAssistant && (
               <button
                 onClick={onOpenAIAssistant}
-                className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 hover:bg-purple-500/20"
+                className="px-4 py-2.5 rounded-full text-xs font-bold bg-slate-950 hover:bg-slate-800 text-[#FACC15] border border-yellow-400/30 hover:border-yellow-400 shadow-xs hover:shadow flex items-center gap-2 transition-all active:scale-95 font-heading"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3.5 h-3.5 text-[#FACC15] animate-pulse" />
                 <span>AI Breakdown</span>
               </button>
             )}
             <button
               onClick={openCreateModal}
-              className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5"
+              className="bg-[#FACC15] hover:bg-yellow-400 text-slate-950 font-extrabold text-xs py-2.5 px-4 rounded-full flex items-center gap-2 shadow-xs hover:shadow transition-all active:scale-95 font-heading"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>Add Phase</span>
             </button>
           </div>
         </div>
 
         {/* Global Progress Bar */}
-        <div className="space-y-2">
+        <div className="space-y-2 pt-2 border-t border-slate-100">
           <div className="flex justify-between items-center text-xs">
-            <span className="text-muted-foreground font-medium">Overall Project Completion</span>
-            <span className="font-bold text-foreground">{overallProgress}% ({completedTasks}/{totalTasks} tasks)</span>
+            <span className="text-slate-500 font-semibold font-heading">Overall Project Completion</span>
+            <span className="font-black text-slate-900 font-heading">{overallProgress}% ({completedTasks}/{totalTasks} tasks)</span>
           </div>
-          <div className="w-full bg-secondary h-2.5 rounded-full overflow-hidden">
+          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
             <div 
-              className="bg-primary h-full rounded-full transition-all duration-500 ease-out" 
+              className="bg-gradient-to-r from-amber-400 via-yellow-400 to-[#FACC15] h-full rounded-full transition-all duration-700 ease-out" 
               style={{ width: `${overallProgress}%` }}
             />
           </div>
@@ -182,28 +185,30 @@ export function ProjectMilestones({
       </div>
 
       {/* Milestones List */}
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         {milestones.length === 0 ? (
-          <div className="bg-card border border-dashed border-border rounded-xl p-12 text-center text-muted-foreground space-y-3">
-            <Layers className="w-10 h-10 mx-auto opacity-30 text-primary" />
-            <h4 className="font-semibold text-foreground text-sm">No phases defined yet</h4>
-            <p className="text-xs max-w-sm mx-auto">
+          <div className="bg-white border-2 border-dashed border-slate-200/90 rounded-[28px] p-12 text-center text-slate-400 space-y-3 shadow-2xs">
+            <div className="w-12 h-12 rounded-full bg-yellow-50 border border-yellow-200 flex items-center justify-center mx-auto text-amber-500">
+              <Layers className="w-6 h-6" />
+            </div>
+            <h4 className="font-extrabold text-slate-900 text-base font-heading">No phases defined yet</h4>
+            <p className="text-xs max-w-sm mx-auto font-medium text-slate-400">
               Break down this project into phases or milestones to structure your timeline and deliverables.
             </p>
-            <div className="flex justify-center gap-2 pt-2">
+            <div className="flex justify-center gap-2.5 pt-2 flex-wrap">
               {onOpenAIAssistant && (
                 <button
                   onClick={onOpenAIAssistant}
-                  className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
+                  className="px-4 py-2 rounded-full text-xs font-bold bg-slate-950 text-[#FACC15] border border-yellow-400/30 flex items-center gap-2 shadow-xs font-heading"
                 >
-                  <Sparkles className="w-3.5 h-3.5" /> Auto-Breakdown with AI
+                  <Sparkles className="w-3.5 h-3.5 text-[#FACC15]" /> Auto-Breakdown with AI
                 </button>
               )}
               <button
                 onClick={openCreateModal}
-                className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5"
+                className="bg-[#FACC15] hover:bg-yellow-400 text-slate-950 font-extrabold text-xs py-2 px-4 rounded-full flex items-center gap-1.5 shadow-xs font-heading"
               >
-                <Plus className="w-3.5 h-3.5" /> Create Manually
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> Create Manually
               </button>
             </div>
           </div>
@@ -218,35 +223,35 @@ export function ProjectMilestones({
             return (
               <div 
                 key={milestone.id} 
-                className="bg-card border border-border rounded-xl shadow-xs overflow-hidden transition-all"
+                className="bg-white border border-slate-200/90 rounded-[22px] shadow-2xs overflow-hidden transition-all"
               >
                 {/* Milestone Header Row */}
                 <div 
                   onClick={() => toggleExpand(milestone.id)}
-                  className="p-4 hover:bg-secondary/15 transition-colors cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/40"
+                  className="p-4 sm:p-5 hover:bg-slate-50/70 transition-colors cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100"
                 >
                   <div className="flex items-start sm:items-center gap-3">
-                    <button className="text-muted-foreground hover:text-foreground mt-0.5 sm:mt-0">
+                    <button className="text-slate-400 hover:text-slate-900 mt-0.5 sm:mt-0 p-1 rounded-full hover:bg-slate-100 transition-colors">
                       {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     </button>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
+                        <span className="text-[10px] font-black text-slate-950 bg-[#FACC15] px-2.5 py-0.5 rounded-full font-heading shadow-2xs">
                           Phase {idx + 1}
                         </span>
-                        <h4 className="font-semibold text-sm text-foreground">{milestone.title}</h4>
-                        <span className={`text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full border ${
+                        <h4 className="font-extrabold text-sm text-slate-900 font-heading">{milestone.title}</h4>
+                        <span className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border font-heading ${
                           milestone.status === 'completed'
-                            ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : milestone.status === 'in_progress'
-                            ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
-                            : 'bg-secondary text-muted-foreground border-border'
+                            ? 'bg-yellow-50 text-yellow-900 border-yellow-300'
+                            : 'bg-slate-100 text-slate-600 border-slate-200'
                         }`}>
                           {milestone.status.replace('_', ' ')}
                         </span>
                       </div>
                       {milestone.description && (
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                        <p className="text-xs text-slate-400 mt-1 line-clamp-1 font-medium">
                           {milestone.description}
                         </p>
                       )}
@@ -255,40 +260,40 @@ export function ProjectMilestones({
 
                   <div className="flex items-center gap-4 ml-7 sm:ml-0 text-xs">
                     {milestone.dueDate && (
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" />
+                      <span className="text-slate-500 font-semibold flex items-center gap-1 font-heading">
+                        <Calendar className="w-3.5 h-3.5 text-amber-500" />
                         {new Date(milestone.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </span>
                     )}
 
                     {milestone.amount && (
-                      <span className="text-muted-foreground font-medium flex items-center gap-0.5">
-                        <DollarSign className="w-3.5 h-3.5" />
+                      <span className="text-slate-700 font-bold flex items-center gap-0.5 font-heading">
+                        <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
                         {milestone.amount}
                       </span>
                     )}
 
                     <div className="flex items-center gap-2 min-w-[120px]">
-                      <div className="w-20 bg-secondary h-2 rounded-full overflow-hidden">
+                      <div className="w-20 bg-slate-100 h-2 rounded-full overflow-hidden">
                         <div 
-                          className="bg-primary h-full rounded-full transition-all" 
+                          className="bg-gradient-to-r from-amber-400 to-[#FACC15] h-full rounded-full transition-all" 
                           style={{ width: `${mProgress}%` }}
                         />
                       </div>
-                      <span className="font-semibold text-[11px]">{mProgress}%</span>
+                      <span className="font-extrabold text-[11px] text-slate-900 font-heading">{mProgress}%</span>
                     </div>
 
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={(e) => openEditModal(milestone, e)}
-                        className="p-1 hover:bg-secondary rounded text-muted-foreground hover:text-foreground transition-colors"
+                        className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors"
                         title="Edit Phase"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={(e) => handleDelete(milestone.id, e)}
-                        className="p-1 hover:bg-rose-500/10 rounded text-muted-foreground hover:text-rose-500 transition-colors"
+                        className="p-1.5 hover:bg-rose-50 rounded-full text-slate-400 hover:text-rose-600 transition-colors"
                         title="Delete Phase"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -299,9 +304,9 @@ export function ProjectMilestones({
 
                 {/* Milestone Tasks Drawer */}
                 {isExpanded && (
-                  <div className="p-3 bg-secondary/10 space-y-2">
+                  <div className="p-3 bg-slate-50/60 space-y-2">
                     {milestoneTasks.length === 0 ? (
-                      <div className="p-4 text-center text-xs text-muted-foreground/60 italic">
+                      <div className="p-4 text-center text-xs text-slate-400 italic">
                         No tasks attached to this milestone yet.
                       </div>
                     ) : (
@@ -309,15 +314,15 @@ export function ProjectMilestones({
                         <div
                           key={task.id}
                           onClick={() => onTaskClick(task)}
-                          className="flex items-center justify-between p-2.5 bg-card hover:bg-secondary/30 rounded-lg border border-border/50 transition-colors cursor-pointer text-xs"
+                          className="flex items-center justify-between p-3 bg-white hover:bg-slate-50 rounded-xl border border-slate-200/80 transition-colors cursor-pointer text-xs shadow-2xs group"
                         >
                           <div className="flex items-center gap-2.5">
                             {task.status === 'completed' ? (
                               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                             ) : (
-                              <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                              <Clock className="w-4 h-4 text-slate-400 shrink-0" />
                             )}
-                            <span className={`font-medium ${task.status === 'completed' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                            <span className={`font-semibold font-heading group-hover:text-amber-600 transition-colors ${task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-900'}`}>
                               {task.title}
                             </span>
                           </div>

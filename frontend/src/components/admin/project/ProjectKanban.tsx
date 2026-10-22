@@ -21,11 +21,11 @@ interface ProjectKanbanProps {
   onAddTask: (status?: string) => void;
 }
 
-const COLUMNS: Array<{ id: Task['status']; title: string; color: string; dotColor: string }> = [
-  { id: 'todo', title: 'To Do', color: 'border-slate-500/20 bg-slate-500/5', dotColor: 'bg-slate-400' },
-  { id: 'in_progress', title: 'In Progress', color: 'border-blue-500/20 bg-blue-500/5', dotColor: 'bg-blue-500' },
-  { id: 'review', title: 'In Review', color: 'border-amber-500/20 bg-amber-500/5', dotColor: 'bg-amber-500' },
-  { id: 'completed', title: 'Completed', color: 'border-emerald-500/20 bg-emerald-500/5', dotColor: 'bg-emerald-500' },
+const COLUMNS: Array<{ id: Task['status']; title: string; color: string; dotColor: string; bgBadge: string }> = [
+  { id: 'todo', title: 'To Do', color: 'border-slate-200/80 bg-slate-50/70', dotColor: 'bg-slate-400', bgBadge: 'bg-white text-slate-700 border-slate-200/80' },
+  { id: 'in_progress', title: 'In Progress', color: 'border-amber-200/70 bg-amber-50/30', dotColor: 'bg-amber-500', bgBadge: 'bg-amber-50 text-amber-900 border-amber-200' },
+  { id: 'review', title: 'In Review', color: 'border-yellow-300/80 bg-yellow-50/40', dotColor: 'bg-[#FACC15]', bgBadge: 'bg-yellow-100 text-yellow-900 border-yellow-200' },
+  { id: 'completed', title: 'Completed', color: 'border-emerald-200/70 bg-emerald-50/30', dotColor: 'bg-emerald-500', bgBadge: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
 ];
 
 export function ProjectKanban({
@@ -138,14 +138,14 @@ export function ProjectKanban({
   const getPriorityBadge = (priority: Task['priority']) => {
     switch (priority) {
       case 'urgent':
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"><Flame className="w-3 h-3" /> Urgent</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200/80 font-heading"><Flame className="w-3 h-3 text-rose-500" /> Urgent</span>;
       case 'high':
-        return <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">High</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 font-heading">High</span>;
       case 'medium':
-        return <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">Medium</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200/80 font-heading">Medium</span>;
       case 'low':
       default:
-        return <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-secondary text-muted-foreground border border-border">Low</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200 font-heading">Low</span>;
     }
   };
 
@@ -154,42 +154,48 @@ export function ProjectKanban({
     const due = new Date(dueDateStr);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const isOverdue = due < today && status !== 'completed';
-    const isToday = due.toDateString() === today.toDateString() && status !== 'completed';
+    due.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    const isOverdue = diffDays < 0 && status !== 'completed';
+    const isToday = diffDays === 0 && status !== 'completed';
 
     return (
-      <span className={`inline-flex items-center gap-1 text-[11px] ${
-        isOverdue ? 'text-rose-500 font-semibold' : isToday ? 'text-amber-500 font-semibold' : 'text-muted-foreground'
+      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+        isOverdue 
+          ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-200 font-heading' 
+          : isToday 
+            ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 font-heading' 
+            : 'text-slate-500 bg-slate-100 font-heading'
       }`}>
-        <Calendar className="w-3 h-3" />
-        {due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+        <Calendar className="w-3 h-3 text-amber-500" />
+        {isOverdue ? `${Math.abs(diffDays)}d overdue` : isToday ? 'Due Today' : due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
       </span>
     );
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5 animate-in fade-in duration-300">
       {/* Filter and Search Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-card p-3 rounded-xl border border-border shadow-xs">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <div className="flex flex-col lg:flex-row gap-3.5 items-stretch lg:items-center justify-between bg-white p-4 rounded-[26px] border border-slate-200/90 shadow-2xs">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search tasks..."
+            placeholder="Search tasks by title or details..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 bg-background border border-border rounded-lg text-sm focus:outline-hidden focus:ring-1 focus:ring-primary"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50/80 border border-slate-200/90 rounded-full text-xs font-medium text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all placeholder:text-slate-400"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {/* Milestone Filter */}
-          <div className="flex items-center gap-1 bg-secondary/50 px-2 py-1 rounded-lg border border-border/50">
-            <Layers className="w-3.5 h-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-1.5 bg-slate-100/80 px-3 py-1.5 rounded-full border border-slate-200/80">
+            <Layers className="w-3.5 h-3.5 text-amber-600" />
             <select
               value={selectedMilestone}
               onChange={(e) => setSelectedMilestone(e.target.value)}
-              className="bg-transparent border-none text-xs focus:outline-hidden cursor-pointer"
+              className="bg-transparent border-none text-xs font-semibold text-slate-700 focus:outline-hidden cursor-pointer"
             >
               <option value="all">All Phases</option>
               <option value="none">Unassigned</option>
@@ -200,12 +206,12 @@ export function ProjectKanban({
           </div>
 
           {/* Priority Filter */}
-          <div className="flex items-center gap-1 bg-secondary/50 px-2 py-1 rounded-lg border border-border/50">
-            <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-1.5 bg-slate-100/80 px-3 py-1.5 rounded-full border border-slate-200/80">
+            <Filter className="w-3.5 h-3.5 text-amber-600" />
             <select
               value={selectedPriority}
               onChange={(e) => setSelectedPriority(e.target.value)}
-              className="bg-transparent border-none text-xs focus:outline-hidden cursor-pointer"
+              className="bg-transparent border-none text-xs font-semibold text-slate-700 focus:outline-hidden cursor-pointer"
             >
               <option value="all">All Priorities</option>
               <option value="urgent">Urgent</option>
@@ -216,12 +222,12 @@ export function ProjectKanban({
           </div>
 
           {/* Assignee Filter */}
-          <div className="flex items-center gap-1 bg-secondary/50 px-2 py-1 rounded-lg border border-border/50">
-            <UserIcon className="w-3.5 h-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-1.5 bg-slate-100/80 px-3 py-1.5 rounded-full border border-slate-200/80">
+            <UserIcon className="w-3.5 h-3.5 text-amber-600" />
             <select
               value={selectedAssignee}
               onChange={(e) => setSelectedAssignee(e.target.value)}
-              className="bg-transparent border-none text-xs focus:outline-hidden cursor-pointer"
+              className="bg-transparent border-none text-xs font-semibold text-slate-700 focus:outline-hidden cursor-pointer"
             >
               <option value="all">All Assignees</option>
               <option value="unassigned">Unassigned</option>
@@ -233,16 +239,16 @@ export function ProjectKanban({
 
           <button
             onClick={() => onAddTask()}
-            className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 ml-auto"
+            className="bg-[#FACC15] hover:bg-yellow-400 text-slate-950 font-extrabold text-xs py-2 px-4 rounded-full flex items-center gap-1.5 ml-auto shadow-xs hover:shadow transition-all active:scale-95 font-heading"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             <span>Add Task</span>
           </button>
         </div>
       </div>
 
       {/* Kanban 4-Column Board */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4.5 items-start">
         {COLUMNS.map(col => {
           const colTasks = filteredTasks.filter(t => t.status === col.id);
           const isOver = dragOverColumn === col.id;
@@ -253,33 +259,34 @@ export function ProjectKanban({
               onDragOver={(e) => handleDragOver(e, col.id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, col.id)}
-              className={`flex flex-col rounded-xl border transition-all min-h-[500px] ${col.color} ${
-                isOver ? 'ring-2 ring-primary ring-offset-2 bg-primary/5 border-primary/40' : ''
+              className={`flex flex-col rounded-[26px] border transition-all min-h-[520px] ${col.color} shadow-2xs ${
+                isOver ? 'ring-2 ring-amber-400 ring-offset-2 bg-yellow-50/60 border-amber-400' : ''
               }`}
             >
               {/* Column Header */}
-              <div className="p-3.5 flex items-center justify-between border-b border-border/50 bg-card/60 rounded-t-xl backdrop-blur-xs">
+              <div className="p-4 flex items-center justify-between border-b border-slate-200/70 bg-white/70 rounded-t-[26px] backdrop-blur-xs">
                 <div className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${col.dotColor}`} />
-                  <h4 className="font-semibold text-sm tracking-tight">{col.title}</h4>
-                  <span className="bg-secondary text-muted-foreground text-xs px-2 py-0.5 rounded-full font-medium">
+                  <span className={`w-2.5 h-2.5 rounded-full ${col.dotColor} shadow-2xs`} />
+                  <h4 className="font-extrabold text-sm tracking-tight text-slate-900 font-heading">{col.title}</h4>
+                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black border shadow-2xs font-heading ${col.bgBadge}`}>
                     {colTasks.length}
                   </span>
                 </div>
                 <button
                   onClick={() => onAddTask(col.id)}
-                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  className="w-7 h-7 rounded-full bg-white border border-slate-200/90 text-slate-600 hover:text-slate-950 hover:bg-slate-50 flex items-center justify-center transition-all shadow-2xs active:scale-90"
                   title={`Add task to ${col.title}`}
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                 </button>
               </div>
 
               {/* Tasks Column Body */}
-              <div className="p-3 space-y-2.5 flex-1 overflow-y-auto max-h-[75vh]">
+              <div className="p-3.5 space-y-3 flex-1 overflow-y-auto max-h-[75vh]">
                 {colTasks.length === 0 ? (
-                  <div className="h-32 border-2 border-dashed border-border/60 rounded-xl flex items-center justify-center text-xs text-muted-foreground/60 select-none">
-                    Drop tasks here
+                  <div className="h-36 border-2 border-dashed border-slate-200/90 rounded-[20px] flex flex-col items-center justify-center text-xs font-semibold text-slate-400 gap-1.5 bg-white/40 select-none font-heading">
+                    <span className="w-2 h-2 rounded-full bg-slate-300" />
+                    <span>Drop tasks here</span>
                   </div>
                 ) : (
                   colTasks.map(task => {
@@ -294,7 +301,7 @@ export function ProjectKanban({
                         draggable
                         onDragStart={(e) => handleDragStart(e, task.id)}
                         onClick={() => onTaskClick(task)}
-                        className={`group bg-card hover:bg-card/90 border border-border/70 hover:border-primary/50 rounded-xl p-3.5 shadow-xs hover:shadow-md transition-all cursor-grab active:cursor-grabbing select-none ${
+                        className={`group bg-white hover:bg-white border border-slate-200/90 hover:border-amber-300/80 rounded-[20px] p-4 shadow-2xs hover:shadow-md transition-all cursor-grab active:cursor-grabbing select-none relative overflow-hidden ${
                           isBeingDragged ? 'opacity-40 scale-95' : 'opacity-100'
                         }`}
                       >
@@ -303,8 +310,8 @@ export function ProjectKanban({
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {getPriorityBadge(task.priority)}
                             {task.milestone && (
-                              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-secondary/80 px-1.5 py-0.5 rounded border border-border/50 truncate max-w-[130px]">
-                                <Layers className="w-2.5 h-2.5 shrink-0" />
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/60 truncate max-w-[130px] font-heading">
+                                <Layers className="w-2.5 h-2.5 shrink-0 text-amber-500" />
                                 <span className="truncate">{task.milestone.title}</span>
                               </span>
                             )}
@@ -312,34 +319,36 @@ export function ProjectKanban({
                         </div>
 
                         {/* Task Title */}
-                        <h5 className="font-medium text-sm text-foreground leading-snug group-hover:text-primary transition-colors mb-1.5">
+                        <h5 className="font-extrabold text-sm text-slate-900 leading-snug group-hover:text-amber-600 transition-colors mb-1.5 font-heading">
                           {task.title}
                         </h5>
 
                         {/* Description Preview (if present) */}
                         {task.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+                          <p className="text-xs text-slate-400 line-clamp-2 mb-3 font-medium">
                             {task.description}
                           </p>
                         )}
 
                         {/* Bottom Metadata: Subtasks, Estimate, Due Date & Assignee */}
-                        <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-2.5">
+                        <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
+                          <div className="flex items-center gap-2 flex-wrap">
                             {/* Checklist Subtasks */}
                             {subtaskCount > 0 && (
-                              <span className={`inline-flex items-center gap-1 text-[11px] ${
-                                completedSubtasks === subtaskCount ? 'text-emerald-500 font-semibold' : 'text-muted-foreground'
+                              <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full font-heading ${
+                                completedSubtasks === subtaskCount 
+                                  ? 'bg-emerald-50 text-emerald-700' 
+                                  : 'bg-slate-100 text-slate-600'
                               }`}>
-                                <CheckSquare className="w-3 h-3" />
+                                <CheckSquare className="w-3 h-3 text-emerald-500" />
                                 {completedSubtasks}/{subtaskCount}
                               </span>
                             )}
 
                             {/* Estimated Hours */}
                             {Number(task.estimatedHours) > 0 && (
-                              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                                <Clock className="w-3 h-3" />
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full font-heading">
+                                <Clock className="w-3 h-3 text-slate-400" />
                                 {Number(task.estimatedHours)}h
                               </span>
                             )}
@@ -348,10 +357,10 @@ export function ProjectKanban({
                             {task.dueDate && formatDueDate(task.dueDate, task.status)}
                           </div>
 
-                          {/* Assignee Avatar */}
+                          {/* Assignee Avatar with Luxury Dark Slate & Initials */}
                           {task.assignee ? (
                             <div 
-                              className="w-6 h-6 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary shrink-0"
+                              className="w-6 h-6 rounded-full bg-slate-950 text-[#FACC15] border border-slate-900 flex items-center justify-center text-[10px] font-black shrink-0 font-heading shadow-2xs"
                               title={`Assigned to: ${task.assignee.name}`}
                             >
                               {task.assignee.profileImage ? (
@@ -366,7 +375,7 @@ export function ProjectKanban({
                             </div>
                           ) : (
                             <div 
-                              className="w-6 h-6 rounded-full border border-dashed border-border flex items-center justify-center text-muted-foreground/40 shrink-0"
+                              className="w-6 h-6 rounded-full border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center text-slate-400 shrink-0"
                               title="Unassigned"
                             >
                               <UserIcon className="w-3 h-3" />

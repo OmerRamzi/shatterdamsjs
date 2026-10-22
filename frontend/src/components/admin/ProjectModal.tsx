@@ -91,23 +91,23 @@ export function ProjectModal({ isOpen, onClose, onSaved, project }: ProjectModal
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-card w-full max-w-lg rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <h2 className="text-xl font-bold">{project ? 'Edit Project' : 'Create New Project'}</h2>
-          <button onClick={onClose} className="p-2 hover:bg-secondary rounded-full transition-colors">
-            <X className="w-5 h-5 text-muted-foreground" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+      <div className="bg-white w-full max-w-lg rounded-[28px] shadow-2xl overflow-hidden border border-slate-200/90 flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 className="text-xl font-extrabold text-slate-900 font-heading">{project ? 'Edit Project' : 'Create New Project'}</h2>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-900">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-6 overflow-y-auto">
           {error && (
-            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded-lg">
+            <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
               {error}
             </div>
           )}
           
-          <form id="projectForm" onSubmit={handleSubmit} className="space-y-4">
+          <form id="projectForm" onSubmit={handleSubmit} className="space-y-4 text-xs font-medium">
             <div className="space-y-2">
               <label className="text-sm font-medium">Project Title *</label>
               <input 
@@ -203,15 +203,15 @@ export function ProjectModal({ isOpen, onClose, onSaved, project }: ProjectModal
           </form>
         </div>
 
-        <div className="p-6 border-t border-border bg-secondary/10 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-5 py-2 rounded-lg font-medium hover:bg-secondary transition-colors">
+        <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex justify-end items-center gap-2.5">
+          <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-full text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors">
             Cancel
           </button>
           <button 
             type="submit" 
             form="projectForm"
             disabled={isSubmitting}
-            className="px-5 py-2 rounded-lg font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            className="bg-[#FACC15] hover:bg-yellow-400 text-slate-950 font-extrabold text-xs py-2.5 px-6 rounded-full shadow-xs active:scale-95 transition-all font-heading disabled:opacity-50"
           >
             {isSubmitting ? 'Saving...' : 'Save Project'}
           </button>

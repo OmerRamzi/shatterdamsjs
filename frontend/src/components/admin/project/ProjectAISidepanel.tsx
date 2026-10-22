@@ -379,19 +379,19 @@ export function ProjectAISidepanel({
         className="w-full sm:w-[520px] lg:w-[600px] h-full bg-card border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
       >
         {/* Drawer Header */}
-        <div className="p-4 sm:p-5 border-b border-border flex items-center justify-between bg-card/90 backdrop-blur-xs">
+        <div className="p-4 sm:p-5 border-b border-slate-200/90 flex items-center justify-between bg-white/95 backdrop-blur-xs">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-xs">
-              <Sparkles className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-full bg-slate-950 text-[#FACC15] border border-yellow-400/40 flex items-center justify-center shadow-xs">
+              <Sparkles className="w-4 h-4 text-[#FACC15]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm sm:text-base text-foreground leading-tight">AI Project Copilot</h3>
-                <span className="text-[10px] font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-full">
-                  Gemini 3 Flash
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 leading-tight font-heading">AI Project Copilot</h3>
+                <span className="text-[10px] font-bold bg-yellow-50 text-yellow-900 border border-yellow-300 px-2.5 py-0.5 rounded-full font-heading">
+                  Gemini Flash
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground truncate max-w-[260px] sm:max-w-[340px]">
+              <p className="text-[11px] text-slate-400 truncate max-w-[260px] sm:max-w-[340px] font-medium">
                 {projectTitle}
               </p>
             </div>
@@ -399,7 +399,7 @@ export function ProjectAISidepanel({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

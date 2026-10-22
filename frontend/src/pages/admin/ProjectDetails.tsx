@@ -21,7 +21,6 @@ import {
   Plus, 
   Sparkles,
   Calendar,
-  DollarSign,
   User as UserIcon,
   Flame,
   ArrowLeft
@@ -133,178 +132,230 @@ export default function AdminProjectDetailsPage() {
   const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
-    <div className="space-y-6 w-full max-w-7xl mx-auto pb-12">
-      {/* Top Header Card */}
-      <div className="bg-card border border-border rounded-xl p-5 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5 font-medium">
-              <Link to="/projects" className="hover:text-foreground transition-colors flex items-center gap-1">
-                <ArrowLeft className="w-3 h-3" /> Projects
+    <div className="space-y-6 sm:space-y-7 w-full max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
+      {/* Top Header Bento Card */}
+      <div className="bg-white rounded-[28px] p-6 sm:p-7 border border-slate-200/90 shadow-2xs bento-card">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="min-w-0">
+            {/* Breadcrumb Eyebrow */}
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber-600 mb-2 font-heading">
+              <Link to="/projects" className="hover:text-amber-700 flex items-center gap-1 transition-colors">
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Projects</span>
               </Link>
-              <span>/</span>
-              <span>{projectData.client?.companyName || projectData.client?.company_name || 'Client'}</span>
+              <span className="text-slate-300">•</span>
+              <span className="text-slate-500 font-medium normal-case truncate max-w-[220px]">
+                {projectData.client?.companyName || projectData.client?.company_name || 'Client Engagement'}
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="w-2 h-2 rounded-full bg-[#FACC15] animate-pulse" />
+              <span className="text-slate-500">Live Workspace</span>
             </div>
 
             {/* Title & Badges */}
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900 font-heading">
                 {projectData.title}
               </h1>
-              <span className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border ${
+              <span className={`text-[11px] uppercase font-bold px-3 py-1 rounded-full border font-heading inline-flex items-center gap-1.5 ${
                 projectData.status === 'completed'
-                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   : projectData.status === 'active' || projectData.status === 'in_progress'
-                  ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
-                  : 'bg-secondary text-muted-foreground border-border'
+                  ? 'bg-yellow-50 text-yellow-900 border-yellow-300/80 ring-1 ring-yellow-400/40'
+                  : 'bg-slate-100 text-slate-700 border-slate-200'
               }`}>
+                {projectData.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-[#FACC15] animate-pulse" />}
                 {projectData.status?.replace('_', ' ')}
               </span>
 
               {projectData.priority && (
-                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+                <span className={`text-[11px] uppercase font-bold px-3 py-1 rounded-full border flex items-center gap-1 font-heading ${
                   projectData.priority === 'urgent'
-                    ? 'bg-rose-500/10 text-rose-600 border-rose-500/20'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
                     : projectData.priority === 'high'
-                    ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
-                    : 'bg-secondary text-muted-foreground border-border'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-slate-100 text-slate-700 border-slate-200'
                 }`}>
-                  <Flame className="w-3 h-3" /> {projectData.priority}
+                  <Flame className="w-3.5 h-3.5 text-amber-500" /> {projectData.priority}
                 </span>
               )}
             </div>
 
             {/* Scope / Description */}
-            <p className="text-muted-foreground text-xs sm:text-sm mt-1 max-w-3xl line-clamp-2">
+            <p className="text-slate-500 text-xs sm:text-sm mt-2 max-w-3xl leading-relaxed font-medium">
               {projectData.description || 'No description provided.'}
             </p>
           </div>
 
-          {/* Quick Header Actions */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          {/* Quick Header Actions with Shatter Yellow & Dark Luxury */}
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
             <button
               id="ai-assistant-toggle-btn"
               onClick={handleOpenAIAssistant}
-              className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-xs flex items-center gap-1.5 transition-all"
+              className="px-4 py-2.5 rounded-full text-xs font-bold bg-slate-950 hover:bg-slate-800 text-[#FACC15] border border-yellow-400/30 hover:border-yellow-400 shadow-xs hover:shadow-md flex items-center gap-2 transition-all active:scale-95 font-heading"
+              title="Launch AI Project Copilot"
             >
-              <Sparkles className="w-4 h-4" />
-              <span>AI Assistant</span>
+              <Sparkles className="w-3.5 h-3.5 text-[#FACC15] animate-pulse" />
+              <span>AI Copilot</span>
             </button>
 
             <button
               onClick={() => openCreateTask('todo')}
-              className="btn-primary text-xs py-2 px-3.5 flex items-center gap-1.5 shadow-xs"
+              className="bg-[#FACC15] hover:bg-yellow-400 text-slate-950 font-extrabold text-xs py-2.5 px-5 rounded-full flex items-center gap-2 shadow-xs hover:shadow transition-all active:scale-95 font-heading"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 stroke-[2.5]" />
               <span>New Task</span>
             </button>
           </div>
         </div>
 
-        {/* Mini progress tracker */}
-        <div className="mt-4 pt-3 border-t border-border/50 flex flex-wrap items-center justify-between gap-4 text-xs">
-          <div className="flex items-center gap-6 text-muted-foreground">
-            {projectData.deadline && (
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-primary" />
-                <span>Due: {new Date(projectData.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-              </span>
-            )}
-            {projectData.budget && (
-              <span className="flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Budget: ${projectData.budget}</span>
-              </span>
-            )}
-            <span className="flex items-center gap-1.5">
-              <UserIcon className="w-3.5 h-3.5 text-blue-500" />
-              <span>{teamMembers.length} Team Members</span>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-muted-foreground font-medium">Delivery:</span>
-            <div className="w-28 bg-secondary h-2 rounded-full overflow-hidden">
+        {/* Bottom Bento Metric Strip */}
+        <div className="mt-6 pt-5 border-t border-slate-100 grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Metric 1: Delivery Progress with Shatter Yellow progress bar */}
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50/80 border border-slate-100">
+            <div className="flex items-center justify-between text-[10px] font-bold uppercase text-slate-400 mb-1.5 font-heading">
+              <span>Delivery</span>
+              <span className="text-slate-900 font-extrabold">{progressPercent}%</span>
+            </div>
+            <div className="w-full h-2 bg-slate-200/80 rounded-full overflow-hidden">
               <div 
-                className="bg-primary h-full rounded-full transition-all" 
+                className="h-full bg-gradient-to-r from-amber-400 via-yellow-400 to-[#FACC15] rounded-full transition-all duration-700" 
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <span className="font-bold text-foreground">{progressPercent}%</span>
+            <span className="text-[10px] text-slate-500 font-medium mt-1.5 block truncate">
+              {totalTasks > 0 ? `${completedTasks} of ${totalTasks} tasks done` : 'No tasks assigned'}
+            </span>
+          </div>
+
+          {/* Metric 2: Deadline */}
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50/80 border border-slate-100">
+            <span className="text-[10px] font-bold uppercase text-slate-400 font-heading block mb-1">Due Date</span>
+            {projectData.deadline ? (
+              <>
+                <p className="text-xs font-black text-slate-900 font-heading flex items-center gap-1.5 truncate">
+                  <Calendar className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>{new Date(projectData.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                </p>
+                <span className="text-[10px] font-bold text-amber-600 mt-1 block">
+                  {(() => {
+                    const due = new Date(projectData.deadline);
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0);
+                    due.setHours(0, 0, 0, 0);
+                    const diff = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    return diff < 0 ? `${Math.abs(diff)}d overdue` : diff === 0 ? 'Due Today' : `${diff} days remaining`;
+                  })()}
+                </span>
+              </>
+            ) : (
+              <p className="text-xs font-bold text-slate-400 mt-1">No deadline set</p>
+            )}
+          </div>
+
+          {/* Metric 3: Team */}
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50/80 border border-slate-100">
+            <span className="text-[10px] font-bold uppercase text-slate-400 font-heading block mb-1">Assigned Team</span>
+            <p className="text-xs font-black text-slate-900 font-heading flex items-center gap-1.5 truncate">
+              <UserIcon className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
+              <span>{teamMembers.length} {teamMembers.length === 1 ? 'Member' : 'Members'}</span>
+            </p>
+            <span className="text-[10px] font-bold text-slate-500 mt-1 block truncate">
+              {teamMembers.length > 0 ? teamMembers.slice(0, 2).map(m => m.name.split(' ')[0]).join(', ') : 'Unassigned'}
+            </span>
+          </div>
+
+          {/* Metric 4: Scope & Phases */}
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50/80 border border-slate-100">
+            <span className="text-[10px] font-bold uppercase text-slate-400 font-heading block mb-1">Scope & Phases</span>
+            <p className="text-xs font-black text-slate-900 font-heading flex items-center gap-1.5 truncate">
+              <Layers className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>{projectMilestones.length} {projectMilestones.length === 1 ? 'Phase' : 'Phases'}</span>
+            </p>
+            <span className="text-[10px] font-bold text-emerald-600 mt-1 block truncate">
+              {projectData.budget ? `Budget: $${parseFloat(projectData.budget).toLocaleString()}` : `${projectFiles.length} Assets Attached`}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Workspace Tabs */}
-      <div className="flex items-center gap-2 border-b border-border overflow-x-auto pb-px">
-        <button 
-          onClick={() => setActiveTab('kanban')}
-          className={`pb-3 px-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeTab === 'kanban' 
-              ? 'border-primary text-primary' 
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Kanban className="w-4 h-4" />
-          <span>Kanban Board</span>
-          <span className="bg-secondary text-muted-foreground text-xs px-2 py-0.5 rounded-full font-medium">
-            {projectTasks.length}
-          </span>
-        </button>
+      {/* Modern Capsule Segmented Tabs */}
+      <div className="flex items-center">
+        <div className="bg-slate-100/90 p-1.5 rounded-full inline-flex items-center gap-1.5 border border-slate-200/80 shadow-2xs overflow-x-auto max-w-full">
+          <button 
+            onClick={() => setActiveTab('kanban')}
+            className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 font-heading cursor-pointer shrink-0 ${
+              activeTab === 'kanban' 
+                ? 'bg-slate-950 text-white shadow-xs' 
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            <Kanban className={`w-3.5 h-3.5 ${activeTab === 'kanban' ? 'text-[#FACC15]' : ''}`} />
+            <span>Kanban Board</span>
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+              activeTab === 'kanban' ? 'bg-[#FACC15] text-slate-950' : 'bg-slate-200 text-slate-600'
+            }`}>
+              {projectTasks.length}
+            </span>
+          </button>
 
-        <button 
-          onClick={() => setActiveTab('list')}
-          className={`pb-3 px-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeTab === 'list' 
-              ? 'border-primary text-primary' 
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <ListFilter className="w-4 h-4" />
-          <span>Task List</span>
-        </button>
+          <button 
+            onClick={() => setActiveTab('list')}
+            className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 font-heading cursor-pointer shrink-0 ${
+              activeTab === 'list' 
+                ? 'bg-slate-950 text-white shadow-xs' 
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            <ListFilter className={`w-3.5 h-3.5 ${activeTab === 'list' ? 'text-[#FACC15]' : ''}`} />
+            <span>Task List</span>
+          </button>
 
-        <button 
-          onClick={() => setActiveTab('milestones')}
-          className={`pb-3 px-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeTab === 'milestones' 
-              ? 'border-primary text-primary' 
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>Phases & Milestones</span>
-          <span className="bg-secondary text-muted-foreground text-xs px-2 py-0.5 rounded-full font-medium">
-            {projectMilestones.length}
-          </span>
-        </button>
+          <button 
+            onClick={() => setActiveTab('milestones')}
+            className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 font-heading cursor-pointer shrink-0 ${
+              activeTab === 'milestones' 
+                ? 'bg-slate-950 text-white shadow-xs' 
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            <Layers className={`w-3.5 h-3.5 ${activeTab === 'milestones' ? 'text-[#FACC15]' : ''}`} />
+            <span>Phases & Milestones</span>
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+              activeTab === 'milestones' ? 'bg-[#FACC15] text-slate-950' : 'bg-slate-200 text-slate-600'
+            }`}>
+              {projectMilestones.length}
+            </span>
+          </button>
 
-        <button 
-          onClick={() => setActiveTab('files')}
-          className={`pb-3 px-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeTab === 'files' 
-              ? 'border-primary text-primary' 
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <FileIcon className="w-4 h-4" />
-          <span>Files & Assets</span>
-          <span className="bg-secondary text-muted-foreground text-xs px-2 py-0.5 rounded-full font-medium">
-            {projectFiles.length}
-          </span>
-        </button>
+          <button 
+            onClick={() => setActiveTab('files')}
+            className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 font-heading cursor-pointer shrink-0 ${
+              activeTab === 'files' 
+                ? 'bg-slate-950 text-white shadow-xs' 
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            <FileIcon className={`w-3.5 h-3.5 ${activeTab === 'files' ? 'text-[#FACC15]' : ''}`} />
+            <span>Files & Assets</span>
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+              activeTab === 'files' ? 'bg-[#FACC15] text-slate-950' : 'bg-slate-200 text-slate-600'
+            }`}>
+              {projectFiles.length}
+            </span>
+          </button>
 
-        <button 
-          onClick={() => setActiveTab('overview')}
-          className={`pb-3 px-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeTab === 'overview' 
-              ? 'border-primary text-primary' 
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <span>Overview & Scope</span>
-        </button>
+          <button 
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 font-heading cursor-pointer shrink-0 ${
+              activeTab === 'overview' 
+                ? 'bg-slate-950 text-white shadow-xs' 
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            <span>Overview & Scope</span>
+          </button>
+        </div>
       </div>
 
       {/* Tab Panels */}

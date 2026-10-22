@@ -357,22 +357,22 @@ export function TaskDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-      <div className="bg-card w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden border border-border flex flex-col max-h-[92vh] animate-in fade-in-50 zoom-in-95 duration-150">
+      <div className="bg-white w-full max-w-4xl rounded-[28px] shadow-2xl overflow-hidden border border-slate-200/90 flex flex-col max-h-[92vh] animate-in fade-in-50 zoom-in-95 duration-150">
         {/* Modal Top Navigation */}
-        <div className="p-4 sm:p-5 border-b border-border flex items-center justify-between bg-card/80 backdrop-blur-xs">
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-white">
           <div className="flex items-center gap-2.5 flex-wrap">
             {/* Status Dropdown */}
             <select
               value={currentTask.status}
               onChange={(e) => handleStatusChange(e.target.value as any)}
-              className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-hidden ${
+              className={`text-xs font-bold px-3 py-1 rounded-full border cursor-pointer focus:outline-hidden font-heading ${
                 currentTask.status === 'completed'
-                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   : currentTask.status === 'in_progress'
-                  ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                  ? 'bg-amber-50 text-amber-800 border-amber-200'
                   : currentTask.status === 'review'
-                  ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
-                  : 'bg-secondary text-muted-foreground border-border'
+                  ? 'bg-yellow-50 text-yellow-900 border-yellow-300'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
               }`}
             >
               <option value="todo">To Do</option>
@@ -385,18 +385,18 @@ export function TaskDetailModal({
             <select
               value={currentTask.priority}
               onChange={(e) => handlePriorityChange(e.target.value as any)}
-              className="text-xs font-semibold px-2 py-1 rounded-md border border-border bg-background cursor-pointer focus:outline-hidden"
+              className="text-xs font-bold px-3 py-1 rounded-full border border-slate-200 bg-slate-50 text-slate-700 cursor-pointer focus:outline-hidden font-heading"
             >
               <option value="low">Low Priority</option>
               <option value="medium">Medium Priority</option>
               <option value="high">High Priority</option>
-              <option value="urgent">Urgent</option>
+              <option value="urgent">Urgent Priority</option>
             </select>
 
             {/* Phase Tag */}
             {currentTask.milestone && (
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-secondary px-2.5 py-1 rounded-md border border-border/50">
-                <Layers className="w-3.5 h-3.5 text-primary" />
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full border border-slate-200/60 font-heading">
+                <Layers className="w-3.5 h-3.5 text-amber-500" />
                 <span>{currentTask.milestone.title}</span>
               </span>
             )}
@@ -405,7 +405,7 @@ export function TaskDetailModal({
           <div className="flex items-center gap-2">
             <button
               onClick={handleDeleteTask}
-              className="p-1.5 hover:bg-rose-500/10 rounded-lg text-muted-foreground hover:text-rose-500 transition-colors"
+              className="p-1.5 hover:bg-rose-50 rounded-full text-slate-400 hover:text-rose-600 transition-colors"
               title="Delete Task"
             >
               <Trash2 className="w-4 h-4" />
@@ -413,7 +413,7 @@ export function TaskDetailModal({
 
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-secondary rounded-full text-muted-foreground hover:text-foreground transition-colors"
+              className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
