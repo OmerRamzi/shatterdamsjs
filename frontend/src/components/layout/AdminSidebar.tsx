@@ -83,16 +83,16 @@ export function AdminSidebar({ mobileOpen = false, onCloseMobile }: AdminSidebar
   const { logout } = useAuth();
 
   const renderNavContent = () => (
-    <div className="flex flex-col h-full bg-white select-none">
+    <div className="flex flex-col h-full bg-[#101216] text-slate-300 select-none border-r border-white/10">
       {/* Mobile Header if inside Drawer */}
-      <div className="p-4 border-b border-slate-100 flex items-center justify-between lg:hidden">
-        <div className="flex items-center gap-2 bg-slate-950 px-3.5 py-1.5 rounded-full shadow-xs">
-          <img src="/brand/logo-yellow.png" alt="Shatter" className="h-5 w-auto object-contain" />
+      <div className="p-4 border-b border-white/10 flex items-center justify-between lg:hidden">
+        <div className="flex items-center gap-2">
+          <img src="/brand/logo-yellow.png" alt="Shatter" className="h-6 w-auto object-contain" />
         </div>
         {onCloseMobile && (
           <button
             onClick={onCloseMobile}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
             aria-label="Close menu"
           >
             <X className="w-5 h-5" />
@@ -101,10 +101,10 @@ export function AdminSidebar({ mobileOpen = false, onCloseMobile }: AdminSidebar
       </div>
 
       {/* Grouped Nav Items List */}
-      <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto scrollbar-thin">
+      <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto scrollbar-thin">
         {navGroups.map((group, groupIdx) => (
-          <div key={groupIdx} className="space-y-1">
-            <div className="px-3 pt-1 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+          <div key={groupIdx} className="space-y-1.5">
+            <div className="px-3 text-xs font-semibold text-slate-400">
               {group.groupTitle}
             </div>
             
@@ -119,20 +119,20 @@ export function AdminSidebar({ mobileOpen = false, onCloseMobile }: AdminSidebar
                     key={item.name}
                     to={item.to}
                     onClick={() => onCloseMobile && onCloseMobile()}
-                    className={`group flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 ${
+                    className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-150 ${
                       isActive 
-                        ? 'bg-amber-400/15 text-amber-900 shadow-xs ring-1 ring-amber-400/30' 
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
+                        ? 'bg-yellow-400/10 text-yellow-300 font-semibold shadow-xs ring-1 ring-yellow-400/20' 
+                        : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <item.icon className={`w-4 h-4 transition-colors ${
-                        isActive ? 'text-amber-600' : 'text-slate-400 group-hover:text-slate-700'
+                    <div className="flex items-center gap-3">
+                      <item.icon className={`w-4 h-4 shrink-0 transition-colors ${
+                        isActive ? 'text-yellow-400' : 'text-slate-400 group-hover:text-slate-200'
                       }`} />
                       <span>{item.name}</span>
                     </div>
                     {isActive && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
                     )}
                   </Link>
                 );
@@ -143,16 +143,16 @@ export function AdminSidebar({ mobileOpen = false, onCloseMobile }: AdminSidebar
       </nav>
       
       {/* Sign Out Footer */}
-      <div className="p-3 border-t border-slate-100 bg-slate-50/50">
+      <div className="p-3 border-t border-white/10 bg-black/20">
         <button 
           onClick={logout} 
-          className="flex w-full items-center justify-between px-3.5 py-2.5 text-xs sm:text-sm font-semibold rounded-xl text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-colors group"
+          className="flex w-full items-center justify-between px-3 py-2 text-xs sm:text-sm font-medium rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors group"
         >
           <div className="flex items-center gap-3">
-            <LogOut className="w-4 h-4 text-slate-400 group-hover:text-rose-500" />
-            <span>Sign Out</span>
+            <LogOut className="w-4 h-4 text-slate-400 group-hover:text-rose-400" />
+            <span>Sign out</span>
           </div>
-          <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-rose-500" />
+          <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-rose-400" />
         </button>
       </div>
     </div>

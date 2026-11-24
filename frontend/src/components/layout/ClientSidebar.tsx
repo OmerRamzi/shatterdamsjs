@@ -1,77 +1,73 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, Folder, Receipt, Globe, LogOut } from 'lucide-react';
+import { LayoutDashboard, FolderGit2, Receipt, LogOut } from 'lucide-react';
 
 export function ClientSidebar() {
   const location = useLocation();
   const { user, logout } = useAuth();
   
   const navItems = [
-    { name: "Home page", to: "/", icon: Home },
-    { name: "My Projects", to: "/projects", icon: Folder },
+    { name: "Overview", to: "/", icon: LayoutDashboard },
+    { name: "Projects", to: "/projects", icon: FolderGit2 },
     { name: "Invoices & Quotes", to: "/invoices", icon: Receipt },
   ];
 
   return (
-    <div className="w-[280px] bg-white border-r border-slate-200 flex flex-col h-full shadow-sm">
-      <div className="px-8 py-10 flex justify-center">
-        <img src="/brand/icon-yellow.png" alt="SHATTER" className="h-10 object-contain" />
+    <aside className="w-60 bg-[#101216] text-slate-300 border-r border-white/10 flex flex-col h-full shrink-0 select-none">
+      <div className="h-14 px-4 flex items-center border-b border-white/10">
+        <Link to="/" className="flex items-center gap-2">
+          <img src="/brand/logo-yellow.png" alt="Shatter DAMS" className="h-6 object-contain" />
+        </Link>
       </div>
       
-      <nav className="flex-1 px-4 space-y-2">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.to || 
-                           (item.to !== '/' && location.pathname.startsWith(item.to));
-          
-          return (
-            <Link
-              key={item.name}
-              to={item.to}
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-200 ${
-                isActive 
-                  ? 'bg-[#18181b] text-yellow-400' 
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <item.icon className="w-5 h-5" />
-              {item.name}
-            </Link>
-          );
-        })}
-      </nav>
-      
-      <div className="p-6 space-y-4">
-        {/* Language Selector */}
-        <div className="flex items-center justify-between px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 bg-white shadow-sm cursor-pointer hover:bg-slate-50">
-          <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-slate-500" />
-            English
-          </div>
-          <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+      <div className="py-4 px-3 flex-1">
+        <div className="px-3 text-xs font-semibold text-slate-400 mb-2">
+          Client Portal
         </div>
-
+        <nav className="space-y-0.5">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.to || 
+                             (item.to !== '/' && location.pathname.startsWith(item.to));
+            
+            return (
+              <Link
+                key={item.name}
+                to={item.to}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-150 ${
+                  isActive 
+                    ? 'bg-yellow-400/10 text-yellow-300 font-semibold ring-1 ring-yellow-400/20' 
+                    : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100'
+                }`}
+              >
+                <item.icon className={`w-4 h-4 ${isActive ? 'text-yellow-400' : 'text-slate-400'}`} />
+                <span>{item.name}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+      
+      <div className="p-3 border-t border-white/10 bg-black/20 space-y-2">
         {/* User Block */}
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-2xl p-4 shadow-sm">
-          <div className="w-10 h-10 rounded-xl bg-yellow-400 flex items-center justify-center text-slate-900 font-bold text-lg">
-            {user?.name ? user.name[0].toUpperCase() : 'C'}
+        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg bg-white/[0.03]">
+          <div className="w-7 h-7 rounded-md bg-yellow-400 text-slate-950 flex items-center justify-center font-bold text-xs uppercase">
+            {user?.name ? user.name[0] : 'C'}
           </div>
-          <div>
-            <p className="text-sm font-bold text-slate-900 leading-tight">{user?.name || 'Client'}</p>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">CLIENT PORTAL</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-white truncate">{user?.name || 'Client'}</p>
+            <p className="text-[10px] text-slate-400">Client Access</p>
           </div>
         </div>
 
         {/* Sign Out */}
         <button 
           onClick={logout} 
-          className="w-full flex items-center justify-center gap-2 bg-[#18181b] hover:bg-black transition-colors text-yellow-400 px-4 py-3 rounded-2xl text-sm font-bold shadow-md"
+          className="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
         >
           <LogOut className="w-4 h-4" />
-          Sign out
+          <span>Sign out</span>
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

@@ -33,42 +33,42 @@ export function AdminTopbar({ onMenuToggle, isMenuOpen }: AdminTopbarProps) {
     .toUpperCase();
 
   return (
-    <header className="h-16 bg-[#0f172a] border-b border-slate-800 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30 shadow-md">
+    <header className="h-14 bg-[#101216] border-b border-white/10 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30">
       {/* Left: Mobile Toggle & Brand */}
       <div className="flex items-center gap-3">
         {onMenuToggle && (
           <button
             onClick={onMenuToggle}
             type="button"
-            className="p-2 -ml-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors lg:hidden focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="p-1.5 -ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors lg:hidden focus:outline-none focus:ring-2 focus:ring-yellow-400"
             aria-label="Toggle navigation menu"
           >
-            {isMenuOpen ? <X className="w-5 h-5 text-amber-400" /> : <Menu className="w-5 h-5" />}
+            {isMenuOpen ? <X className="w-5 h-5 text-yellow-400" /> : <Menu className="w-5 h-5" />}
           </button>
         )}
 
-        <Link to="/" className="flex items-center gap-2.5 group">
+        <Link to="/" className="flex items-center gap-3 group">
           <div className="flex items-center">
-            <img src="/brand/logo-yellow.png" alt="Shatter" className="h-7 sm:h-8 w-auto object-contain transition-transform group-hover:scale-105" />
+            <img src="/brand/logo-yellow.png" alt="Shatter" className="h-6 sm:h-7 w-auto object-contain transition-opacity group-hover:opacity-90" />
           </div>
 
-          <div className="hidden sm:flex flex-col border-l border-slate-700/80 pl-2.5">
-            <span className="text-xs font-semibold text-slate-200 tracking-wide font-heading">
-              Administrator Dashboard
+          <div className="hidden sm:flex flex-col border-l border-white/10 pl-3">
+            <span className="text-xs font-semibold text-slate-100 tracking-tight font-heading">
+              Shatter DAMS
             </span>
-            <span className="text-[10px] text-amber-400/90 font-medium tracking-wider uppercase">
+            <span className="text-[11px] text-slate-400">
               Operations & Digital Assets
             </span>
           </div>
         </Link>
       </div>
 
-      {/* Right: Quick actions & User profile */}
-      <div className="flex items-center gap-2 sm:gap-4">
-        {/* Live system pill */}
-        <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700/60 text-xs font-medium text-slate-300">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>System Online</span>
+      {/* Right: Status indicator & User profile */}
+      <div className="flex items-center gap-3">
+        {/* System status */}
+        <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/10 text-xs text-slate-400">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          <span>Connected</span>
         </div>
 
         {/* User Profile Dropdown */}
@@ -76,57 +76,57 @@ export function AdminTopbar({ onMenuToggle, isMenuOpen }: AdminTopbarProps) {
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
             type="button"
-            className="flex items-center gap-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all text-slate-950 pl-1.5 pr-3 py-1.5 rounded-full font-bold text-xs sm:text-sm shadow-sm hover:shadow active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            className="flex items-center gap-2.5 bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 transition-colors text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
           >
-            <div className="w-7 h-7 rounded-full bg-slate-950 text-amber-400 flex items-center justify-center font-black text-xs shadow-inner">
+            <div className="w-6 h-6 rounded-md bg-yellow-400 text-slate-950 flex items-center justify-center font-bold text-xs">
               {userInitials || <User className="w-3.5 h-3.5" />}
             </div>
-            <span className="max-w-[110px] sm:max-w-[150px] truncate">{displayName}</span>
-            <ChevronDown className={`w-3.5 h-3.5 text-slate-900 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
+            <span className="max-w-[120px] truncate">{displayName}</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {/* Dropdown Menu */}
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-              <div className="px-4 py-3 border-b border-slate-100">
+            <div className="absolute right-0 mt-2 w-60 bg-[#16181D] text-slate-200 rounded-xl shadow-xl border border-white/10 py-1.5 z-50 animate-in fade-in duration-150">
+              <div className="px-3.5 py-2.5 border-b border-white/10">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-slate-900 truncate">{displayName}</p>
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                  <p className="text-xs font-semibold text-white truncate">{displayName}</p>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-yellow-400/15 text-yellow-400 border border-yellow-400/30">
                     Admin
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 truncate mt-0.5">{user?.email || "admin@shatter.local"}</p>
+                <p className="text-[11px] text-slate-400 truncate mt-0.5">{user?.email || "admin@shatter.local"}</p>
               </div>
 
               <div className="py-1">
                 <Link
                   to="/settings"
                   onClick={() => setDropdownOpen(false)}
-                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-950 transition-colors"
+                  className="flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-300 hover:bg-white/[0.06] hover:text-white transition-colors"
                 >
-                  <Settings className="w-4 h-4 text-slate-400" />
-                  System Settings
+                  <Settings className="w-3.5 h-3.5 text-slate-400" />
+                  System settings
                 </Link>
                 <Link
                   to="/users"
                   onClick={() => setDropdownOpen(false)}
-                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-950 transition-colors"
+                  className="flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-300 hover:bg-white/[0.06] hover:text-white transition-colors"
                 >
-                  <Shield className="w-4 h-4 text-slate-400" />
-                  Manage Users & Roles
+                  <Shield className="w-3.5 h-3.5 text-slate-400" />
+                  Users & permissions
                 </Link>
               </div>
 
-              <div className="border-t border-slate-100 pt-1 mt-1">
+              <div className="border-t border-white/10 pt-1 mt-1">
                 <button
                   onClick={() => {
                     setDropdownOpen(false);
                     logout();
                   }}
-                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 w-full transition-colors text-left"
+                  className="flex items-center gap-2.5 px-3.5 py-2 text-xs text-rose-400 hover:bg-rose-500/10 w-full transition-colors text-left font-medium"
                 >
-                  <LogOut className="w-4 h-4" />
-                  Sign Out
+                  <LogOut className="w-3.5 h-3.5" />
+                  Sign out
                 </button>
               </div>
             </div>

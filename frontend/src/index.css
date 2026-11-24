@@ -32,12 +32,14 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Montserrat', system-ui, sans-serif;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-  h1, h2, h3, h4, h5, h6, .font-heading {
-    font-family: 'Space Grotesk', sans-serif !important;
-    letter-spacing: -0.02em;
+  .font-display, .font-heading {
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -0.025em;
   }
 }
 
@@ -46,24 +48,42 @@
   to { opacity: 1; }
 }
 .animate-bar {
-  animation: barGrow 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: barGrow 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Subtle, stable studio card - no tacky hover jump */
+.studio-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.875rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.studio-card:hover {
+  border-color: #cbd5e1;
+}
+
+/* Backward compatibility for bento-card references without the AI hover bounce */
 .bento-card {
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .bento-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 30px -8px rgba(0, 0, 0, 0.06), 0 4px 10px -2px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.04);
 }
+
 .striped-bar {
-  background-image: repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(203, 213, 225, 0.45) 6px, rgba(203, 213, 225, 0.45) 12px);
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(203, 213, 225, 0.35) 6px, rgba(203, 213, 225, 0.35) 12px);
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2;
+    @apply inline-flex items-center justify-center rounded-lg text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.99] px-4 py-2;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/80 px-4 py-2;
+    @apply inline-flex items-center justify-center rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-slate-100 text-slate-800 hover:bg-slate-200/80 active:scale-[0.99] px-4 py-2;
+  }
+  .btn-accent {
+    @apply inline-flex items-center justify-center rounded-lg text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none bg-yellow-400 text-slate-950 hover:bg-yellow-300 active:scale-[0.99] px-4 py-2 shadow-xs;
   }
 }

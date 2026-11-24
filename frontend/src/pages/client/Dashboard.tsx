@@ -20,119 +20,143 @@ export default function ClientDashboardPage() {
   }, []);
 
   return (
-    <div className="min-h-full p-10 bg-slate-50/50">
-      <div className="max-w-5xl mx-auto space-y-12">
-        {/* Header & Search */}
-        <div className="text-center space-y-8 mt-4">
-          <h1 className="text-[40px] font-black text-slate-900 tracking-tight">Welcome Back, {user?.name || 'Client'}!</h1>
-          
-          <div className="max-w-[600px] mx-auto relative">
-            <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-slate-400" />
-            </div>
-            <input 
-              type="text" 
-              placeholder="Search docs, files, invoices..." 
-              className="w-full pl-14 pr-6 py-4 rounded-full border border-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent text-slate-700 bg-white text-base placeholder:text-slate-400 font-medium transition-shadow"
-            />
+    <div className="space-y-6 animate-in fade-in duration-200">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div>
+          <div className="text-xs font-semibold text-slate-500 mb-1">
+            Client Portal Overview
           </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 font-heading">
+            Welcome back, {user?.name || 'Client'}
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Review production deliverables, download assets, and manage invoices.
+          </p>
         </div>
 
-        {/* Quick Links & Latest Docs */}
-        <div className="grid md:grid-cols-3 gap-6 pt-4">
-          {/* Files & Proofs */}
-          <Link to="/projects" className="bg-white rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 shadow-sm hover:shadow-md transition-shadow group h-[260px]">
-            <div className="w-16 h-16 bg-[#18181b] rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-              <FileText className="w-7 h-7 text-yellow-400" />
-            </div>
-            <span className="font-bold text-[17px] text-slate-900">Files & Proofs</span>
-          </Link>
-
-          {/* Invoices & Quotes */}
-          <Link to="/invoices" className="bg-white rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 shadow-sm hover:shadow-md transition-shadow group h-[260px]">
-            <div className="w-16 h-16 bg-[#18181b] rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-              <Receipt className="w-7 h-7 text-yellow-400" />
-            </div>
-            <span className="font-bold text-[17px] text-slate-900">Invoices & Quotes</span>
-          </Link>
-
-          {/* Latest Docs Panel */}
-          <div className="bg-white rounded-[32px] p-8 shadow-sm flex flex-col h-[260px]">
-            <h3 className="font-bold text-[19px] text-slate-900 mb-4">Latest Docs</h3>
-            <div className="flex-1 bg-slate-50/80 rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-3">
-              {isLoading ? (
-                <p className="text-sm text-slate-500 font-medium">Loading...</p>
-              ) : data.recentFiles.length === 0 ? (
-                <>
-                  <Folder className="w-7 h-7 text-slate-400" strokeWidth={1.5} />
-                  <p className="text-sm font-medium text-slate-500">No recent documents uploaded.</p>
-                </>
-              ) : (
-                <div className="w-full space-y-3">
-                  {data.recentFiles.slice(0, 3).map((file: any) => (
-                    <div key={file.id} className="flex items-center gap-3 p-2 bg-white rounded-xl border border-slate-100">
-                      <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                      <span className="text-sm font-medium text-slate-700 truncate">{file.name}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+        {/* Search */}
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input 
+            type="text" 
+            placeholder="Search deliverables, invoices..." 
+            className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-yellow-400 transition-shadow"
+          />
         </div>
+      </div>
 
-        {/* Active Projects Tracker */}
-        <div className="bg-white rounded-[32px] p-8 shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-[22px] font-black text-slate-900">Active Projects Tracker</h2>
-              <p className="text-slate-500 font-medium mt-1">Monitor the progress of your ongoing engagements.</p>
+      {/* Quick Nav Cards */}
+      <div className="grid md:grid-cols-3 gap-4">
+        {/* Files & Proofs */}
+        <Link 
+          to="/projects" 
+          className="bg-white rounded-xl p-5 border border-slate-200/90 shadow-2xs hover:border-slate-300 transition-colors group flex items-start justify-between"
+        >
+          <div>
+            <div className="w-9 h-9 bg-[#101216] rounded-lg flex items-center justify-center text-yellow-400 mb-3">
+              <FileText className="w-4 h-4" />
             </div>
-            <Link to="/projects" className="px-6 py-2 rounded-full border border-slate-300 font-bold text-slate-700 hover:bg-slate-50 transition-colors text-sm">
-              View All
-            </Link>
+            <h3 className="font-semibold text-sm text-slate-900 group-hover:text-yellow-600 transition-colors">Deliverables & Proofs</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Access files, revisions, and media assets</p>
           </div>
+        </Link>
 
-          <div className="space-y-4">
+        {/* Invoices & Quotes */}
+        <Link 
+          to="/invoices" 
+          className="bg-white rounded-xl p-5 border border-slate-200/90 shadow-2xs hover:border-slate-300 transition-colors group flex items-start justify-between"
+        >
+          <div>
+            <div className="w-9 h-9 bg-[#101216] rounded-lg flex items-center justify-center text-yellow-400 mb-3">
+              <Receipt className="w-4 h-4" />
+            </div>
+            <h3 className="font-semibold text-sm text-slate-900 group-hover:text-yellow-600 transition-colors">Invoices & Quotes</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Review statements and settled payments</p>
+          </div>
+        </Link>
+
+        {/* Recent Files Panel */}
+        <div className="bg-white rounded-xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-sm text-slate-900">Latest Assets</h3>
+              <span className="text-[11px] text-slate-400">Recent uploads</span>
+            </div>
             {isLoading ? (
-              <p className="text-slate-500 font-medium text-center py-8">Loading projects...</p>
-            ) : data.activeProjects.length === 0 ? (
-              <p className="text-slate-500 font-medium text-center py-8 bg-slate-50/80 rounded-2xl">You have no active projects.</p>
+              <p className="text-xs text-slate-400 py-3">Loading assets...</p>
+            ) : data.recentFiles.length === 0 ? (
+              <div className="flex items-center gap-2 py-3 text-slate-400 text-xs">
+                <Folder className="w-4 h-4" />
+                <span>No recent files uploaded.</span>
+              </div>
             ) : (
-              data.activeProjects.map((project: any) => (
-                <div key={project.id} className="border border-slate-100 rounded-3xl p-6 hover:border-slate-200 transition-colors bg-white">
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <h3 className="font-bold text-lg text-slate-900 mb-2">{project.title}</h3>
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
-                        Active
-                      </span>
-                    </div>
-                    {project.dueInDays !== null && (
-                      <div className="flex items-center gap-1.5 text-slate-500 font-medium text-sm">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Due in {project.dueInDays} days
-                      </div>
-                    )}
+              <div className="space-y-1.5 mt-2">
+                {data.recentFiles.slice(0, 2).map((file: any) => (
+                  <div key={file.id} className="flex items-center gap-2 p-1.5 bg-slate-50 rounded-md border border-slate-100 text-xs text-slate-700">
+                    <FileText className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
+                    <span className="truncate">{file.name}</span>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-end">
-                      <span className="text-sm font-bold text-slate-900">{project.progress}% Complete</span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                      <div 
-                        className="bg-yellow-400 h-3 rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${project.progress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
+          <Link to="/projects" className="text-xs font-semibold text-yellow-600 hover:text-yellow-700 mt-2 block">
+            View all project assets
+          </Link>
+        </div>
+      </div>
+
+      {/* Active Projects Tracker */}
+      <div className="bg-white rounded-xl p-5 sm:p-6 border border-slate-200/90 shadow-2xs">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 font-heading">Active Engagements</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Live deliverables in production.</p>
+          </div>
+          <Link to="/projects" className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+            All projects
+          </Link>
+        </div>
+
+        <div className="space-y-3">
+          {isLoading ? (
+            <p className="text-slate-400 text-xs py-6 text-center">Loading projects...</p>
+          ) : data.activeProjects.length === 0 ? (
+            <div className="text-center py-8 bg-slate-50 rounded-lg border border-slate-100 text-xs text-slate-500">
+              No active deliverables at this time.
+            </div>
+          ) : (
+            data.activeProjects.map((project: any) => (
+              <div key={project.id} className="border border-slate-200 rounded-lg p-4 hover:border-slate-300 transition-colors bg-white">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                  <div>
+                    <h3 className="font-semibold text-sm text-slate-900">{project.title}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-yellow-50 text-yellow-800 border border-yellow-200">
+                        In Production
+                      </span>
+                      {project.dueInDays !== null && (
+                        <span className="text-xs text-slate-500">
+                          Due in {project.dueInDays} days
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-bold text-slate-900 font-heading">{project.progress}% Complete</span>
+                  </div>
+                </div>
+                
+                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                  <div 
+                    className="bg-yellow-400 h-1.5 rounded-full transition-all duration-300"
+                    style={{ width: `${project.progress}%` }}
+                  />
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

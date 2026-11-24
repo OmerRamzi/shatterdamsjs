@@ -148,24 +148,23 @@ export default function CrmDashboard() {
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-200">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/60">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-600 mb-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            <span>CRM & Sales Pipeline</span>
+          <div className="text-xs font-semibold text-slate-500 mb-1">
+            Studio CRM & Sales Pipeline
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 font-heading">
             Deals & Pipeline
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Track prospective engagements, deal stages, and revenue conversion.
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Track prospective engagements, proposal stages, and contract conversion.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setIsCsvModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 font-bold text-xs sm:text-sm transition-all shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 font-semibold text-xs sm:text-sm transition-colors shadow-2xs"
             title="Import Leads or Contacts from Zoho CRM or CSV"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
@@ -173,93 +172,93 @@ export default function CrmDashboard() {
           </button>
           <Link
             to="/crm/leads"
-            className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-bold text-xs sm:text-sm transition-all shadow-xs"
+            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold text-xs sm:text-sm transition-colors shadow-2xs"
           >
-            Manage Leads
+            Manage leads
           </Link>
           <button
             onClick={() => openNewDeal('discovery')}
-            className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl shadow-xs hover:shadow transition-all text-xs sm:text-sm"
+            className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold px-4 py-2 rounded-lg shadow-xs transition-colors text-xs sm:text-sm"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Add Deal</span>
+            <span>Add deal</span>
           </button>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-2xs">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Total Pipeline
+            <span className="text-xs font-medium text-slate-500">
+              Total pipeline
             </span>
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center ring-1 ring-amber-200/50">
+            <div className="w-7 h-7 rounded-md bg-yellow-50 text-yellow-700 flex items-center justify-center border border-yellow-200">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
-          <h3 className="text-xl sm:text-2xl font-black text-slate-900 truncate">
+          <h3 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading truncate">
             Rs. {stats.totalPipelineValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h3>
-          <p className="text-[11px] font-medium text-slate-500 mt-1">
-            {stats.totalDeals} opportunities active
+          <p className="text-[11px] text-slate-500 mt-1">
+            {stats.totalDeals} active opportunities
           </p>
         </div>
 
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
+        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-2xs">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Closed Won
+            <span className="text-xs font-medium text-slate-500">
+              Closed won
             </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center ring-1 ring-emerald-200/50">
+            <div className="w-7 h-7 rounded-md bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <h3 className="text-xl sm:text-2xl font-black text-emerald-600 truncate">
+          <h3 className="text-xl sm:text-2xl font-bold text-emerald-600 font-heading truncate">
             Rs. {stats.wonValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h3>
-          <p className="text-[11px] font-medium text-slate-500 mt-1">
+          <p className="text-[11px] text-slate-500 mt-1">
             {stats.stageCounts?.won?.count || 0} contracts secured
           </p>
         </div>
 
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
+        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-2xs">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Win Rate
+            <span className="text-xs font-medium text-slate-500">
+              Win rate
             </span>
-            <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center ring-1 ring-sky-200/50">
+            <div className="w-7 h-7 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center border border-slate-200">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
-          <h3 className="text-xl sm:text-2xl font-black text-slate-900 truncate">
+          <h3 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading truncate">
             {stats.winRate}%
           </h3>
-          <p className="text-[11px] font-medium text-slate-500 mt-1">
-            Ratio of won vs lost deals
+          <p className="text-[11px] text-slate-500 mt-1">
+            Won vs lost ratio
           </p>
         </div>
 
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
+        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-2xs">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Active Leads
+            <span className="text-xs font-medium text-slate-500">
+              Active leads
             </span>
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center ring-1 ring-indigo-200/50">
+            <div className="w-7 h-7 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center border border-slate-200">
               <Users className="w-4 h-4" />
             </div>
           </div>
-          <h3 className="text-xl sm:text-2xl font-black text-slate-900 truncate">
+          <h3 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading truncate">
             {stats.activeLeads}
           </h3>
-          <p className="text-[11px] font-medium text-slate-500 mt-1">
+          <p className="text-[11px] text-slate-500 mt-1">
             Awaiting qualification
           </p>
         </div>
       </div>
 
       {/* Action Toolbar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs">
         <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
           <input
@@ -267,29 +266,29 @@ export default function CrmDashboard() {
             placeholder="Search deals or clients..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3.5 py-1.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900"
+            className="w-full pl-9 pr-3.5 py-1.5 rounded-lg border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-yellow-400 text-slate-900"
           />
         </div>
 
         {/* View Toggle */}
-        <div className="flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold shrink-0">
+        <div className="flex items-center p-1 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold shrink-0">
           <button
             onClick={() => setViewMode('kanban')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-              viewMode === 'kanban' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors ${
+              viewMode === 'kanban' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Kanban className="w-3.5 h-3.5" />
-            <span>Kanban Pipeline</span>
+            <span>Kanban</span>
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-              viewMode === 'list' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors ${
+              viewMode === 'list' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <List className="w-3.5 h-3.5" />
-            <span>Table List</span>
+            <span>List</span>
           </button>
         </div>
       </div>

@@ -14,7 +14,6 @@ import {
   CheckCircle2, 
   Sparkles, 
   Search,
-  ArrowRight,
   Inbox
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -378,268 +377,265 @@ export default function AdminDashboard() {
   const firstName = user?.name?.split(' ')[0] || 'Admin';
 
   return (
-    <div className="space-y-6 sm:space-y-7 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-200">
       
-      {/* Top Header / Welcome Banner with Space Grotesk Heading */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
+      {/* Top Header / Studio Overview */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber-600 mb-1">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            <span className="font-heading">Executive Overview</span>
-            <span className="text-slate-300">•</span>
-            <span className="text-slate-500 normal-case font-medium">{todayFormatted}</span>
+          <div className="text-xs font-semibold text-slate-500 mb-1">
+            Studio Overview — {todayFormatted}
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 font-heading">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 font-heading">
             {greeting}, {firstName}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">
-            Stay on top of your agency tasks, monitor progress, and track live revenue.
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Operations, active deliverables, and studio cashflow.
           </p>
         </div>
 
-        {/* Top Controls: Live polling toggle, refresh, and primary CTA */}
+        {/* Top Controls */}
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-          {/* Live Polling Capsule Toggle */}
+          {/* Live Polling Toggle */}
           <button
             onClick={() => {
               setIsLiveEnabled(!isLiveEnabled);
               fetchDashboardData(true);
             }}
-            className={`flex items-center gap-2 text-xs font-bold px-3.5 py-2 rounded-full transition-all border ${
+            className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors border ${
               isLiveEnabled 
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' 
                 : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
             }`}
             title={isLiveEnabled ? "Live polling active (Click to pause)" : "Click to activate live polling"}
           >
-            <span className={`w-2 h-2 rounded-full ${isLiveEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-            <span>{isLiveEnabled ? 'Live Feed' : 'Paused'}</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${isLiveEnabled ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+            <span>{isLiveEnabled ? 'Live feed' : 'Paused'}</span>
           </button>
 
           {/* Refresh Button */}
           <button
             onClick={() => fetchDashboardData(true)}
             disabled={isRefreshing}
-            className="p-2.5 rounded-full border border-slate-200/90 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs active:scale-95 disabled:opacity-50"
+            className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors disabled:opacity-50"
             title="Refresh dashboard metrics"
             aria-label="Refresh data"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-amber-500' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-yellow-500' : ''}`} />
           </button>
 
           {/* Primary Quick CTA: New Project */}
           <button
             onClick={() => setIsProjectModalOpen(true)}
-            className="flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-full shadow-xs hover:shadow transition-all active:scale-95 text-xs sm:text-sm font-heading"
+            className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold px-4 py-2 rounded-lg shadow-xs transition-colors text-xs sm:text-sm"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>New Project</span>
+            <span>New project</span>
           </button>
         </div>
       </div>
 
-      {/* Bento Grid Row 1 (3 Columns on Desktop) */}
+      {/* Grid Row 1 (3 Columns on Desktop) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-        {/* Column 1: Total Balance Hero Card (4 cols / ~33%) */}
-        <div className="lg:col-span-4 bg-white rounded-[28px] p-6 sm:p-7 border border-slate-200/90 shadow-2xs bento-card flex flex-col justify-between">
+        {/* Column 1: Total Balance Card (4 cols) */}
+        <div className="lg:col-span-4 bg-white rounded-xl p-5 sm:p-6 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Balance</span>
+              <span className="text-xs font-semibold text-slate-500">Total balance</span>
               <div 
-                className="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full"
+                className="flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-md"
                 title={`Tenant Base Currency: ${currencyCode}`}
               >
-                <span>{currencyCode === 'USD' ? '🇺🇸 USD' : currencyCode === 'EUR' ? '🇪🇺 EUR' : currencyCode === 'GBP' ? '🇬🇧 GBP' : currencyCode === 'AUD' ? '🇦🇺 AUD' : '🇱🇰 LKR'}</span>
-                <span className="text-[10px] text-slate-400 font-medium">Base</span>
+                <span>{currencyCode === 'USD' ? 'USD' : currencyCode === 'EUR' ? 'EUR' : currencyCode === 'GBP' ? 'GBP' : currencyCode === 'AUD' ? 'AUD' : 'LKR'}</span>
+                <span className="text-[10px] text-slate-400">Base</span>
               </div>
             </div>
 
             {/* Big Hero Number (Space Grotesk) */}
-            <h2 className="text-3xl sm:text-[38px] font-extrabold text-slate-900 tracking-tight font-heading leading-tight">
+            <h2 className="text-3xl sm:text-[34px] font-bold text-slate-950 tracking-tight font-heading leading-tight">
               {currencySymbol} {Number(stats.revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
 
-            <div className="mt-2.5 flex items-center gap-2">
-              <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+            <div className="mt-2 flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md ${
                 stats.monthOverMonthGrowth?.isPositive 
-                  ? 'text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200/50' 
-                  : 'text-rose-700 bg-rose-50 ring-1 ring-rose-200/50'
+                  ? 'text-emerald-700 bg-emerald-50' 
+                  : 'text-rose-700 bg-rose-50'
               }`}>
-                {stats.monthOverMonthGrowth?.isPositive ? '▲' : '▼'} {stats.monthOverMonthGrowth?.label || '0% vs last month'}
+                {stats.monthOverMonthGrowth?.isPositive ? '↑' : '↓'} {stats.monthOverMonthGrowth?.label || '0% vs last month'}
               </span>
             </div>
 
-            {/* Action Pill Buttons */}
-            <div className="grid grid-cols-2 gap-3 mt-6">
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-2.5 mt-5">
               <button 
                 onClick={() => setIsProjectModalOpen(true)}
-                className="bg-slate-950 hover:bg-slate-800 text-white font-bold text-xs py-3 px-4 rounded-full flex items-center justify-center gap-2 shadow-xs transition-all active:scale-95 font-heading"
+                className="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors"
               >
-                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>New Project</span>
+                <Plus className="w-3.5 h-3.5" />
+                <span>New project</span>
               </button>
               
               <Link 
                 to="/invoices/new"
-                className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-3 px-4 rounded-full flex items-center justify-center gap-2 transition-all active:scale-95 font-heading"
+                className="bg-slate-100 hover:bg-slate-200/80 text-slate-800 font-semibold text-xs py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors text-center"
               >
                 <Receipt className="w-3.5 h-3.5" />
-                <span>New Invoice</span>
+                <span>New invoice</span>
               </Link>
             </div>
           </div>
 
-          {/* Nested Wallets & Portfolios Strip */}
-          <div className="mt-7 pt-5 border-t border-slate-100">
-            <div className="flex items-center justify-between text-xs mb-3">
-              <span className="font-bold text-slate-900 font-heading">Wallets & Collections</span>
-              <span className="text-slate-400 text-[11px]">Live Ledger</span>
+          {/* Cashflow Breakdown Strip */}
+          <div className="mt-6 pt-4 border-t border-slate-100">
+            <div className="flex items-center justify-between text-xs mb-2.5">
+              <span className="font-semibold text-slate-900">Cashflow status</span>
+              <span className="text-slate-400 text-[11px]">Ledger</span>
             </div>
             
             <div className="grid grid-cols-3 gap-2 text-left">
-              <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Settled</p>
-                <p className="text-xs font-black text-slate-900 mt-1 font-heading truncate">
+              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                <p className="text-[10px] font-medium text-slate-500">Settled</p>
+                <p className="text-xs font-bold text-slate-900 mt-0.5 font-heading truncate">
                   {formatShortAmount(stats.revenue)}
                 </p>
-                <span className="text-[9px] font-bold text-emerald-600 mt-1 block">Active</span>
+                <span className="text-[10px] font-medium text-emerald-600 mt-0.5 block">Active</span>
               </div>
-              <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Pending</p>
-                <p className="text-xs font-black text-slate-900 mt-1 font-heading truncate">
+              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                <p className="text-[10px] font-medium text-slate-500">Pending</p>
+                <p className="text-xs font-bold text-slate-900 mt-0.5 font-heading truncate">
                   {formatShortAmount(stats.pendingRevenue)}
                 </p>
-                <span className={`text-[9px] font-bold mt-1 block ${stats.pendingRevenue > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                  {stats.pendingRevenue > 0 ? 'Due Soon' : 'Cleared'}
+                <span className={`text-[10px] font-medium mt-0.5 block ${stats.pendingRevenue > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                  {stats.pendingRevenue > 0 ? 'Due soon' : 'Cleared'}
                 </span>
               </div>
-              <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Overdue</p>
-                <p className="text-xs font-black text-slate-900 mt-1 font-heading truncate">
+              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                <p className="text-[10px] font-medium text-slate-500">Overdue</p>
+                <p className="text-xs font-bold text-slate-900 mt-0.5 font-heading truncate">
                   {stats.overdueCount || 0}
                 </p>
-                <span className={`text-[9px] font-bold mt-1 block ${stats.overdueCount ? 'text-rose-600' : 'text-emerald-600'}`}>
-                  {stats.overdueCount ? `${stats.overdueCount} Action Req` : 'Zero'}
+                <span className={`text-[10px] font-medium mt-0.5 block ${stats.overdueCount ? 'text-rose-600' : 'text-emerald-600'}`}>
+                  {stats.overdueCount ? `${stats.overdueCount} require action` : 'None'}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Column 2: 2x2 Bento Stat Tiles (4 cols / ~33%) */}
-        <div className="lg:col-span-4 grid grid-cols-2 gap-4">
-          {/* Tile 1: Hero Radiant Orange Accent Tile (Top-Left) */}
+        {/* Column 2: 2x2 Stat Tiles (4 cols) */}
+        <div className="lg:col-span-4 grid grid-cols-2 gap-3.5">
+          {/* Tile 1: Total Earnings (Obsidian Studio Tile) */}
           <Link 
             to="/financials"
-            className="rounded-[26px] p-5 sm:p-6 bg-gradient-to-br from-[#FF5722] via-[#FF4513] to-[#F53600] text-white shadow-sm flex flex-col justify-between bento-card cursor-pointer group"
+            className="rounded-xl p-5 bg-[#101216] text-white border border-white/10 shadow-xs flex flex-col justify-between group hover:border-yellow-400/30 transition-colors"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-white/90">Total Earnings</span>
-              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center text-white text-xs">
+              <span className="text-xs font-medium text-slate-300">Total earnings</span>
+              <div className="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center text-yellow-400">
                 <Banknote className="w-4 h-4" />
               </div>
             </div>
-            <div className="my-3">
-              <p className="text-2xl sm:text-3xl font-extrabold text-white font-heading tracking-tight truncate">
+            <div className="my-2">
+              <p className="text-2xl font-bold text-white font-heading tracking-tight truncate">
                 {formatShortAmount(stats.revenue)}
               </p>
             </div>
-            <div className="inline-flex self-start items-center gap-1 text-[10px] font-bold bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full text-white">
-              {stats.thisMonthLabel || 'Live Revenue'}
+            <div className="text-[10px] font-medium text-slate-400">
+              {stats.thisMonthLabel || 'Live revenue'}
             </div>
           </Link>
 
-          {/* Tile 2: Total Spending / Invoiced (Top-Right) */}
+          {/* Tile 2: Pending Invoices */}
           <Link 
             to="/invoices"
-            className="rounded-[26px] p-5 sm:p-6 bg-white border border-slate-200/90 shadow-2xs flex flex-col justify-between bento-card group"
+            className="rounded-xl p-5 bg-white border border-slate-200/90 shadow-2xs flex flex-col justify-between group hover:border-slate-300 transition-colors"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500">Pending Billing</span>
-              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-xs">
+              <span className="text-xs font-medium text-slate-500">Pending billing</span>
+              <div className="w-7 h-7 rounded-md bg-slate-100 flex items-center justify-center text-slate-600">
                 <Receipt className="w-4 h-4" />
               </div>
             </div>
-            <div className="my-3">
-              <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading tracking-tight truncate">
+            <div className="my-2">
+              <p className="text-2xl font-bold text-slate-900 font-heading tracking-tight truncate">
                 {formatShortAmount(stats.pendingRevenue)}
               </p>
             </div>
-            <span className={`text-[10px] font-bold self-start px-2 py-0.5 rounded-full ${
+            <span className={`text-[10px] font-medium self-start px-2 py-0.5 rounded ${
               stats.overdueCount 
                 ? 'text-rose-700 bg-rose-50' 
                 : stats.pendingRevenue > 0 
                   ? 'text-amber-700 bg-amber-50' 
                   : 'text-emerald-700 bg-emerald-50'
             }`}>
-              {stats.overdueCount ? `${stats.overdueCount} overdue` : stats.pendingRevenue > 0 ? 'Due soon' : 'All Settled'}
+              {stats.overdueCount ? `${stats.overdueCount} overdue` : stats.pendingRevenue > 0 ? 'Due soon' : 'All settled'}
             </span>
           </Link>
 
-          {/* Tile 3: Total Clients (Bottom-Left) */}
+          {/* Tile 3: Active Clients */}
           <Link 
             to="/clients"
-            className="rounded-[26px] p-5 sm:p-6 bg-white border border-slate-200/90 shadow-2xs flex flex-col justify-between bento-card group"
+            className="rounded-xl p-5 bg-white border border-slate-200/90 shadow-2xs flex flex-col justify-between group hover:border-slate-300 transition-colors"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500">Active Clients</span>
-              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-xs">
+              <span className="text-xs font-medium text-slate-500">Active clients</span>
+              <div className="w-7 h-7 rounded-md bg-slate-100 flex items-center justify-center text-slate-600">
                 <Users className="w-4 h-4" />
               </div>
             </div>
-            <div className="my-3">
-              <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading tracking-tight">
+            <div className="my-2">
+              <p className="text-2xl font-bold text-slate-900 font-heading tracking-tight">
                 {stats.totalClients}
               </p>
             </div>
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 self-start px-2 py-0.5 rounded-full">
-              {stats.newClientsThisMonth ? `▲ +${stats.newClientsThisMonth} new this month` : `${stats.totalClients} Active Registered`}
+            <span className="text-[10px] font-medium text-slate-500">
+              {stats.newClientsThisMonth ? `+${stats.newClientsThisMonth} this month` : 'Total registered'}
             </span>
           </Link>
 
-          {/* Tile 4: Projects in Flight (Bottom-Right) */}
+          {/* Tile 4: Active Projects */}
           <Link 
             to="/projects"
-            className="rounded-[26px] p-5 sm:p-6 bg-white border border-slate-200/90 shadow-2xs flex flex-col justify-between bento-card group"
+            className="rounded-xl p-5 bg-white border border-slate-200/90 shadow-2xs flex flex-col justify-between group hover:border-slate-300 transition-colors"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500">Active Projects</span>
-              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-xs">
+              <span className="text-xs font-medium text-slate-500">Active projects</span>
+              <div className="w-7 h-7 rounded-md bg-slate-100 flex items-center justify-center text-slate-600">
                 <Briefcase className="w-4 h-4" />
               </div>
             </div>
-            <div className="my-3">
-              <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading tracking-tight">
+            <div className="my-2">
+              <p className="text-2xl font-bold text-slate-900 font-heading tracking-tight">
                 {stats.activeProjects}
               </p>
             </div>
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 self-start px-2 py-0.5 rounded-full truncate">
-              {stats.allProjects} Total Deliverables
+            <span className="text-[10px] font-medium text-slate-500 truncate">
+              {stats.allProjects} total deliverables
             </span>
           </Link>
         </div>
 
-        {/* Column 3: Minimalist Interactive Bar Chart (4 cols / ~33%) */}
-        <div className="lg:col-span-4 bg-white rounded-[28px] p-6 sm:p-7 border border-slate-200/90 shadow-2xs bento-card flex flex-col justify-between">
+        {/* Column 3: 6-Month Income Chart (4 cols) */}
+        <div className="lg:col-span-4 bg-white rounded-xl p-5 sm:p-6 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-1">
-              <h3 className="text-base font-extrabold text-slate-900 font-heading">Total Income</h3>
-              <div className="flex items-center gap-3 text-[11px] font-bold">
-                <span className="flex items-center gap-1.5 text-slate-800">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#FF5722]"></span> Revenue
+              <h3 className="text-sm font-semibold text-slate-950 font-heading">Income breakdown</h3>
+              <div className="flex items-center gap-3 text-xs font-medium">
+                <span className="flex items-center gap-1.5 text-slate-900">
+                  <span className="w-2 h-2 rounded-full bg-yellow-400"></span> Current
                 </span>
                 <span className="flex items-center gap-1.5 text-slate-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-slate-900"></span> Previous
+                  <span className="w-2 h-2 rounded-full bg-slate-800"></span> Previous
                 </span>
               </div>
             </div>
-            <p className="text-xs text-slate-400 font-medium">Past 6 months cashflow breakdown</p>
+            <p className="text-xs text-slate-500">Past 6 months cashflow</p>
           </div>
 
-          {/* Interactive Bar Graph */}
-          <div className="my-6">
-            <div className="h-36 flex items-end justify-between gap-3 px-2 border-b border-slate-100 pb-2">
+          {/* Clean Bar Graph */}
+          <div className="my-5">
+            <div className="h-32 flex items-end justify-between gap-3 px-1 border-b border-slate-100 pb-2">
               {monthlyChartData.map((d, idx) => {
                 const isHovered = hoveredBarIndex === idx;
                 return (
@@ -650,22 +646,22 @@ export default function AdminDashboard() {
                     onMouseLeave={() => setHoveredBarIndex(null)}
                   >
                     <div 
-                      className={`w-full rounded-t-lg transition-all animate-bar relative ${
+                      className={`w-full rounded-t transition-all animate-bar relative ${
                         d.isHero 
-                          ? 'bg-gradient-to-t from-orange-500 to-[#FF5722] shadow-xs group-hover:scale-105' 
-                          : 'bg-slate-900 group-hover:bg-slate-700'
+                          ? 'bg-yellow-400 hover:bg-yellow-300' 
+                          : 'bg-slate-800 hover:bg-slate-700'
                       }`}
-                      style={{ height: `${Math.max(6, d.height)}%` }}
+                      style={{ height: `${Math.max(8, d.height)}%` }}
                     >
-                      {/* Floating tooltip */}
-                      <span className={`absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow-sm transition-opacity whitespace-nowrap font-heading ${
+                      {/* Tooltip on hover */}
+                      <span className={`absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded shadow-sm transition-opacity whitespace-nowrap pointer-events-none ${
                         isHovered || d.isHero ? 'opacity-100' : 'opacity-0'
                       }`}>
                         {d.value}
                       </span>
                     </div>
-                    <span className={`text-[10px] font-bold mt-1 font-heading ${
-                      d.isHero ? 'text-slate-900 font-extrabold' : 'text-slate-400'
+                    <span className={`text-[10px] font-medium mt-1 ${
+                      d.isHero ? 'text-slate-900 font-bold' : 'text-slate-400'
                     }`}>
                       {d.month}
                     </span>
@@ -675,68 +671,66 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
+          <div className="flex items-center justify-between text-xs text-slate-500">
             <span>{stats.ytd?.label || 'YTD Growth: 0%'}</span>
-            <Link to="/reports" className="text-slate-800 hover:text-slate-950 font-bold flex items-center gap-1 font-heading">
-              <span>Financial Reports</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+            <Link to="/reports" className="text-slate-900 hover:text-slate-700 font-semibold flex items-center gap-1">
+              <span>Financial reports</span>
             </Link>
           </div>
         </div>
 
       </div>
 
-      {/* Bento Grid Row 2 (Bottom Row: Target Card + Recent Activities Table) */}
+      {/* Grid Row 2 (Bottom Row: Target Card + Recent Activities Table) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-        {/* Monthly Target & Deadlines (4 cols / ~33%) */}
-        <div className="lg:col-span-4 bg-white rounded-[28px] p-6 sm:p-7 border border-slate-200/90 shadow-2xs bento-card flex flex-col justify-between">
+        {/* Project Target & Deadlines (4 cols) */}
+        <div className="lg:col-span-4 bg-white rounded-xl p-5 sm:p-6 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-extrabold text-slate-900 font-heading">Project Delivery Target</h3>
-              <span className="text-xs font-bold text-slate-400">Current Sprint</span>
+              <h3 className="text-sm font-semibold text-slate-950 font-heading">Deliverables progress</h3>
+              <span className="text-xs text-slate-400">Current sprint</span>
             </div>
 
-            {/* Striped Progress Bar */}
-            <div className="w-full h-3.5 bg-slate-100 rounded-full overflow-hidden flex items-center p-0.5">
+            {/* Progress Bar */}
+            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex items-center">
               <div 
-                className="h-full bg-gradient-to-r from-orange-500 to-[#FF5722] rounded-full transition-all duration-1000" 
+                className="h-full bg-yellow-400 rounded-full transition-all duration-700" 
                 style={{ width: `${targetPercentage}%` }}
               />
-              <div className="h-full flex-1 rounded-r-full striped-bar" />
             </div>
 
-            <div className="flex items-center justify-between mt-3 text-xs">
-              <span className="font-extrabold text-slate-900 font-heading">
-                {targetPercentage}% <span className="text-slate-400 font-normal font-sans">
-                  {stats.totalTasks ? `${stats.completedTasks || 0}/${stats.totalTasks} tasks completed` : 'milestones completed'}
+            <div className="flex items-center justify-between mt-2.5 text-xs">
+              <span className="font-semibold text-slate-900">
+                {targetPercentage}% <span className="text-slate-400 font-normal">
+                  {stats.totalTasks ? `(${stats.completedTasks || 0}/${stats.totalTasks} tasks)` : 'milestones'}
                 </span>
               </span>
-              <span className="font-bold text-slate-500 font-heading">
-                {stats.activeProjects} In Flight
+              <span className="text-slate-500">
+                {stats.activeProjects} in flight
               </span>
             </div>
 
             {/* Upcoming Deadlines Subsection */}
-            <div className="mt-6 pt-5 border-t border-slate-100 space-y-3">
+            <div className="mt-5 pt-4 border-t border-slate-100 space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-900 font-heading flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Upcoming Deadlines</span>
+                <span className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-yellow-600" />
+                  <span>Upcoming deadlines</span>
                 </span>
-                <Link to="/projects" className="text-[11px] font-bold text-amber-600 hover:text-amber-700">
-                  View All
+                <Link to="/projects" className="text-xs font-semibold text-yellow-600 hover:text-yellow-700">
+                  View all
                 </Link>
               </div>
 
               {deadlines.length === 0 ? (
-                <div className="text-center py-4 bg-slate-50/80 rounded-2xl border border-slate-100">
+                <div className="text-center py-4 bg-slate-50 rounded-lg border border-slate-100">
                   <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
-                  <p className="text-xs font-bold text-slate-700">All caught up</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">No urgent deadlines due this week.</p>
+                  <p className="text-xs font-semibold text-slate-700">No overdue deliverables</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">All tasks are on track for this sprint.</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {deadlines.slice(0, 3).map((item) => {
                     const isOverdue = item.daysRemaining < 0;
                     const isToday = item.daysRemaining === 0;
@@ -745,10 +739,10 @@ export default function AdminDashboard() {
                       <Link
                         key={`${item.type}-${item.id}`}
                         to={item.link}
-                        className="group flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/70 transition-all text-xs"
+                        className="group flex items-center justify-between p-2 rounded-lg border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-colors text-xs"
                       >
                         <div className="min-w-0 pr-2">
-                          <p className="font-bold text-slate-800 truncate group-hover:text-amber-600 transition-colors">
+                          <p className="font-medium text-slate-800 truncate group-hover:text-yellow-600 transition-colors">
                             {item.title}
                           </p>
                           {item.subtitle && (
@@ -756,14 +750,14 @@ export default function AdminDashboard() {
                           )}
                         </div>
 
-                        <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded ${
                           isOverdue 
-                            ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-200' 
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200' 
                             : isToday 
-                              ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
-                              : 'bg-slate-100 text-slate-700'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-slate-100 text-slate-600'
                         }`}>
-                          {isOverdue ? `${Math.abs(item.daysRemaining)}d overdue` : isToday ? 'Due Today' : `${item.daysRemaining}d`}
+                          {isOverdue ? `${Math.abs(item.daysRemaining)}d overdue` : isToday ? 'Due today' : `${item.daysRemaining}d`}
                         </span>
                       </Link>
                     );
@@ -773,25 +767,25 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
             <button 
               onClick={() => setIsTeamModalOpen(true)}
-              className="font-bold text-slate-700 hover:text-slate-950 flex items-center gap-1.5 transition-colors"
+              className="font-semibold text-slate-700 hover:text-slate-950 flex items-center gap-1.5 transition-colors"
             >
-              <UserPlus className="w-3.5 h-3.5 text-amber-500" />
-              <span>Add Team Member</span>
+              <UserPlus className="w-3.5 h-3.5 text-yellow-600" />
+              <span>Add team member</span>
             </button>
-            <span className="text-[11px] text-slate-400">Team Admin</span>
+            <span className="text-[11px] text-slate-400">Team</span>
           </div>
         </div>
 
-        {/* Column 2: Recent Activities & Audit Trail Table (8 cols / ~67%) */}
-        <div className="lg:col-span-8 bg-white rounded-[28px] p-6 sm:p-7 border border-slate-200/90 shadow-2xs bento-card flex flex-col justify-between">
+        {/* Column 2: Recent Activities Table (8 cols) */}
+        <div className="lg:col-span-8 bg-white rounded-xl p-5 sm:p-6 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
           <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
-                <h3 className="text-base font-extrabold text-slate-900 font-heading">Recent Activities</h3>
-                <p className="text-xs text-slate-400 font-medium">Real-time audit log of operations and financials</p>
+                <h3 className="text-sm font-semibold text-slate-950 font-heading">Recent activity</h3>
+                <p className="text-xs text-slate-500">Live operational events and updates</p>
               </div>
               
               {/* Table search filter */}
@@ -799,10 +793,10 @@ export default function AdminDashboard() {
                 <div className="relative">
                   <input 
                     type="text" 
-                    placeholder="Search activity..." 
+                    placeholder="Filter activity..." 
                     value={activitySearch}
                     onChange={(e) => setActivitySearch(e.target.value)}
-                    className="bg-slate-100/90 border-none rounded-full pl-8 pr-3 py-1.5 text-xs focus:ring-2 focus:ring-slate-900 outline-none w-48 font-medium text-slate-900"
+                    className="bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1 text-xs focus:ring-1 focus:ring-yellow-400 focus:outline-none w-48 text-slate-900"
                   />
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
                 </div>
@@ -812,27 +806,27 @@ export default function AdminDashboard() {
             {/* Activities Table */}
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="text-slate-400 font-bold border-b border-slate-100 pb-2">
+                <thead className="text-slate-400 font-semibold border-b border-slate-100">
                   <tr>
-                    <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">Event</th>
-                    <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">Type</th>
-                    <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">Author</th>
-                    <th className="pb-3 font-semibold text-right uppercase tracking-wider text-[10px]">Time</th>
+                    <th className="pb-2.5 font-medium">Event</th>
+                    <th className="pb-2.5 font-medium">Type</th>
+                    <th className="pb-2.5 font-medium">Author</th>
+                    <th className="pb-2.5 font-medium text-right">Time</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50 font-medium">
+                <tbody className="divide-y divide-slate-50">
                   {isLoading ? (
                     <tr>
                       <td colSpan={4} className="py-8 text-center text-slate-400">
-                        <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-1 text-amber-500" />
+                        <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-1 text-yellow-500" />
                         <span>Loading activities...</span>
                       </td>
                     </tr>
                   ) : filteredActivities.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="py-8 text-center text-slate-400">
-                        <Inbox className="w-6 h-6 mx-auto mb-1 opacity-40" />
-                        <span>No activities found</span>
+                        <Inbox className="w-5 h-5 mx-auto mb-1 opacity-40" />
+                        <span>No recent activities</span>
                       </td>
                     </tr>
                   ) : (
@@ -841,26 +835,24 @@ export default function AdminDashboard() {
                       const author = activity.user?.displayName || activity.user?.name || 'System';
 
                       return (
-                        <tr key={activity.id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="py-3.5 text-slate-800 font-bold max-w-[280px] truncate">
-                            <span className="hover:text-amber-600 transition-colors cursor-pointer">
-                              {activity.action}
-                            </span>
+                        <tr key={activity.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3 text-slate-800 font-medium max-w-[280px] truncate">
+                            {activity.action}
                           </td>
-                          <td className="py-3.5">
-                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${meta.badge}`}>
+                          <td className="py-3">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${meta.badge}`}>
                               {meta.tag}
                             </span>
                           </td>
-                          <td className="py-3.5 text-slate-600">
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-5 h-5 rounded-full bg-slate-950 text-white font-bold text-[9px] flex items-center justify-center font-heading">
+                          <td className="py-3 text-slate-600">
+                            <div className="flex items-center gap-2">
+                              <div className="w-5 h-5 rounded-full bg-slate-900 text-white font-bold text-[9px] flex items-center justify-center">
                                 {author.slice(0, 2).toUpperCase()}
                               </div>
                               <span className="truncate max-w-[120px]">{author}</span>
                             </div>
                           </td>
-                          <td className="py-3.5 text-right text-slate-400 font-medium">
+                          <td className="py-3 text-right text-slate-400">
                             {formatTimeAgo(activity.createdAt)}
                           </td>
                         </tr>
@@ -872,10 +864,10 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-            <span>Showing {Math.min(6, filteredActivities.length)} of {activities.length} recent events</span>
-            <Link to="/activity" className="font-bold text-slate-800 hover:text-slate-950 font-heading">
-              Full Activity Log →
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+            <span>Showing {Math.min(6, filteredActivities.length)} of {activities.length} events</span>
+            <Link to="/activity" className="font-semibold text-slate-800 hover:text-slate-950">
+              Full activity log
             </Link>
           </div>
         </div>

@@ -8,7 +8,7 @@ export default function AdminLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 antialiased selection:bg-amber-400 selection:text-slate-950">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#101216] text-slate-100 antialiased selection:bg-yellow-400 selection:text-slate-950">
       <AdminTopbar 
         onMenuToggle={() => setMobileMenuOpen(prev => !prev)} 
         isMenuOpen={mobileMenuOpen} 
@@ -18,7 +18,7 @@ export default function AdminLayout() {
           mobileOpen={mobileMenuOpen} 
           onCloseMobile={() => setMobileMenuOpen(false)} 
         />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#F2F4F7] text-slate-900 rounded-tl-2xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.04)] transition-all">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#F8F9FB] text-slate-900">
           <div className="max-w-7xl mx-auto">
             <ErrorBoundary>
               <Outlet />

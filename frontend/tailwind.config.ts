@@ -43,6 +43,16 @@ export default {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+        studio: {
+          dark: "#101216",
+          surface: "#181B20",
+          elevated: "#22262E",
+          border: "#2A2F39",
+          yellow: "#FACC15",
+          amber: "#F59E0B",
+          canvas: "#F8F9FB",
+          muted: "#64748B",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -50,7 +60,8 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ['"Montserrat"', 'system-ui', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['"Space Grotesk"', 'sans-serif'],
         heading: ['"Space Grotesk"', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'monospace'],
       },
