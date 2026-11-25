@@ -110,7 +110,7 @@ export default function TeamProjectDetailsPage() {
         <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 rounded-xl text-sm">
           {error || 'Project not found.'}
         </div>
-        <Link to="/team/projects" className="btn-secondary text-xs inline-flex items-center gap-1.5">
+        <Link to="/projects" className="btn-secondary text-xs inline-flex items-center gap-1.5">
           <ArrowLeft className="w-4 h-4" /> Back to My Projects
         </Link>
       </div>
@@ -129,7 +129,7 @@ export default function TeamProjectDetailsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/60 pb-5">
         <div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5 font-medium">
-            <Link to="/team/projects" className="hover:text-primary transition-colors flex items-center gap-1">
+            <Link to="/projects" className="hover:text-primary transition-colors flex items-center gap-1">
               <ArrowLeft className="w-3.5 h-3.5" /> My Projects
             </Link>
             <span>/</span>

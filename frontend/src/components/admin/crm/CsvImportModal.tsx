@@ -107,7 +107,7 @@ export function CsvImportModal({ isOpen, onClose, onImportComplete, defaultType 
 
   useEffect(() => {
     if (isOpen) {
-      fetch('/api/team')
+      fetch('/api/lookups/team')
         .then(r => r.json())
         .then(data => {
           if (Array.isArray(data)) setTeamMembers(data);

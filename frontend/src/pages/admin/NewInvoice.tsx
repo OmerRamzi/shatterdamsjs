@@ -10,8 +10,8 @@ export default function AdminNewInvoicePage() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/clients').then(res => res.json()),
-      fetch('/api/projects').then(res => res.json())
+      fetch('/api/lookups/clients').then(res => res.json()),
+      fetch('/api/lookups/projects').then(res => res.json())
     ])
     .then(([clientsData, projectsData]) => {
       setClients(clientsData || []);

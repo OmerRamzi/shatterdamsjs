@@ -15,8 +15,8 @@ export default function AdminEditQuotePage() {
   useEffect(() => {
     if (!isNaN(quoteId)) {
       Promise.all([
-        fetch('/api/clients').then(res => res.json()),
-        fetch('/api/projects').then(res => res.json()),
+        fetch('/api/lookups/clients').then(res => res.json()),
+        fetch('/api/lookups/projects').then(res => res.json()),
         fetch(`/api/quotes/${quoteId}`).then(res => res.ok ? res.json() : null)
       ])
       .then(([clientsData, projectsData, qData]) => {

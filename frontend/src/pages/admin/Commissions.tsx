@@ -4,7 +4,9 @@ import { useAuth } from "../../context/AuthContext";
 import { IntegrationSettingsModal } from "../../components/admin/IntegrationSettingsModal";
 
 const AdminCommissionsPage = () => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canManage = hasPermission('commissions', 'manage');
+  const canFull = hasPermission('commissions', 'full');
   const [commissions, setCommissions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -67,7 +69,7 @@ const AdminCommissionsPage = () => {
       }
 
       if (clients.length === 0) {
-        const resClients = await fetch("/api/clients");
+        const resClients = await fetch("/api/lookups/clients");
         if (resClients.ok) {
           const cData = await resClients.json();
           setClients(Array.isArray(cData) ? cData : (cData?.data || []));
@@ -137,12 +139,16 @@ const AdminCommissionsPage = () => {
           <p className="text-muted-foreground mt-1">Track external referrals and API webhook payloads.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setIsWebhookModalOpen(true)} className="btn-secondary flex items-center gap-2">
-            <Link2 className="w-4 h-4" /> Integrations
-          </button>
-          <button onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Add Record
-          </button>
+          {canFull && (
+            <button onClick={() => setIsWebhookModalOpen(true)} className="btn-secondary flex items-center gap-2">
+              <Link2 className="w-4 h-4" /> Integrations
+            </button>
+          )}
+          {canManage && (
+            <button onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2">
+              <Plus className="w-4 h-4" /> Add Record
+            </button>
+          )}
         </div>
       </div>
 

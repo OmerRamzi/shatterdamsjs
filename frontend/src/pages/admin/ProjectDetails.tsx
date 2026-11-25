@@ -9,6 +9,7 @@ import { ProjectMilestones } from '../../components/admin/project/ProjectMilesto
 import { TaskModal } from '../../components/admin/project/TaskModal';
 import { TaskDetailModal } from '../../components/admin/project/TaskDetailModal';
 import { ProjectAISidepanel } from '../../components/admin/project/ProjectAISidepanel';
+import { useAuth } from '../../context/AuthContext';
 import type { Task, Milestone, TeamMember } from '../../components/admin/project/types';
 import { 
   File as FileIcon, 
@@ -27,6 +28,9 @@ import {
 } from 'lucide-react';
 
 export default function AdminProjectDetailsPage() {
+  const { hasPermission } = useAuth();
+  const canManageProject = hasPermission('projects', 'manage');
+  const canManageTasks = canManageProject || hasPermission('tasks', 'manage');
   const { id } = useParams<{ id: string }>();
   const projectId = parseInt(id || '');
 
@@ -189,23 +193,27 @@ export default function AdminProjectDetailsPage() {
 
           {/* Quick Header Actions with Shatter Yellow & Dark Luxury */}
           <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-            <button
-              id="ai-assistant-toggle-btn"
-              onClick={handleOpenAIAssistant}
-              className="px-4 py-2.5 rounded-full text-xs font-bold bg-slate-950 hover:bg-slate-800 text-[#FACC15] border border-yellow-400/30 hover:border-yellow-400 shadow-xs hover:shadow-md flex items-center gap-2 transition-all active:scale-95 font-heading"
-              title="Launch AI Project Copilot"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-[#FACC15] animate-pulse" />
-              <span>AI Copilot</span>
-            </button>
+            {canManageProject && (
+              <button
+                id="ai-assistant-toggle-btn"
+                onClick={handleOpenAIAssistant}
+                className="px-4 py-2.5 rounded-full text-xs font-bold bg-slate-950 hover:bg-slate-800 text-[#FACC15] border border-yellow-400/30 hover:border-yellow-400 shadow-xs hover:shadow-md flex items-center gap-2 transition-all active:scale-95 font-heading"
+                title="Launch AI Project Copilot"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#FACC15] animate-pulse" />
+                <span>AI Copilot</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => openCreateTask('todo')}
-              className="bg-[#FACC15] hover:bg-yellow-400 text-slate-950 font-extrabold text-xs py-2.5 px-5 rounded-full flex items-center gap-2 shadow-xs hover:shadow transition-all active:scale-95 font-heading"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>New Task</span>
-            </button>
+            {canManageTasks && (
+              <button
+                onClick={() => openCreateTask('todo')}
+                className="bg-[#FACC15] hover:bg-yellow-400 text-slate-950 font-extrabold text-xs py-2.5 px-5 rounded-full flex items-center gap-2 shadow-xs hover:shadow transition-all active:scale-95 font-heading"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>New Task</span>
+              </button>
+            )}
           </div>
         </div>
 

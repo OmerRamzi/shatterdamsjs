@@ -1,9 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Send, CheckCircle, Loader2, Copy, FileText, XCircle } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 export function QuoteActions({ quoteId, currentStatus, convertedToInvoiceId, onStatusUpdate }: { quoteId: number, currentStatus: string, convertedToInvoiceId?: number, onStatusUpdate?: () => void }) {
+  const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  const canManageQuotes = hasPermission('quotes', 'manage');
+  const canCreateInvoice = hasPermission('invoices', 'manage');
   const [isSending, setIsSending] = useState(false);
   const [isMarking, setIsMarking] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
@@ -68,7 +74,7 @@ export function QuoteActions({ quoteId, currentStatus, convertedToInvoiceId, onS
       if (!res.ok) throw new Error("Failed to convert quote");
       const data = await res.json();
       if (data.invoiceId) {
-        window.location.href = `/admin/invoices/${data.invoiceId}`;
+        navigate(`/invoices/${data.invoiceId}`);
       } else {
         if (onStatusUpdate) onStatusUpdate();
       }
@@ -87,7 +93,7 @@ export function QuoteActions({ quoteId, currentStatus, convertedToInvoiceId, onS
       if (!res.ok) throw new Error("Failed to duplicate quote");
       const data = await res.json();
       if (data.quoteId) {
-        window.location.href = `/admin/quotes/${data.quoteId}`;
+        navigate(`/quotes/${data.quoteId}`);
       } else {
         if (onStatusUpdate) onStatusUpdate();
       }
@@ -103,9 +109,11 @@ export function QuoteActions({ quoteId, currentStatus, convertedToInvoiceId, onS
     setConfirmModal({ isOpen: true, title, message, onConfirm });
   };
 
-  const canSend = currentStatus === 'draft' || currentStatus === 'sent';
-  const canAccept = currentStatus === 'sent';
-  const canConvert = currentStatus === 'accepted' && !convertedToInvoiceId;
+  const canSend = canManageQuotes && (currentStatus === 'draft' || currentStatus === 'sent');
+  const canAccept = canManageQuotes && currentStatus === 'sent';
+  const canConvert = canManageQuotes && canCreateInvoice && currentStatus === 'accepted' && !convertedToInvoiceId;
+
+  if (!canManageQuotes) return null;
 
   return (
     <>

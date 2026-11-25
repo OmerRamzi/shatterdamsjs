@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, CheckSquare, Pencil, Trash2 } from "lucide-react";
 import { TaskModal } from "../../components/admin/TaskModal";
+import { useAuth } from "../../context/AuthContext";
 
 export default function AdminTasksPage() {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('tasks', 'manage');
+  const canDelete = hasPermission('tasks', 'full');
   const [tasks, setTasks] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [team, setTeam] = useState<any[]>([]);
@@ -17,8 +21,8 @@ export default function AdminTasksPage() {
     try {
       const [tasksRes, projectsRes, teamRes] = await Promise.all([
         fetch('/api/tasks'),
-        fetch('/api/projects'),
-        fetch('/api/team')
+        fetch('/api/lookups/projects'),
+        fetch('/api/lookups/team')
       ]);
       const tasksData = await tasksRes.json();
       const projectsData = await projectsRes.json();
@@ -81,10 +85,12 @@ export default function AdminTasksPage() {
           <h2 className="text-3xl font-bold tracking-tight">Tasks</h2>
           <p className="text-muted-foreground mt-1">Manage and track organization tasks.</p>
         </div>
-        <button onClick={handleAdd} className="btn-primary">
-          <Plus className="w-4 h-4" />
-          Create Task
-        </button>
+        {canManage && (
+          <button onClick={handleAdd} className="btn-primary">
+            <Plus className="w-4 h-4" />
+            Create Task
+          </button>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
@@ -160,20 +166,24 @@ export default function AdminTasksPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => handleEdit(task)}
-                          className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
-                          title="Edit Task"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(task.id)}
-                          className="text-muted-foreground hover:text-destructive p-1.5 rounded hover:bg-destructive/10 transition-colors"
-                          title="Delete Task"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canManage && (
+                          <button 
+                            onClick={() => handleEdit(task)}
+                            className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
+                            title="Edit Task"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button 
+                            onClick={() => handleDelete(task.id)}
+                            className="text-muted-foreground hover:text-destructive p-1.5 rounded hover:bg-destructive/10 transition-colors"
+                            title="Delete Task"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

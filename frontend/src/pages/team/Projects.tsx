@@ -51,7 +51,7 @@ export default function TeamProjectsPage() {
                 projectsData.map(({ project, client }) => (
                   <tr key={project.id} className="hover:bg-secondary/20 transition-colors">
                     <td className="px-6 py-4">
-                      <Link to={`/team/projects/${project.id}`} className="font-medium hover:text-primary transition-colors">
+                      <Link to={`/projects/${project.id}`} className="font-medium hover:text-primary transition-colors">
                         {project.title}
                       </Link>
                     </td>

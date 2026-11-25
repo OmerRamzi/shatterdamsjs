@@ -1,13 +1,14 @@
 import { Hono } from 'hono';
-import { requireAuth, requireAdmin } from '../middleware';
+import { requireAuth, requirePermission } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, and, ne, inArray, desc, isNull, lt, sql } from 'drizzle-orm';
 import { Resend } from 'resend';
 import { calculateSubtotal, calculateTotal, calculateLineItemAmount, addAmounts, isFullyPaid } from '../lib/calculations';
 import { canTransitionInvoice, InvoiceStatus } from '../lib/statusMachine';
 import { generateUploadUrl } from '../lib/storage';
+import { AuthUser, hasPermission } from '../lib/permissions';
 
-const invoicesRoutes = new Hono<{ Bindings: { DATABASE_URL: string, RESEND_API_KEY: string }, Variables: { user: any, db: any } }>();
+const invoicesRoutes = new Hono<{ Bindings: { DATABASE_URL: string, RESEND_API_KEY: string }, Variables: { user: AuthUser, db: any } }>();
 
 invoicesRoutes.use('*', requireAuth);
 
@@ -29,7 +30,7 @@ export async function generateInvoiceNumber(tx: any, tenantId: number) {
   return `${prefix}${sequence.toString().padStart(4, '0')}`;
 }
 
-invoicesRoutes.get('/', requireAdmin, async (c) => {
+invoicesRoutes.get('/', requirePermission('invoices', 'view'), async (c) => {
   const user = c.get('user');
   const clientId = c.req.query('client_id');
   const search = c.req.query('search');
@@ -159,7 +160,7 @@ invoicesRoutes.get('/', requireAdmin, async (c) => {
   }
 });
 
-invoicesRoutes.get('/overdue', requireAdmin, async (c) => {
+invoicesRoutes.get('/overdue', requirePermission('invoices', 'view'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   
@@ -186,7 +187,7 @@ invoicesRoutes.get('/overdue', requireAdmin, async (c) => {
   }
 });
 
-invoicesRoutes.post('/', requireAdmin, async (c) => {
+invoicesRoutes.post('/', requirePermission('invoices', 'manage'), async (c) => {
   const admin = c.get('user');
   const data = await c.req.json();
   const db = c.get('db');
@@ -280,10 +281,12 @@ invoicesRoutes.get('/:id', async (c) => {
     }
 
     if (user.role === 'client') {
-      const [clientRecord] = await db.select().from(schema.clients).where(eq(schema.clients.userId, parseInt(user.sub as string))).limit(1);
+      const [clientRecord] = await db.select().from(schema.clients).where(and(eq(schema.clients.userId, user.id), eq(schema.clients.tenantId, user.tenantId))).limit(1);
       if (!clientRecord || invoiceData.clientId !== clientRecord.id) {
         return c.json({ error: 'Unauthorized' }, 403);
       }
+    } else if (!hasPermission(user, 'invoices', 'view')) {
+      return c.json({ error: "Forbidden: Requires 'invoices' (view) access" }, 403);
     }
 
     const items = await db.select().from(schema.invoiceItems).where(eq(schema.invoiceItems.invoiceId, invoiceId));
@@ -310,7 +313,7 @@ invoicesRoutes.get('/:id', async (c) => {
   }
 });
 
-invoicesRoutes.post('/:id/send', requireAdmin, async (c) => {
+invoicesRoutes.post('/:id/send', requirePermission('invoices', 'manage'), async (c) => {
   const admin = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
   const db = c.get('db');
@@ -622,7 +625,7 @@ invoicesRoutes.post('/:id/send', requireAdmin, async (c) => {
   }
 });
 
-invoicesRoutes.patch('/:id/paid', requireAdmin, async (c) => {
+invoicesRoutes.patch('/:id/paid', requirePermission('invoices', 'manage'), async (c) => {
   const admin = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
   const db = c.get('db');
@@ -678,7 +681,7 @@ invoicesRoutes.patch('/:id/paid', requireAdmin, async (c) => {
   }
 });
 
-invoicesRoutes.put('/:id', requireAdmin, async (c) => {
+invoicesRoutes.put('/:id', requirePermission('invoices', 'manage'), async (c) => {
   const admin = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
   const data = await c.req.json();
@@ -756,7 +759,7 @@ invoicesRoutes.put('/:id', requireAdmin, async (c) => {
   }
 });
 
-invoicesRoutes.post('/:id/duplicate', requireAdmin, async (c) => {
+invoicesRoutes.post('/:id/duplicate', requirePermission('invoices', 'manage'), async (c) => {
   const admin = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
   const db = c.get('db');
@@ -821,7 +824,7 @@ invoicesRoutes.post('/:id/duplicate', requireAdmin, async (c) => {
   }
 });
 
-invoicesRoutes.delete('/:id', requireAdmin, async (c) => {
+invoicesRoutes.delete('/:id', requirePermission('invoices', 'full'), async (c) => {
   const admin = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
   const db = c.get('db');
@@ -847,7 +850,7 @@ invoicesRoutes.delete('/:id', requireAdmin, async (c) => {
   }
 });
 
-invoicesRoutes.post('/:id/payment-proof', requireAdmin, async (c) => {
+invoicesRoutes.post('/:id/payment-proof', requirePermission('invoices', 'manage'), async (c) => {
   const admin = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
   const db = c.get('db');
@@ -877,7 +880,7 @@ invoicesRoutes.post('/:id/payment-proof', requireAdmin, async (c) => {
   }
 });
 
-invoicesRoutes.post('/:id/payment-proof/confirm', requireAdmin, async (c) => {
+invoicesRoutes.post('/:id/payment-proof/confirm', requirePermission('invoices', 'manage'), async (c) => {
   const admin = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
   const data = await c.req.json();
@@ -899,7 +902,7 @@ invoicesRoutes.post('/:id/payment-proof/confirm', requireAdmin, async (c) => {
   }
 });
 
-invoicesRoutes.get('/:id/payment-proofs', requireAdmin, async (c) => {
+invoicesRoutes.get('/:id/payment-proofs', requirePermission('invoices', 'view'), async (c) => {
   const admin = c.get('user');
   const invoiceId = parseInt(c.req.param('id'));
   const db = c.get('db');

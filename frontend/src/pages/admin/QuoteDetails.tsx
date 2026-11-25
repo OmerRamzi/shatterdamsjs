@@ -76,7 +76,7 @@ export default function AdminQuoteDetailsPage() {
               </span>
               
               {quote.convertedToInvoiceId && (
-                <Link to={`/admin/invoices/${quote.convertedToInvoiceId}`} className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-500/10 px-2 py-1 rounded-full hover:bg-emerald-500/20 transition-colors">
+                <Link to={`/invoices/${quote.convertedToInvoiceId}`} className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-500/10 px-2 py-1 rounded-full hover:bg-emerald-500/20 transition-colors">
                   <FileText className="w-3.5 h-3.5" /> Converted to Invoice
                 </Link>
               )}
@@ -217,7 +217,7 @@ export default function AdminQuoteDetailsPage() {
               {quote.convertedToInvoiceId && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Converted</span>
-                  <Link to={`/admin/invoices/${quote.convertedToInvoiceId}`} className="text-emerald-600 hover:underline">
+                  <Link to={`/invoices/${quote.convertedToInvoiceId}`} className="text-emerald-600 hover:underline">
                     View Invoice
                   </Link>
                 </div>

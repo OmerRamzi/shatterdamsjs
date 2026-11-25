@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Send, CheckCircle, Loader2, Copy, XCircle, BellRing } from "lucide-react";
 import { PaymentModal } from "./PaymentModal";
 import { SendInvoiceModal } from "./SendInvoiceModal";
+import { useAuth } from "../../context/AuthContext";
 
 export function InvoiceActions({ 
   invoiceId, 
@@ -23,6 +25,9 @@ export function InvoiceActions({
   invoiceData?: any;
   onStatusUpdate?: () => void;
 }) {
+  const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('invoices', 'manage');
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -47,7 +52,7 @@ export function InvoiceActions({
       if (!res.ok) throw new Error("Failed to duplicate invoice");
       const data = await res.json();
       if (data.invoiceId) {
-        window.location.href = `/admin/invoices/${data.invoiceId}`;
+        navigate(`/invoices/${data.invoiceId}`);
       } else {
         if (onStatusUpdate) onStatusUpdate();
       }
@@ -77,6 +82,8 @@ export function InvoiceActions({
       setIsCancelling(false);
     }
   };
+
+  if (!canManage) return null;
 
   return (
     <>

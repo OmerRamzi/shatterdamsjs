@@ -3,8 +3,12 @@ import { Link } from 'react-router-dom';
 import { Plus, Search, Building2, Pencil, Trash2, Eye } from "lucide-react";
 import { ActivateClientButton } from "../../components/ui/ActivateClientButton";
 import { ClientModal } from "../../components/admin/ClientModal";
+import { useAuth } from "../../context/AuthContext";
 
 export default function AdminClientsPage() {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('clients', 'manage');
+  const canFull = hasPermission('clients', 'full');
   const [clients, setClients] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -57,10 +61,12 @@ export default function AdminClientsPage() {
           <h2 className="text-3xl font-bold tracking-tight">Clients</h2>
           <p className="text-muted-foreground mt-1">Manage your clients and their portal access.</p>
         </div>
-        <button onClick={handleAdd} className="btn-primary">
-          <Plus className="w-4 h-4" />
-          Add Client
-        </button>
+        {canManage && (
+          <button onClick={handleAdd} className="btn-primary">
+            <Plus className="w-4 h-4" />
+            Add Client
+          </button>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
@@ -119,9 +125,15 @@ export default function AdminClientsPage() {
                     <td className="px-6 py-4 text-muted-foreground">{client.contactPerson || "-"}</td>
                     <td className="px-6 py-4">
                       {!client.userId ? (
-                        <div onClick={fetchClients}>
-                          <ActivateClientButton clientId={client.id} />
-                        </div>
+                        canFull ? (
+                          <div onClick={fetchClients}>
+                            <ActivateClientButton clientId={client.id} />
+                          </div>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600">
+                            Unactivated
+                          </span>
+                        )
                       ) : (
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                           client.status === 'active' 
@@ -144,20 +156,24 @@ export default function AdminClientsPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
-                        <button 
-                          onClick={() => handleEdit(client)}
-                          className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
-                          title="Edit Client"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(client.id)}
-                          className="text-muted-foreground hover:text-destructive p-1.5 rounded hover:bg-destructive/10 transition-colors"
-                          title="Delete Client"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canManage && (
+                          <button 
+                            onClick={() => handleEdit(client)}
+                            className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
+                            title="Edit Client"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canFull && (
+                          <button 
+                            onClick={() => handleDelete(client.id)}
+                            className="text-muted-foreground hover:text-destructive p-1.5 rounded hover:bg-destructive/10 transition-colors"
+                            title="Delete Client"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

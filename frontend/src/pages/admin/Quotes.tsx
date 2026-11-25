@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, FileText, Pencil, Trash2, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 export default function AdminQuotesPage() {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('quotes', 'manage');
+  const canDelete = hasPermission('quotes', 'full');
   const [quotesList, setQuotesList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -78,10 +82,12 @@ export default function AdminQuotesPage() {
           <h2 className="text-3xl font-bold tracking-tight">Quotations</h2>
           <p className="text-muted-foreground mt-1">Manage pricing quotes and estimates.</p>
         </div>
-        <Link to="/quotes/new" className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Create Quote
-        </Link>
+        {canManage && (
+          <Link to="/quotes/new" className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Create Quote
+          </Link>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
@@ -181,20 +187,24 @@ export default function AdminQuotesPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
-                        <Link 
-                          to={`/quotes/${quote.id}/edit`}
-                          className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
-                          title="Edit Quote"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Link>
-                        <button 
-                          onClick={() => handleDelete(quote.id)}
-                          className="text-muted-foreground hover:text-destructive p-1.5 rounded hover:bg-destructive/10 transition-colors"
-                          title="Delete Quote"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canManage && (
+                          <Link 
+                            to={`/quotes/${quote.id}/edit`}
+                            className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-secondary transition-colors"
+                            title="Edit Quote"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Link>
+                        )}
+                        {canDelete && (
+                          <button 
+                            onClick={() => handleDelete(quote.id)}
+                            className="text-muted-foreground hover:text-destructive p-1.5 rounded hover:bg-destructive/10 transition-colors"
+                            title="Delete Quote"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

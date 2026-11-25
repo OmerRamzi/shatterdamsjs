@@ -22,6 +22,8 @@ export const leadPriority = pgEnum("lead_priority", ['low', 'medium', 'high', 'h
 export const dealStage = pgEnum("deal_stage", ['discovery', 'qualified', 'proposal', 'negotiation', 'won', 'lost'])
 export const contactRole = pgEnum("contact_role", ['decision_maker', 'influencer', 'billing', 'technical', 'primary', 'other'])
 export const interactionType = pgEnum("interaction_type", ['call', 'meeting', 'email', 'note', 'task', 'whatsapp'])
+export const accessLevel = pgEnum("access_level", ['view', 'manage', 'full'])
+export const dataScope = pgEnum("data_scope", ['all', 'assigned'])
 
 
 export const activityLogs = pgTable("activity_logs", {
@@ -993,4 +995,35 @@ export const crmInteractions = pgTable("crm_interactions", {
 	index("crm_interactions_lead_id_idx").on(table.leadId),
 	index("crm_interactions_deal_id_idx").on(table.dealId),
 	index("crm_interactions_client_id_idx").on(table.clientId),
+]);
+
+export const userModulePermissions = pgTable("user_module_permissions", {
+	id: serial().primaryKey().notNull(),
+	tenantId: integer("tenant_id").notNull(),
+	userId: integer("user_id").notNull(),
+	moduleKey: varchar("module_key", { length: 64 }).notNull(),
+	accessLevel: accessLevel("access_level").default('manage').notNull(),
+	scope: dataScope("scope").default('all').notNull(),
+	grantedBy: integer("granted_by"),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	foreignKey({
+		columns: [table.tenantId],
+		foreignColumns: [tenants.id],
+		name: "user_module_permissions_tenant_id_tenants_id_fk"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "user_module_permissions_user_id_users_id_fk"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.grantedBy],
+		foreignColumns: [users.id],
+		name: "user_module_permissions_granted_by_users_id_fk"
+	}).onDelete("set null"),
+	unique("user_module_permissions_tenant_user_module_unique").on(table.tenantId, table.userId, table.moduleKey),
+	index("user_module_permissions_user_id_idx").on(table.userId),
+	index("user_module_permissions_tenant_id_idx").on(table.tenantId),
 ]);

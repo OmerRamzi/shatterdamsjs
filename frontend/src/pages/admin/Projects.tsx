@@ -2,8 +2,12 @@ import { useState, useEffect } from 'react';
 import { Plus, Search, FolderGit2, Pencil, Trash2, Calendar, Flame, Briefcase } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ProjectModal } from "../../components/admin/ProjectModal";
+import { useAuth } from "../../context/AuthContext";
 
 export default function AdminProjectsPage() {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('projects', 'manage');
+  const canDelete = hasPermission('projects', 'full');
   const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,13 +80,15 @@ export default function AdminProjectsPage() {
             Track client scopes, production milestones, and deliverables.
           </p>
         </div>
-        <button 
-          onClick={handleAdd} 
-          className="bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-xs sm:text-sm py-2 px-4 rounded-lg flex items-center gap-2 shadow-xs transition-colors"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>New project</span>
-        </button>
+        {canManage && (
+          <button 
+            onClick={handleAdd} 
+            className="bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-xs sm:text-sm py-2 px-4 rounded-lg flex items-center gap-2 shadow-xs transition-colors"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>New project</span>
+          </button>
+        )}
       </div>
 
       {/* Projects Table Card */}
@@ -187,20 +193,24 @@ export default function AdminProjectsPage() {
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => handleEdit(project)}
-                          className="text-slate-400 hover:text-slate-900 p-1 rounded-md hover:bg-slate-100 transition-colors"
-                          title="Edit project"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(project.id)}
-                          className="text-slate-400 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition-colors"
-                          title="Delete project"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canManage && (
+                          <button 
+                            onClick={() => handleEdit(project)}
+                            className="text-slate-400 hover:text-slate-900 p-1 rounded-md hover:bg-slate-100 transition-colors"
+                            title="Edit project"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button 
+                            onClick={() => handleDelete(project.id)}
+                            className="text-slate-400 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition-colors"
+                            title="Delete project"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -1,8 +1,10 @@
 import { Hono } from 'hono';
-import { requireAuth, requireAdmin } from '../middleware';
+import { requireAuth } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { generateUploadUrl, generateDownloadUrl, deleteFileFromR2 } from '../lib/storage';
+import { AuthUser } from '../lib/permissions';
+import { canAccessProject } from '../lib/projectAccess';
 
 type Env = {
   DATABASE_URL: string;
@@ -12,13 +14,18 @@ type Env = {
   R2_BUCKET_NAME: string;
 };
 
-const filesRoutes = new Hono<{ Bindings: Env, Variables: { user: any } }>();
+const filesRoutes = new Hono<{ Bindings: Env, Variables: { user: AuthUser, db: any } }>();
 
 filesRoutes.use('*', requireAuth);
 
 filesRoutes.post('/upload-url', async (c) => {
   const user = c.get('user');
+  if (user.role === 'client') return c.json({ error: 'Forbidden' }, 403);
   const { projectId, filename, mimeType } = await c.req.json();
+  const db = c.get('db');
+
+  const access = await canAccessProject(db, user, parseInt(projectId), 'manage');
+  if (!access.isAssigned && !access.allowed) return c.json({ error: 'Forbidden' }, 403);
   
   const key = `t${user.tenantId}/p${projectId}/${Date.now()}_${filename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
   
@@ -28,10 +35,14 @@ filesRoutes.post('/upload-url', async (c) => {
 
 filesRoutes.post('/register', async (c) => {
   const user = c.get('user');
+  if (user.role === 'client') return c.json({ error: 'Forbidden' }, 403);
   const data = await c.req.json();
   const db = c.get('db');
 
   try {
+    const access = await canAccessProject(db, user, parseInt(data.projectId), 'manage');
+    if (!access.isAssigned && !access.allowed) return c.json({ error: 'Forbidden' }, 403);
+
     await db.insert(schema.files).values({
       tenantId: user.tenantId,
       projectId: data.projectId,
@@ -58,12 +69,18 @@ filesRoutes.post('/register', async (c) => {
 });
 
 filesRoutes.get('/project/:projectId', async (c) => {
-  const projectId = parseInt(c.req.param('project_id'));
+  const user = c.get('user');
+  const projectId = parseInt(c.req.param('projectId'));
   const db = c.get('db');
+
+  if (isNaN(projectId)) return c.json({ error: 'Invalid project ID' }, 400);
   
   try {
+    const access = await canAccessProject(db, user, projectId, 'view');
+    if (!access.allowed) return c.json({ error: 'Forbidden' }, 403);
+
     const data = await db.select().from(schema.files)
-      .where(eq(schema.files.projectId, projectId))
+      .where(and(eq(schema.files.projectId, projectId), eq(schema.files.tenantId, user.tenantId)))
       .orderBy(desc(schema.files.uploadedAt));
       
     return c.json(data);
@@ -82,6 +99,9 @@ filesRoutes.get('/:id/download-url', async (c) => {
       
     if (!file) return c.json({ error: 'File not found' }, 404);
     if (file.tenantId !== user.tenantId) return c.json({ error: 'Unauthorized' }, 403);
+
+    const access = await canAccessProject(db, user, file.projectId, 'view');
+    if (!access.allowed) return c.json({ error: 'Forbidden' }, 403);
     
     const downloadUrl = await generateDownloadUrl(file.filePath, c.env as any);
     return c.json({ downloadUrl });
@@ -102,10 +122,14 @@ filesRoutes.patch('/:id/status', async (c) => {
     if (!file) return c.json({ error: 'File not found' }, 404);
     if (file.tenantId !== user.tenantId) return c.json({ error: 'Unauthorized' }, 403);
 
+    const access = await canAccessProject(db, user, file.projectId, 'manage');
     if (user.role === 'client') {
+      if (!access.isClientOwner) return c.json({ error: 'Forbidden' }, 403);
       if (file.status !== 'client_review' || status !== 'approved') {
         return c.json({ error: 'Clients can only approve files pending their review' }, 403);
       }
+    } else if (!access.isAssigned && !access.allowed) {
+      return c.json({ error: 'Forbidden' }, 403);
     }
     
     await db.update(schema.files).set({ 
@@ -137,6 +161,9 @@ filesRoutes.delete('/:id', async (c) => {
     
     if (!file) return c.json({ error: 'File not found' }, 404);
     if (file.tenantId !== user.tenantId) return c.json({ error: 'Unauthorized' }, 403);
+
+    const access = await canAccessProject(db, user, file.projectId, 'full');
+    if (!access.isAssigned && !access.allowed) return c.json({ error: 'Forbidden' }, 403);
 
     await deleteFileFromR2(file.filePath, c.env as any);
     

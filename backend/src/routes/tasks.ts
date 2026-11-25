@@ -1,11 +1,44 @@
 import { Hono } from 'hono';
-import { requireAuth } from '../middleware';
+import { requireAuth, requireInternalStaff } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, and, isNull, desc, inArray } from 'drizzle-orm';
+import { AuthUser, getPermissionScope, hasPermission } from '../lib/permissions';
+import { canAccessProject } from '../lib/projectAccess';
 
-const tasksRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
+const tasksRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: AuthUser, db: any } }>();
 
-tasksRoutes.use('*', requireAuth);
+tasksRoutes.use('*', requireAuth, requireInternalStaff);
+
+async function checkTaskPermission(
+  db: any,
+  user: AuthUser,
+  taskId: number,
+  mode: 'view' | 'manage' | 'delete'
+): Promise<{ ok: boolean; status: 403 | 404; error?: string }> {
+  const [task] = await db
+    .select({ id: schema.tasks.id, projectId: schema.tasks.projectId })
+    .from(schema.tasks)
+    .where(and(eq(schema.tasks.id, taskId), eq(schema.tasks.tenantId, user.tenantId)))
+    .limit(1);
+
+  if (!task) return { ok: false, status: 404, error: 'Task not found' };
+
+  const access = await canAccessProject(db, user, task.projectId, 'view');
+  if (mode === 'view') {
+    if (access.allowed || hasPermission(user, 'tasks', 'view')) return { ok: true, status: 403 };
+    return { ok: false, status: 403, error: 'Forbidden' };
+  }
+
+  const requiredTaskLevel = mode === 'delete' ? 'full' : 'manage';
+  const hasGlobalTaskPerm =
+    hasPermission(user, 'tasks', requiredTaskLevel) &&
+    getPermissionScope(user, 'projects') !== 'assigned';
+
+  if (access.isAssigned || hasGlobalTaskPerm) {
+    return { ok: true, status: 403 };
+  }
+  return { ok: false, status: 403, error: 'Forbidden: Missing task or project assignment access' };
+}
 
 /**
  * GET /api/tasks
@@ -26,7 +59,24 @@ tasksRoutes.get('/', async (c) => {
     ];
 
     if (projectIdParam) {
-      conditions.push(eq(schema.tasks.projectId, parseInt(projectIdParam)));
+      const pid = parseInt(projectIdParam);
+      const access = await canAccessProject(db, user, pid, 'view');
+      if (!access.allowed && !hasPermission(user, 'tasks', 'view')) {
+        return c.json({ error: 'Forbidden' }, 403);
+      }
+      conditions.push(eq(schema.tasks.projectId, pid));
+    } else if (
+      user.role !== 'administrator' &&
+      !hasPermission(user, 'tasks', 'view') &&
+      !hasPermission(user, 'overview', 'view')
+    ) {
+      const assigned = await db
+        .select({ projectId: schema.projectTeam.projectId })
+        .from(schema.projectTeam)
+        .where(eq(schema.projectTeam.userId, user.id));
+      const projectIds = assigned.map((a: any) => a.projectId);
+      if (projectIds.length === 0) return c.json([]);
+      conditions.push(inArray(schema.tasks.projectId, projectIds));
     }
     if (statusParam) {
       conditions.push(eq(schema.tasks.status, statusParam as any));
@@ -105,6 +155,11 @@ tasksRoutes.get('/project/:projectId', async (c) => {
   }
 
   try {
+    const access = await canAccessProject(db, user, projectId, 'view');
+    if (!access.allowed && !hasPermission(user, 'tasks', 'view')) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
     const tasksList = await db.select().from(schema.tasks)
       .where(and(
         eq(schema.tasks.tenantId, user.tenantId),
@@ -176,6 +231,12 @@ tasksRoutes.post('/', async (c) => {
   }
 
   try {
+    const pid = parseInt(data.projectId);
+    const access = await canAccessProject(db, user, pid, 'view');
+    if (!access.isAssigned && !hasPermission(user, 'tasks', 'manage') && !hasPermission(user, 'projects', 'manage')) {
+      return c.json({ error: 'Forbidden: Missing task or project access' }, 403);
+    }
+
     // Format subtasks if provided
     let formattedSubtasks: any[] = [];
     if (Array.isArray(data.subtasks)) {
@@ -228,6 +289,9 @@ tasksRoutes.put('/:id', async (c) => {
   }
 
   try {
+    const perm = await checkTaskPermission(db, user, taskId, 'manage');
+    if (!perm.ok) return c.json({ error: perm.error }, perm.status);
+
     const updatePayload: any = {
       updatedAt: new Date().toISOString()
     };
@@ -287,6 +351,9 @@ tasksRoutes.patch('/:id/status', async (c) => {
   }
 
   try {
+    const perm = await checkTaskPermission(db, user, taskId, 'manage');
+    if (!perm.ok) return c.json({ error: perm.error }, perm.status);
+
     const updatePayload: any = {
       status,
       updatedAt: new Date().toISOString()
@@ -328,6 +395,9 @@ tasksRoutes.patch('/:id/subtasks', async (c) => {
   }
 
   try {
+    const perm = await checkTaskPermission(db, user, taskId, 'manage');
+    if (!perm.ok) return c.json({ error: perm.error }, perm.status);
+
     await db.update(schema.tasks)
       .set({
         subtasks,
@@ -356,6 +426,9 @@ tasksRoutes.delete('/:id', async (c) => {
   }
 
   try {
+    const perm = await checkTaskPermission(db, user, taskId, 'delete');
+    if (!perm.ok) return c.json({ error: perm.error }, perm.status);
+
     await db.update(schema.tasks)
       .set({
         deletedAt: new Date().toISOString(),
@@ -384,6 +457,9 @@ tasksRoutes.get('/:id/comments', async (c) => {
   }
 
   try {
+    const perm = await checkTaskPermission(db, user, taskId, 'view');
+    if (!perm.ok) return c.json({ error: perm.error }, perm.status);
+
     const comments = await db.select({
       id: schema.taskComments.id,
       comment: schema.taskComments.comment,
@@ -423,6 +499,9 @@ tasksRoutes.post('/:id/comments', async (c) => {
   }
 
   try {
+    const perm = await checkTaskPermission(db, user, taskId, 'manage');
+    if (!perm.ok) return c.json({ error: perm.error }, perm.status);
+
     const [newComment] = await db.insert(schema.taskComments).values({
       tenantId: user.tenantId,
       taskId,

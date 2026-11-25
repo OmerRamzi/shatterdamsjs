@@ -1,14 +1,14 @@
 import { Hono } from 'hono';
-import { requireAuth, requireAdmin } from '../middleware';
+import { requireAuth, requireInternalStaff, requirePermission } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
 const commissionsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
-commissionsRoutes.use('*', requireAuth);
+commissionsRoutes.use('*', requireAuth, requireInternalStaff);
 
 // Get all commissions
-commissionsRoutes.get('/', requireAdmin, async (c) => {
+commissionsRoutes.get('/', requirePermission('commissions', 'view'), async (c) => {
   const admin = c.get('user');
   const search = c.req.query('search');
   const status = c.req.query('status');
@@ -57,7 +57,7 @@ commissionsRoutes.get('/', requireAdmin, async (c) => {
 });
 
 // Create manual commission
-commissionsRoutes.post('/', requireAdmin, async (c) => {
+commissionsRoutes.post('/', requirePermission('commissions', 'manage'), async (c) => {
   const admin = c.get('user');
   const data = await c.req.json();
   const db = c.get('db');
@@ -101,7 +101,7 @@ commissionsRoutes.post('/', requireAdmin, async (c) => {
 });
 
 // Update commission status
-commissionsRoutes.put('/:id/status', requireAdmin, async (c) => {
+commissionsRoutes.put('/:id/status', requirePermission('commissions', 'manage'), async (c) => {
   const admin = c.get('user');
   const commissionId = parseInt(c.req.param('id'));
   const { status } = await c.req.json();
@@ -120,7 +120,7 @@ commissionsRoutes.put('/:id/status', requireAdmin, async (c) => {
 });
 
 // Delete commission
-commissionsRoutes.delete('/:id', requireAdmin, async (c) => {
+commissionsRoutes.delete('/:id', requirePermission('commissions', 'full'), async (c) => {
   const admin = c.get('user');
   const commissionId = parseInt(c.req.param('id'));
   const db = c.get('db');
@@ -136,7 +136,7 @@ commissionsRoutes.delete('/:id', requireAdmin, async (c) => {
 });
 
 // Get Webhook Secret
-commissionsRoutes.get('/webhook-secret', requireAdmin, async (c) => {
+commissionsRoutes.get('/webhook-secret', requirePermission('commissions', 'full'), async (c) => {
   const admin = c.get('user');
   const db = c.get('db');
   
@@ -165,7 +165,7 @@ commissionsRoutes.get('/webhook-secret', requireAdmin, async (c) => {
 });
 
 // Regenerate Webhook Secret
-commissionsRoutes.post('/webhook-secret/regenerate', requireAdmin, async (c) => {
+commissionsRoutes.post('/webhook-secret/regenerate', requirePermission('commissions', 'full'), async (c) => {
   const admin = c.get('user');
   const db = c.get('db');
   

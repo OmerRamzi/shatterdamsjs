@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
-import { requireAuth, requireAdmin } from '../middleware';
+import { requireAuth, requirePermission } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, and, desc, inArray, isNull, sql, lt } from 'drizzle-orm';
 import { Resend } from 'resend';
 import { calculateSubtotal, calculateTotal, calculateLineItemAmount } from '../lib/calculations';
 import { canTransitionQuote, QuoteStatus } from '../lib/statusMachine';
+import { AuthUser, hasPermission } from '../lib/permissions';
 
-const quotesRoutes = new Hono<{ Bindings: { DATABASE_URL: string, RESEND_API_KEY: string }, Variables: { user: any } }>();
+const quotesRoutes = new Hono<{ Bindings: { DATABASE_URL: string, RESEND_API_KEY: string }, Variables: { user: AuthUser, db: any } }>();
 
 quotesRoutes.use('*', requireAuth);
 
@@ -28,7 +29,7 @@ async function generateQuoteNumber(db: any, tenantId: number) {
   return `${prefix}${sequence.toString().padStart(4, '0')}`;
 }
 
-quotesRoutes.get('/', requireAdmin, async (c) => {
+quotesRoutes.get('/', requirePermission('quotes', 'view'), async (c) => {
   const user = c.get('user');
   const clientId = c.req.query('client_id');
   const search = c.req.query('search');
@@ -90,7 +91,7 @@ quotesRoutes.get('/', requireAdmin, async (c) => {
   }
 });
 
-quotesRoutes.post('/', requireAdmin, async (c) => {
+quotesRoutes.post('/', requirePermission('quotes', 'manage'), async (c) => {
   const admin = c.get('user');
   const data = await c.req.json();
   const db = c.get('db');
@@ -170,10 +171,12 @@ quotesRoutes.get('/:id', async (c) => {
     }
 
     if (user.role === 'client') {
-      const [clientRecord] = await db.select().from(schema.clients).where(eq(schema.clients.userId, parseInt(user.sub as string))).limit(1);
+      const [clientRecord] = await db.select().from(schema.clients).where(and(eq(schema.clients.userId, user.id), eq(schema.clients.tenantId, user.tenantId))).limit(1);
       if (!clientRecord || quoteData.clientId !== clientRecord.id) {
         return c.json({ error: 'Unauthorized' }, 403);
       }
+    } else if (!hasPermission(user, 'quotes', 'view')) {
+      return c.json({ error: "Forbidden: Requires 'quotes' (view) access" }, 403);
     }
 
     const items = await db.select().from(schema.quotationItems).where(eq(schema.quotationItems.quotationId, quoteId));
@@ -189,7 +192,7 @@ quotesRoutes.get('/:id', async (c) => {
   }
 });
 
-quotesRoutes.post('/:id/send', requireAdmin, async (c) => {
+quotesRoutes.post('/:id/send', requirePermission('quotes', 'manage'), async (c) => {
   const admin = c.get('user');
   const quoteId = parseInt(c.req.param('id'));
   const db = c.get('db');
@@ -256,10 +259,19 @@ quotesRoutes.patch('/:id/accept', async (c) => {
 
   try {
     const [quoteData] = await db.select().from(schema.quotations).where(
-      and(eq(schema.quotations.id, quoteId), isNull(schema.quotations.deletedAt))
+      and(eq(schema.quotations.id, quoteId), eq(schema.quotations.tenantId, user.tenantId), isNull(schema.quotations.deletedAt))
     ).limit(1);
     
     if (!quoteData) return c.json({ error: 'Quote not found' }, 404);
+
+    if (user.role === 'client') {
+      const [clientRecord] = await db.select().from(schema.clients).where(and(eq(schema.clients.userId, user.id), eq(schema.clients.tenantId, user.tenantId))).limit(1);
+      if (!clientRecord || quoteData.clientId !== clientRecord.id) {
+        return c.json({ error: 'Unauthorized' }, 403);
+      }
+    } else if (!hasPermission(user, 'quotes', 'manage')) {
+      return c.json({ error: "Forbidden: Requires 'quotes' (manage) access" }, 403);
+    }
     
     const newStatus = reqBody.status === 'rejected' ? 'rejected' : 'accepted';
 
@@ -286,7 +298,7 @@ quotesRoutes.patch('/:id/accept', async (c) => {
   }
 });
 
-quotesRoutes.put('/:id', requireAdmin, async (c) => {
+quotesRoutes.put('/:id', requirePermission('quotes', 'manage'), async (c) => {
   const admin = c.get('user');
   const quoteId = parseInt(c.req.param('id'));
   const data = await c.req.json();
@@ -354,7 +366,7 @@ quotesRoutes.put('/:id', requireAdmin, async (c) => {
   }
 });
 
-quotesRoutes.post('/:id/convert-to-invoice', requireAdmin, async (c) => {
+quotesRoutes.post('/:id/convert-to-invoice', requirePermission('quotes', 'manage'), requirePermission('invoices', 'manage'), async (c) => {
   const admin = c.get('user');
   const quoteId = parseInt(c.req.param('id'));
   const db = c.get('db');
@@ -454,7 +466,7 @@ quotesRoutes.post('/:id/convert-to-invoice', requireAdmin, async (c) => {
   }
 });
 
-quotesRoutes.delete('/:id', requireAdmin, async (c) => {
+quotesRoutes.delete('/:id', requirePermission('quotes', 'full'), async (c) => {
   const admin = c.get('user');
   const quoteId = parseInt(c.req.param('id'));
   const db = c.get('db');
@@ -480,7 +492,7 @@ quotesRoutes.delete('/:id', requireAdmin, async (c) => {
   }
 });
 
-quotesRoutes.post('/:id/duplicate', requireAdmin, async (c) => {
+quotesRoutes.post('/:id/duplicate', requirePermission('quotes', 'manage'), async (c) => {
   const admin = c.get('user');
   const quoteId = parseInt(c.req.param('id'));
   const db = c.get('db');

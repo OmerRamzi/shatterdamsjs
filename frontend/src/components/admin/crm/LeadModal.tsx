@@ -30,7 +30,7 @@ export function LeadModal({ isOpen, onClose, onSaved, lead }: LeadModalProps) {
 
   useEffect(() => {
     if (isOpen) {
-      fetch('/api/team')
+      fetch('/api/lookups/team')
         .then(r => r.json())
         .then(data => {
           if (Array.isArray(data)) setTeamMembers(data);

@@ -5,6 +5,7 @@ import * as schema from '../db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { config } from '../config';
+import { hydrateAuthUser } from '../lib/permissions';
 
 type Bindings = {
   DATABASE_URL: string;
@@ -27,7 +28,7 @@ authRoutes.post('/login', async (c) => {
   try {
     const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
 
-    if (!user) {
+    if (!user || user.deletedAt || user.isActive === false) {
       return c.json({ error: 'Invalid credentials.' }, 401);
     }
     
@@ -36,15 +37,17 @@ authRoutes.post('/login', async (c) => {
       return c.json({ error: 'Invalid credentials.' }, 401);
     }
 
-    const [roleRec] = await db.select().from(schema.userRoles).where(eq(schema.userRoles.userId, user.id)).limit(1);
-    const role = roleRec?.role || 'client';
+    const hydratedUser = await hydrateAuthUser(db, user.id);
+    if (!hydratedUser) {
+      return c.json({ error: 'Account is inactive.' }, 403);
+    }
 
     const payload = {
-      sub: user.id.toString(),
-      email: user.email,
-      name: user.displayName,
-      role: role,
-      tenantId: user.tenantId,
+      sub: hydratedUser.sub,
+      email: hydratedUser.email,
+      name: hydratedUser.name,
+      role: hydratedUser.role,
+      tenantId: hydratedUser.tenantId,
       exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 1 week
     };
 
@@ -60,13 +63,7 @@ authRoutes.post('/login', async (c) => {
 
     return c.json({
       message: 'Login successful',
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.displayName,
-        role: role,
-        tenantId: user.tenantId
-      }
+      user: hydratedUser
     });
   } catch (error: any) {
     return c.json({ error: error.message }, 500);
@@ -85,8 +82,19 @@ authRoutes.get('/me', async (c) => {
   }
 
   try {
-    const decodedPayload = await verify(token, c.env.JWT_SECRET, "HS256");
-    return c.json({ user: decodedPayload });
+    const decodedPayload = await verify(token, c.env.JWT_SECRET, "HS256") as any;
+    const userId = decodedPayload.id ? Number(decodedPayload.id) : decodedPayload.sub ? Number(decodedPayload.sub) : NaN;
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return c.json({ error: 'Invalid token' }, 401);
+    }
+
+    const db = c.get('db');
+    const hydratedUser = await hydrateAuthUser(db, userId);
+    if (!hydratedUser) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    return c.json({ user: hydratedUser });
   } catch (e) {
     return c.json({ error: 'Invalid token' }, 401);
   }

@@ -1,13 +1,15 @@
 import { Hono } from 'hono';
-import { requireAuth, requireAdmin } from '../middleware';
+import { requireAuth, requireInternalStaff, requirePermission } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, and, desc, inArray, isNull } from 'drizzle-orm';
 import { config } from '../config';
 import { generateProjectBreakdown, chatWithProjectAssistant } from '../lib/gemini';
+import { AuthUser, getPermissionScope, hasPermission } from '../lib/permissions';
+import { canAccessProject } from '../lib/projectAccess';
 
-const projectsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
+const projectsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: AuthUser, db: any } }>();
 
-projectsRoutes.use('*', requireAuth);
+projectsRoutes.use('*', requireAuth, requireInternalStaff);
 
 async function getGeminiApiKey(c: any, db: any, tenantId: number): Promise<string> {
   let apiKey = (c.env as any)?.GEMINI_API_KEY || config.GEMINI_API_KEY;
@@ -31,9 +33,24 @@ projectsRoutes.get('/', async (c) => {
   const status = c.req.query('status');
   
   try {
-    const conditions = [eq(schema.projects.tenantId, user.tenantId)];
+    const conditions: any[] = [eq(schema.projects.tenantId, user.tenantId)];
     if (clientId) conditions.push(eq(schema.projects.clientId, parseInt(clientId)));
     if (status) conditions.push(eq(schema.projects.status, status as any));
+
+    const canSeeAll =
+      user.role === 'administrator' ||
+      (hasPermission(user, 'projects', 'view') && getPermissionScope(user, 'projects') === 'all') ||
+      hasPermission(user, 'overview', 'view') ||
+      hasPermission(user, 'clients', 'view');
+
+    if (!canSeeAll) {
+      const assigned = await db.select({ projectId: schema.projectTeam.projectId })
+        .from(schema.projectTeam)
+        .where(eq(schema.projectTeam.userId, user.id));
+      const projectIds = assigned.map((a: any) => a.projectId);
+      if (projectIds.length === 0) return c.json([]);
+      conditions.push(inArray(schema.projects.id, projectIds));
+    }
 
     const data = await db.select().from(schema.projects)
       .where(and(...conditions))
@@ -67,6 +84,11 @@ projectsRoutes.get('/:id', async (c) => {
   }
 
   try {
+    const access = await canAccessProject(db, user, projectId, 'view');
+    if (!access.allowed) {
+      return c.json({ error: 'Forbidden: You do not have access to this project' }, 403);
+    }
+
     const [project] = await db.select().from(schema.projects)
       .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, user.tenantId)))
       .limit(1);
@@ -146,7 +168,7 @@ projectsRoutes.get('/:id', async (c) => {
   }
 });
 
-projectsRoutes.post('/', requireAdmin, async (c) => {
+projectsRoutes.post('/', requirePermission('projects', 'manage'), async (c) => {
   const admin = c.get('user');
   const data = await c.req.json();
   const db = c.get('db');
@@ -186,13 +208,17 @@ projectsRoutes.post('/', requireAdmin, async (c) => {
   }
 });
 
-projectsRoutes.put('/:id', requireAdmin, async (c) => {
+projectsRoutes.put('/:id', requirePermission('projects', 'manage'), async (c) => {
   const admin = c.get('user');
   const projectId = parseInt(c.req.param('id'));
   const data = await c.req.json();
   const db = c.get('db');
 
   try {
+    const access = await canAccessProject(db, admin, projectId, 'manage');
+    if (!access.allowed) {
+      return c.json({ error: 'Forbidden: You cannot modify this project' }, 403);
+    }
     await db.update(schema.projects).set({
       title: data.title,
       description: data.description,
@@ -227,12 +253,16 @@ projectsRoutes.put('/:id', requireAdmin, async (c) => {
   }
 });
 
-projectsRoutes.delete('/:id', requireAdmin, async (c) => {
+projectsRoutes.delete('/:id', requirePermission('projects', 'full'), async (c) => {
   const admin = c.get('user');
   const projectId = parseInt(c.req.param('id'));
   const db = c.get('db');
   
   try {
+    const access = await canAccessProject(db, admin, projectId, 'full');
+    if (!access.allowed) {
+      return c.json({ error: 'Forbidden: You cannot delete this project' }, 403);
+    }
     await db.delete(schema.tasks).where(and(eq(schema.tasks.projectId, projectId), eq(schema.tasks.tenantId, admin.tenantId)));
     await db.delete(schema.milestones).where(and(eq(schema.milestones.projectId, projectId), eq(schema.milestones.tenantId, admin.tenantId)));
     await db.delete(schema.projectTeam).where(eq(schema.projectTeam.projectId, projectId));
@@ -259,7 +289,7 @@ projectsRoutes.delete('/:id', requireAdmin, async (c) => {
  * POST /api/projects/:id/ai/breakdown
  * Automatically decomposes project scope into structured milestones & actionable tasks
  */
-projectsRoutes.post('/:id/ai/breakdown', async (c) => {
+projectsRoutes.post('/:id/ai/breakdown', requirePermission('projects', 'manage'), async (c) => {
   const user = c.get('user');
   const projectId = parseInt(c.req.param('id'));
   const db = c.get('db');
@@ -270,6 +300,9 @@ projectsRoutes.post('/:id/ai/breakdown', async (c) => {
   }
 
   try {
+    const access = await canAccessProject(db, user, projectId, 'manage');
+    if (!access.allowed) return c.json({ error: 'Forbidden' }, 403);
+
     const [project] = await db.select().from(schema.projects)
       .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, user.tenantId)))
       .limit(1);
@@ -331,7 +364,7 @@ projectsRoutes.post('/:id/ai/breakdown', async (c) => {
  * POST /api/projects/:id/ai/chat
  * Multi-turn conversational chat with the Project AI Assistant
  */
-projectsRoutes.post('/:id/ai/chat', async (c) => {
+projectsRoutes.post('/:id/ai/chat', requirePermission('projects', 'manage'), async (c) => {
   const user = c.get('user');
   const projectId = parseInt(c.req.param('id'));
   const db = c.get('db');
@@ -342,6 +375,9 @@ projectsRoutes.post('/:id/ai/chat', async (c) => {
   }
 
   try {
+    const access = await canAccessProject(db, user, projectId, 'manage');
+    if (!access.allowed) return c.json({ error: 'Forbidden' }, 403);
+
     const [project] = await db.select().from(schema.projects)
       .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, user.tenantId)))
       .limit(1);
@@ -382,7 +418,7 @@ projectsRoutes.post('/:id/ai/chat', async (c) => {
  * POST /api/projects/:id/ai/apply
  * Commits approved milestones and tasks directly into the project board
  */
-projectsRoutes.post('/:id/ai/apply', async (c) => {
+projectsRoutes.post('/:id/ai/apply', requirePermission('projects', 'manage'), async (c) => {
   const user = c.get('user');
   const projectId = parseInt(c.req.param('id'));
   const db = c.get('db');
@@ -393,6 +429,9 @@ projectsRoutes.post('/:id/ai/apply', async (c) => {
   }
 
   try {
+    const access = await canAccessProject(db, user, projectId, 'manage');
+    if (!access.allowed) return c.json({ error: 'Forbidden' }, 403);
+
     const [project] = await db.select().from(schema.projects)
       .where(and(eq(schema.projects.id, projectId), eq(schema.projects.tenantId, user.tenantId)))
       .limit(1);

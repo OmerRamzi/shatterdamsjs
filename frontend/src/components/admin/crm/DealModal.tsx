@@ -30,7 +30,7 @@ export function DealModal({ isOpen, onClose, onSaved, deal, defaultStage = 'disc
   useEffect(() => {
     if (isOpen) {
       Promise.all([
-        fetch('/api/clients').then(r => r.json()).catch(() => []),
+        fetch('/api/lookups/clients').then(r => r.json()).catch(() => []),
         fetch('/api/crm/leads?status=qualified').then(r => r.json()).catch(() => [])
       ]).then(([clientsData, leadsData]) => {
         if (Array.isArray(clientsData)) setClients(clientsData);

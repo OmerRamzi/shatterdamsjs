@@ -21,13 +21,13 @@ export default function TeamTimesheetsPage() {
     try {
       const [tsRes, prjRes] = await Promise.all([
         fetch('/api/timesheets'),
-        fetch('/api/projects?status=active')
+        fetch('/api/lookups/projects?status=active')
       ]);
       const tsData = await tsRes.json();
       const prjData = await prjRes.json();
       
       if (tsRes.ok) setTimesheets(tsData.data || []);
-      if (prjRes.ok) setProjects(prjData.data || []);
+      if (prjRes.ok) setProjects(Array.isArray(prjData) ? prjData : (prjData.data || []));
     } catch (error) {
       console.error(error);
     } finally {

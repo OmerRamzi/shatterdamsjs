@@ -2,8 +2,16 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Building2, User, Mail, Phone, MapPin, Pencil, CheckCircle2, Plus, Eye } from "lucide-react";
 import { ClientModal } from "../../components/admin/ClientModal";
+import { useAuth } from "../../context/AuthContext";
 
 export default function AdminClientDetailsPage() {
+  const { hasPermission } = useAuth();
+  const canManageClient = hasPermission('clients', 'manage');
+  const canViewProjects = hasPermission('projects', 'view');
+  const canViewInvoices = hasPermission('invoices', 'view');
+  const canManageInvoices = hasPermission('invoices', 'manage');
+  const canViewQuotes = hasPermission('quotes', 'view');
+  const canManageQuotes = hasPermission('quotes', 'manage');
   const { id } = useParams<{ id: string }>();
   const clientId = parseInt(id || "");
 
@@ -23,25 +31,22 @@ export default function AdminClientDetailsPage() {
     try {
       const [clientRes, projectsRes, invoicesRes, quotesRes] = await Promise.all([
         fetch(`/api/clients/${clientId}`),
-        fetch(`/api/projects?clientId=${clientId}`),
-        fetch(`/api/invoices?clientId=${clientId}`),
-        fetch(`/api/quotes?clientId=${clientId}`)
+        canViewProjects ? fetch(`/api/projects?clientId=${clientId}`) : Promise.resolve(null),
+        canViewInvoices ? fetch(`/api/invoices?clientId=${clientId}`) : Promise.resolve(null),
+        canViewQuotes ? fetch(`/api/quotes?clientId=${clientId}`) : Promise.resolve(null),
       ]);
       
       if (clientRes.ok) setClient(await clientRes.json());
-      if (projectsRes.ok) {
+      if (projectsRes && projectsRes.ok) {
         const pData = await projectsRes.json();
-        // Projects returns a flat array (each item has project fields inline)
         setProjects(Array.isArray(pData) ? pData : (pData.data || []));
       }
-      if (invoicesRes.ok) {
+      if (invoicesRes && invoicesRes.ok) {
         const iData = await invoicesRes.json();
-        // Invoices returns a paginated { data: [...] } object
         setInvoices(Array.isArray(iData) ? iData : (iData.data || []));
       }
-      if (quotesRes.ok) {
+      if (quotesRes && quotesRes.ok) {
         const qData = await quotesRes.json();
-        // Quotes returns a paginated { data: [...] } object
         setQuotes(Array.isArray(qData) ? qData : (qData.data || []));
       }
     } catch (error) {
@@ -89,12 +94,14 @@ export default function AdminClientDetailsPage() {
               </div>
             </div>
           </div>
-          <button 
-            onClick={() => setIsEditModalOpen(true)}
-            className="btn-secondary flex items-center gap-2"
-          >
-            <Pencil className="w-4 h-4" /> Edit Profile
-          </button>
+          {canManageClient && (
+            <button 
+              onClick={() => setIsEditModalOpen(true)}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <Pencil className="w-4 h-4" /> Edit Profile
+            </button>
+          )}
         </div>
       </div>
 
@@ -119,7 +126,12 @@ export default function AdminClientDetailsPage() {
 
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
         <div className="flex border-b border-border overflow-x-auto">
-          {['overview', 'projects', 'invoices', 'quotes'].map((tab) => (
+          {[
+            'overview',
+            ...(canViewProjects ? ['projects'] : []),
+            ...(canViewInvoices ? ['invoices'] : []),
+            ...(canViewQuotes ? ['quotes'] : []),
+          ].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
@@ -210,9 +222,11 @@ export default function AdminClientDetailsPage() {
             <div className="space-y-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-lg">Invoices</h3>
-                <Link to="/invoices/new" className="btn-primary flex items-center gap-2 text-sm py-1.5">
-                   <Plus className="w-3.5 h-3.5" /> Create Invoice
-                </Link>
+                {canManageInvoices && (
+                  <Link to="/invoices/new" className="btn-primary flex items-center gap-2 text-sm py-1.5">
+                     <Plus className="w-3.5 h-3.5" /> Create Invoice
+                  </Link>
+                )}
               </div>
               {invoices.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground bg-secondary/20 rounded-lg border border-border border-dashed">
@@ -270,9 +284,11 @@ export default function AdminClientDetailsPage() {
             <div className="space-y-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-lg">Quotations</h3>
-                <Link to="/quotes/new" className="btn-primary flex items-center gap-2 text-sm py-1.5">
-                   <Plus className="w-3.5 h-3.5" /> Create Quote
-                </Link>
+                {canManageQuotes && (
+                  <Link to="/quotes/new" className="btn-primary flex items-center gap-2 text-sm py-1.5">
+                     <Plus className="w-3.5 h-3.5" /> Create Quote
+                  </Link>
+                )}
               </div>
               {quotes.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground bg-secondary/20 rounded-lg border border-border border-dashed">

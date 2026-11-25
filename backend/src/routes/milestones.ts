@@ -1,11 +1,34 @@
 import { Hono } from 'hono';
-import { requireAuth } from '../middleware';
+import { requireAuth, requireInternalStaff } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
+import { AuthUser, hasPermission } from '../lib/permissions';
+import { canAccessProject } from '../lib/projectAccess';
 
-const milestonesRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
+const milestonesRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: AuthUser, db: any } }>();
 
-milestonesRoutes.use('*', requireAuth);
+milestonesRoutes.use('*', requireAuth, requireInternalStaff);
+
+async function checkMilestonePermission(
+  db: any,
+  user: AuthUser,
+  milestoneId: number,
+  mode: 'manage' | 'delete'
+): Promise<{ ok: boolean; status: 403 | 404; error?: string }> {
+  const [milestone] = await db
+    .select({ id: schema.milestones.id, projectId: schema.milestones.projectId })
+    .from(schema.milestones)
+    .where(and(eq(schema.milestones.id, milestoneId), eq(schema.milestones.tenantId, user.tenantId)))
+    .limit(1);
+
+  if (!milestone) return { ok: false, status: 404, error: 'Milestone not found' };
+
+  const access = await canAccessProject(db, user, milestone.projectId, mode === 'delete' ? 'full' : 'manage');
+  if (access.isAssigned || access.allowed) {
+    return { ok: true, status: 403 };
+  }
+  return { ok: false, status: 403, error: 'Forbidden' };
+}
 
 /**
  * GET /api/milestones?projectId=X
@@ -26,6 +49,9 @@ milestonesRoutes.get('/', async (c) => {
   }
 
   try {
+    const access = await canAccessProject(db, user, projectId, 'view');
+    if (!access.allowed) return c.json({ error: 'Forbidden' }, 403);
+
     const milestonesList = await db.select().from(schema.milestones)
       .where(and(
         eq(schema.milestones.tenantId, user.tenantId),
@@ -81,6 +107,12 @@ milestonesRoutes.post('/', async (c) => {
   }
 
   try {
+    const pid = parseInt(data.projectId);
+    const access = await canAccessProject(db, user, pid, 'manage');
+    if (!access.isAssigned && !access.allowed) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
     const [newMilestone] = await db.insert(schema.milestones).values({
       tenantId: user.tenantId,
       projectId: parseInt(data.projectId),
@@ -114,6 +146,9 @@ milestonesRoutes.put('/:id', async (c) => {
   }
 
   try {
+    const perm = await checkMilestonePermission(db, user, milestoneId, 'manage');
+    if (!perm.ok) return c.json({ error: perm.error }, perm.status);
+
     const updatePayload: any = {
       updatedAt: new Date().toISOString()
     };
@@ -153,6 +188,9 @@ milestonesRoutes.delete('/:id', async (c) => {
   }
 
   try {
+    const perm = await checkMilestonePermission(db, user, milestoneId, 'delete');
+    if (!perm.ok) return c.json({ error: perm.error }, perm.status);
+
     await db.delete(schema.milestones)
       .where(and(
         eq(schema.milestones.id, milestoneId),

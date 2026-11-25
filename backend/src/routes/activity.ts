@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
-import { requireAuth } from '../middleware';
+import { requireAuth, requireInternalStaff, requirePermission } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 const activityRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any, db: any } }>();
 
-activityRoutes.use('*', requireAuth);
+activityRoutes.use('*', requireAuth, requireInternalStaff, requirePermission('overview', 'view'));
 
 activityRoutes.get('/', async (c) => {
   const user = c.get('user');

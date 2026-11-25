@@ -31,14 +31,14 @@ export function ContactModal({ isOpen, onClose, onSaved, contact, defaultClientI
 
   useEffect(() => {
     if (isOpen) {
-      fetch('/api/clients')
+      fetch('/api/lookups/clients')
         .then(r => r.json())
         .then(data => {
           if (Array.isArray(data)) setClients(data);
         })
         .catch(() => {});
 
-      fetch('/api/team')
+      fetch('/api/lookups/team')
         .then(r => r.json())
         .then(data => {
           if (Array.isArray(data)) setTeamMembers(data);

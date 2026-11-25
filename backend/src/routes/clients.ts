@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { requireAuth, requireAdmin } from '../middleware';
+import { requireAuth, requireInternalStaff, requirePermission } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -12,7 +12,7 @@ type Bindings = {
 
 const clientsRoutes = new Hono<{ Bindings: Bindings, Variables: { user: any } }>();
 
-clientsRoutes.use('*', requireAuth, requireAdmin);
+clientsRoutes.use('*', requireAuth, requireInternalStaff);
 
 const mapClientToCamelCase = (c: any) => ({
   id: c.id,
@@ -29,7 +29,7 @@ const mapClientToCamelCase = (c: any) => ({
   createdAt: c.createdAt,
 });
 
-clientsRoutes.get('/', async (c) => {
+clientsRoutes.get('/', requirePermission('clients', 'view'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
 
@@ -41,7 +41,7 @@ clientsRoutes.get('/', async (c) => {
   }
 });
 
-clientsRoutes.get('/:id', async (c) => {
+clientsRoutes.get('/:id', requirePermission('clients', 'view'), async (c) => {
   const user = c.get('user');
   const clientId = parseInt(c.req.param('id'));
   const db = c.get('db');
@@ -58,7 +58,7 @@ clientsRoutes.get('/:id', async (c) => {
   }
 });
 
-clientsRoutes.post('/', async (c) => {
+clientsRoutes.post('/', requirePermission('clients', 'manage'), async (c) => {
   const admin = c.get('user');
   const data = await c.req.json();
   const db = c.get('db');
@@ -88,14 +88,14 @@ clientsRoutes.post('/', async (c) => {
   }
 });
 
-clientsRoutes.post('/:id/activate', async (c) => {
+clientsRoutes.post('/:id/activate', requirePermission('clients', 'full'), async (c) => {
   const admin = c.get('user');
   const clientId = parseInt(c.req.param('id'));
   const db = c.get('db');
   const resend = new Resend(c.env.RESEND_API_KEY || 're_dummy');
 
   try {
-    const [client] = await db.select().from(schema.clients).where(eq(schema.clients.id, clientId)).limit(1);
+    const [client] = await db.select().from(schema.clients).where(and(eq(schema.clients.id, clientId), eq(schema.clients.tenantId, admin.tenantId))).limit(1);
 
     if (!client) return c.json({ error: 'Client not found' }, 404);
     if (client.userId) return c.json({ error: 'Client is already activated' }, 400);
@@ -143,7 +143,7 @@ clientsRoutes.post('/:id/activate', async (c) => {
   }
 });
 
-clientsRoutes.put('/:id', async (c) => {
+clientsRoutes.put('/:id', requirePermission('clients', 'manage'), async (c) => {
   const admin = c.get('user');
   const clientId = parseInt(c.req.param('id'));
   const data = await c.req.json();
@@ -172,7 +172,7 @@ clientsRoutes.put('/:id', async (c) => {
   }
 });
 
-clientsRoutes.delete('/:id', async (c) => {
+clientsRoutes.delete('/:id', requirePermission('clients', 'full'), async (c) => {
   const admin = c.get('user');
   const clientId = parseInt(c.req.param('id'));
   const db = c.get('db');

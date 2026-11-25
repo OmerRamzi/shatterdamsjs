@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { DollarSign, Plus, Loader2, PlayCircle, PauseCircle, Trash2, Edit, FileText, Receipt, CheckCircle, Clock, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 export default function AdminFinancialsPage() {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('financials', 'manage');
+  const canDelete = hasPermission('financials', 'full');
+
   const [streams, setStreams] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [clients, setClients] = useState<any[]>([]);
@@ -84,8 +89,8 @@ export default function AdminFinancialsPage() {
   const fetchClientsAndProjects = async () => {
     try {
       const [clientsRes, projectsRes] = await Promise.all([
-        fetch("/api/clients"),
-        fetch("/api/projects")
+        fetch("/api/lookups/clients"),
+        fetch("/api/lookups/projects")
       ]);
       if (clientsRes.ok) {
         const cData = await clientsRes.json();
@@ -268,9 +273,11 @@ export default function AdminFinancialsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Financials & MRR</h1>
           <p className="text-muted-foreground mt-1">Manage recurring revenue streams and auto-billing.</p>
         </div>
-        <button onClick={openCreateModal} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> New Stream
-        </button>
+        {canManage && (
+          <button onClick={openCreateModal} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> New Stream
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -363,12 +370,16 @@ export default function AdminFinancialsPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={(e) => { e.stopPropagation(); toggleStatus(stream.id, stream.status); }} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-primary transition-colors" title="Toggle Status">
-                            {stream.status === 'active' ? <PauseCircle className="w-4 h-4" /> : <PlayCircle className="w-4 h-4" />}
-                          </button>
-                          <button onClick={(e) => { e.stopPropagation(); deleteStream(stream.id); }} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {canManage && (
+                            <button onClick={(e) => { e.stopPropagation(); toggleStatus(stream.id, stream.status); }} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-primary transition-colors" title="Toggle Status">
+                              {stream.status === 'active' ? <PauseCircle className="w-4 h-4" /> : <PlayCircle className="w-4 h-4" />}
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button onClick={(e) => { e.stopPropagation(); deleteStream(stream.id); }} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -416,7 +427,7 @@ export default function AdminFinancialsPage() {
                 {modalMode === 'create' ? 'New Revenue Stream' : 
                  modalMode === 'edit' ? 'Edit Revenue Stream' : 'Stream Details'}
               </h2>
-              {modalMode === 'view' && streamDetails && (
+              {modalMode === 'view' && streamDetails && canManage && (
                 <div className="flex gap-2">
                   <button onClick={openEditModal} className="btn-secondary flex items-center gap-2 py-1.5 px-3">
                     <Edit className="w-4 h-4" /> Edit

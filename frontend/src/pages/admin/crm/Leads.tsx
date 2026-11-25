@@ -15,6 +15,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { LeadModal } from '../../../components/admin/crm/LeadModal';
 import { ConvertLeadModal } from '../../../components/admin/crm/ConvertLeadModal';
 import { CsvImportModal } from '../../../components/admin/crm/CsvImportModal';
+import { BulkEditLeadsModal } from '../../../components/admin/crm/BulkEditLeadsModal';
+import { useAuth } from '../../../context/AuthContext';
 
 interface Lead {
   id: number;
@@ -37,6 +39,11 @@ interface Lead {
 
 export default function AdminLeadsPage() {
   const navigate = useNavigate();
+  const { hasPermission, getPermissionScope } = useAuth();
+  const canManage = hasPermission('crm', 'manage');
+  const canDelete = hasPermission('crm', 'full');
+  const canViewClients = hasPermission('clients', 'view');
+  const isAssignedScope = getPermissionScope('crm') === 'assigned';
   const [leads, setLeads] = useState<Lead[]>([]);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,6 +51,11 @@ export default function AdminLeadsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [assigneeFilter, setAssigneeFilter] = useState('all');
+
+  // Bulk Selection & Edit
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
   // Modals
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
@@ -55,7 +67,7 @@ export default function AdminLeadsPage() {
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
 
   useEffect(() => {
-    fetch('/api/team')
+    fetch('/api/lookups/team')
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) setTeamMembers(data);
@@ -107,6 +119,59 @@ export default function AdminLeadsPage() {
   const handleOpenConvert = (lead: Lead) => {
     setConvertingLead(lead);
     setIsConvertModalOpen(true);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredLeads.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredLeads.map(l => l.id));
+    }
+  };
+
+  const toggleSelectOne = (id: number) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleQuickBulkUpdate = async (updates: Record<string, any>) => {
+    if (selectedIds.length === 0) return;
+    setIsBulkProcessing(true);
+    try {
+      const res = await fetch('/api/crm/leads/bulk', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds, updates })
+      });
+      if (res.ok) {
+        await fetchLeads();
+        setSelectedIds([]);
+      }
+    } catch (err) {
+      console.error('Quick bulk update error:', err);
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected leads?`)) return;
+    setIsBulkProcessing(true);
+    try {
+      const res = await fetch('/api/crm/leads/bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds })
+      });
+      if (res.ok) {
+        await fetchLeads();
+        setSelectedIds([]);
+      }
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+    } finally {
+      setIsBulkProcessing(false);
+    }
   };
 
   const filteredLeads = leads.filter(l => {
@@ -168,27 +233,31 @@ export default function AdminLeadsPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => setIsCsvModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-bold text-xs sm:text-sm transition-all shadow-xs"
-            title="Import leads from Zoho CRM or CSV"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            <span>Import CSV</span>
-          </button>
+          {canManage && (
+            <button
+              onClick={() => setIsCsvModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-bold text-xs sm:text-sm transition-all shadow-xs"
+              title="Import leads from Zoho CRM or CSV"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>Import CSV</span>
+            </button>
+          )}
           <Link
             to="/crm"
             className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-bold text-xs sm:text-sm transition-all shadow-xs"
           >
             View Pipeline
           </Link>
-          <button
-            onClick={handleOpenAdd}
-            className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl shadow-xs hover:shadow transition-all text-xs sm:text-sm"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Capture Lead</span>
-          </button>
+          {canManage && (
+            <button
+              onClick={handleOpenAdd}
+              className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl shadow-xs hover:shadow transition-all text-xs sm:text-sm"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>Capture Lead</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -220,20 +289,22 @@ export default function AdminLeadsPage() {
 
         {/* Right filters & search */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <select
-            value={assigneeFilter}
-            onChange={(e) => setAssigneeFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 bg-white"
-          >
-            <option value="all">All Assignees</option>
-            <option value="me">Assigned to Me</option>
-            <option value="unassigned">Unassigned Only</option>
-            {teamMembers.map(m => (
-              <option key={m.id} value={m.id}>
-                {m.displayName || m.email}
-              </option>
-            ))}
-          </select>
+          {!isAssignedScope && (
+            <select
+              value={assigneeFilter}
+              onChange={(e) => setAssigneeFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 bg-white"
+            >
+              <option value="all">All Assignees</option>
+              <option value="me">Assigned to Me</option>
+              <option value="unassigned">Unassigned Only</option>
+              {teamMembers.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.displayName || m.email}
+                </option>
+              ))}
+            </select>
+          )}
 
           <select
             value={priorityFilter}
@@ -266,6 +337,15 @@ export default function AdminLeadsPage() {
           <table className="w-full text-left text-xs sm:text-sm">
             <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
               <tr>
+                <th className="py-3.5 px-3 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={filteredLeads.length > 0 && selectedIds.length === filteredLeads.length}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 text-yellow-500 rounded border-slate-300 focus:ring-yellow-400 cursor-pointer"
+                    title="Select All"
+                  />
+                </th>
                 <th className="py-3.5 px-4">Opportunity / Title</th>
                 <th className="py-3.5 px-4">Contact Person</th>
                 <th className="py-3.5 px-4">Assigned To</th>
@@ -279,37 +359,52 @@ export default function AdminLeadsPage() {
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400 font-semibold">
+                  <td colSpan={9} className="py-12 text-center text-slate-400 font-semibold">
                     Loading leads...
                   </td>
                 </tr>
               ) : filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p className="font-bold text-slate-700">No leads found</p>
                     <p className="text-xs text-slate-400 mt-0.5">Capture a new lead or adjust active filters.</p>
                   </td>
                 </tr>
               ) : (
-                filteredLeads.map(lead => (
-                  <tr key={lead.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div>
-                        <span 
-                          onClick={() => handleOpenEdit(lead)}
-                          className="font-bold text-slate-900 hover:text-amber-600 transition-colors cursor-pointer block"
-                        >
-                          {lead.title}
-                        </span>
-                        {lead.companyName && (
-                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
-                            <Building2 className="w-3 h-3 text-slate-400" />
-                            <span>{lead.companyName}</span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
+                filteredLeads.map(lead => {
+                  const isSelected = selectedIds.includes(lead.id);
+
+                  return (
+                    <tr 
+                      key={lead.id} 
+                      className={`transition-colors ${isSelected ? 'bg-yellow-50/60 hover:bg-yellow-50/80' : 'hover:bg-slate-50/50'}`}
+                    >
+                      <td className="py-3.5 px-3 w-10 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectOne(lead.id)}
+                          className="w-4 h-4 text-yellow-500 rounded border-slate-300 focus:ring-yellow-400 cursor-pointer"
+                        />
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <div>
+                          <span 
+                            onClick={() => canManage && handleOpenEdit(lead)}
+                            className={`font-bold text-slate-900 block ${canManage ? 'hover:text-amber-600 transition-colors cursor-pointer' : ''}`}
+                          >
+                            {lead.title}
+                          </span>
+                          {lead.companyName && (
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
+                              <Building2 className="w-3 h-3 text-slate-400" />
+                              <span>{lead.companyName}</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
 
                     <td className="py-3.5 px-4">
                       <div>
@@ -375,48 +470,167 @@ export default function AdminLeadsPage() {
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         {lead.status !== 'converted' ? (
-                          <button
-                            onClick={() => handleOpenConvert(lead)}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-xs transition-colors"
-                            title="Convert to Client account"
-                          >
-                            <span>Convert</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
+                          canManage && (
+                            <button
+                              onClick={() => handleOpenConvert(lead)}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-xs transition-colors"
+                              title="Convert to Client account"
+                            >
+                              <span>Convert</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          )
                         ) : (
-                          <Link
-                            to={`/clients/${lead.convertedToClientId}`}
-                            className="text-xs font-semibold text-emerald-600 hover:underline"
-                          >
-                            View Client
-                          </Link>
+                          canViewClients ? (
+                            <Link
+                              to={`/clients/${lead.convertedToClientId}`}
+                              className="text-xs font-semibold text-emerald-600 hover:underline"
+                            >
+                              View Client
+                            </Link>
+                          ) : (
+                            <span className="text-xs font-semibold text-emerald-600">Converted</span>
+                          )
                         )}
 
-                        <button
-                          onClick={() => handleOpenEdit(lead)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                          title="Edit Lead"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(lead.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                          title="Delete Lead"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canManage && (
+                          <button
+                            onClick={() => handleOpenEdit(lead)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                            title="Edit Lead"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDelete(lead.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Delete Lead"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
+                );
+              })
+            )}
+          </tbody>
           </table>
         </div>
       </div>
 
+      {/* Floating Bulk Action Bar */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-4xl bg-[#101216] text-white border border-white/10 rounded-2xl p-3 sm:p-4 shadow-2xl flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-yellow-400 text-slate-950 font-bold flex items-center justify-center text-xs shadow-xs">
+              {selectedIds.length}
+            </div>
+            <div>
+              <p className="font-bold text-xs sm:text-sm text-slate-100">
+                {selectedIds.length} {selectedIds.length === 1 ? 'lead' : 'leads'} selected
+              </p>
+              <p className="text-[11px] text-slate-400 hidden sm:block">
+                Quick updates or open bulk editor
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Quick Assign Dropdown */}
+            {!isAssignedScope && canManage && (
+              <select
+                defaultValue=""
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  const val = e.target.value === 'unassigned' ? null : parseInt(e.target.value);
+                  handleQuickBulkUpdate({ assignedTo: val });
+                  e.target.value = '';
+                }}
+                disabled={isBulkProcessing}
+                className="px-2.5 py-1.5 rounded-xl bg-white/10 border border-white/15 text-white text-xs font-semibold hover:bg-white/15 focus:outline-none focus:ring-1 focus:ring-yellow-400 cursor-pointer disabled:opacity-50"
+              >
+                <option value="" disabled className="bg-slate-900 text-slate-300">Assign to...</option>
+                <option value="unassigned" className="bg-slate-900 text-slate-300">— Unassign —</option>
+                {teamMembers.map(m => (
+                  <option key={m.id} value={m.id} className="bg-slate-900 text-white">
+                    {m.displayName || m.name || m.email}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* Quick Status Dropdown */}
+            {canManage && (
+              <select
+                defaultValue=""
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  handleQuickBulkUpdate({ status: e.target.value });
+                  e.target.value = '';
+                }}
+                disabled={isBulkProcessing}
+                className="px-2.5 py-1.5 rounded-xl bg-white/10 border border-white/15 text-white text-xs font-semibold hover:bg-white/15 focus:outline-none focus:ring-1 focus:ring-yellow-400 cursor-pointer disabled:opacity-50"
+              >
+                <option value="" disabled className="bg-slate-900 text-slate-300">Set status...</option>
+                <option value="new" className="bg-slate-900 text-white">New Inquiry</option>
+                <option value="contacted" className="bg-slate-900 text-white">Contacted</option>
+                <option value="qualified" className="bg-slate-900 text-white">Qualified</option>
+                <option value="unqualified" className="bg-slate-900 text-white">Unqualified</option>
+                <option value="converted" className="bg-slate-900 text-white">Converted</option>
+                <option value="lost" className="bg-slate-900 text-white">Lost</option>
+              </select>
+            )}
+
+            {/* Bulk Edit Modal Button */}
+            {canManage && (
+              <button
+                onClick={() => setIsBulkEditModalOpen(true)}
+                disabled={isBulkProcessing}
+                className="px-3 py-1.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 text-xs font-bold transition-colors shadow-xs disabled:opacity-50"
+              >
+                Bulk Edit...
+              </button>
+            )}
+
+            {/* Bulk Delete */}
+            {canDelete && (
+              <button
+                onClick={handleBulkDelete}
+                disabled={isBulkProcessing}
+                className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-bold transition-colors disabled:opacity-50"
+              >
+                Delete ({selectedIds.length})
+              </button>
+            )}
+
+            {/* Deselect All */}
+            <button
+              onClick={() => setSelectedIds([])}
+              className="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors text-xs font-semibold"
+            >
+              Deselect
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Modals */}
+      <BulkEditLeadsModal
+        isOpen={isBulkEditModalOpen}
+        onClose={() => setIsBulkEditModalOpen(false)}
+        onSuccess={() => {
+          setIsBulkEditModalOpen(false);
+          setSelectedIds([]);
+          fetchLeads();
+        }}
+        selectedIds={selectedIds}
+        teamMembers={teamMembers}
+      />
+
       <LeadModal
         isOpen={isLeadModalOpen}
         onClose={() => setIsLeadModalOpen(false)}
@@ -433,7 +647,7 @@ export default function AdminLeadsPage() {
         onConverted={(newClient) => {
           setIsConvertModalOpen(false);
           fetchLeads();
-          if (newClient?.id) {
+          if (newClient?.id && canViewClients) {
             navigate(`/clients/${newClient.id}`);
           }
         }}

@@ -1,14 +1,14 @@
 import { Hono } from 'hono';
-import { requireAuth, requireAdmin } from '../middleware';
+import { requireAuth, requireInternalStaff, requirePermission } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, sql, and, isNull } from 'drizzle-orm';
 import { fromCents, toCents } from '../lib/calculations';
 
 const reportsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
-reportsRoutes.use('*', requireAuth);
+reportsRoutes.use('*', requireAuth, requireInternalStaff);
 
-reportsRoutes.get('/', requireAdmin, async (c) => {
+reportsRoutes.get('/', requirePermission('reports', 'view'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { RequirePermission } from './components/auth/RequirePermission';
 
 import LoginPage from './pages/Login';
 import ForgotPasswordPage from './pages/ForgotPassword';
@@ -42,6 +43,20 @@ import TeamTimesheetsPage from './pages/team/Timesheets';
 import AdminLayout from './layouts/AdminLayout';
 import ClientLayout from './layouts/ClientLayout';
 import TeamLayout from './layouts/TeamLayout';
+
+const TeamProjectsSwitch = () => {
+  const { hasPermission } = useAuth();
+  return hasPermission('projects', 'view') ? <AdminProjectsPage /> : <TeamProjectsPage />;
+};
+
+const TeamProjectDetailsSwitch = () => {
+  const { hasPermission } = useAuth();
+  return hasPermission('projects', 'view') ? (
+    <AdminProjectDetailsPage />
+  ) : (
+    <TeamProjectDetailsPage />
+  );
+};
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
   const { user, isLoading } = useAuth();
@@ -130,9 +145,34 @@ function AppRoutes() {
         }>
           <Route index element={<TeamDashboardPage />} />
           <Route path="dashboard" element={<TeamDashboardPage />} />
-          <Route path="projects" element={<TeamProjectsPage />} />
-          <Route path="projects/:id" element={<TeamProjectDetailsPage />} />
+          <Route path="projects" element={<TeamProjectsSwitch />} />
+          <Route path="projects/:id" element={<TeamProjectDetailsSwitch />} />
           <Route path="timesheets" element={<TeamTimesheetsPage />} />
+
+          {/* Delegated Modules */}
+          <Route path="crm" element={<RequirePermission module="crm"><CrmDashboard /></RequirePermission>} />
+          <Route path="crm/deals" element={<RequirePermission module="crm"><CrmDashboard /></RequirePermission>} />
+          <Route path="crm/leads" element={<RequirePermission module="crm"><AdminLeadsPage /></RequirePermission>} />
+          <Route path="crm/contacts" element={<RequirePermission module="crm"><AdminContactsPage /></RequirePermission>} />
+
+          <Route path="clients" element={<RequirePermission module="clients"><AdminClientsPage /></RequirePermission>} />
+          <Route path="clients/:id" element={<RequirePermission module="clients"><AdminClientDetailsPage /></RequirePermission>} />
+
+          <Route path="invoices" element={<RequirePermission module="invoices"><AdminInvoicesPage /></RequirePermission>} />
+          <Route path="invoices/new" element={<RequirePermission module="invoices" minLevel="manage"><AdminNewInvoicePage /></RequirePermission>} />
+          <Route path="invoices/:id/edit" element={<RequirePermission module="invoices" minLevel="manage"><AdminEditInvoicePage /></RequirePermission>} />
+          <Route path="invoices/:id" element={<RequirePermission module="invoices"><AdminInvoiceDetailsPage /></RequirePermission>} />
+
+          <Route path="quotes" element={<RequirePermission module="quotes"><AdminQuotesPage /></RequirePermission>} />
+          <Route path="quotes/new" element={<RequirePermission module="quotes" minLevel="manage"><AdminNewQuotePage /></RequirePermission>} />
+          <Route path="quotes/:id/edit" element={<RequirePermission module="quotes" minLevel="manage"><AdminEditQuotePage /></RequirePermission>} />
+          <Route path="quotes/:id" element={<RequirePermission module="quotes"><AdminQuoteDetailsPage /></RequirePermission>} />
+
+          <Route path="tasks" element={<RequirePermission module="tasks"><AdminTasksPage /></RequirePermission>} />
+          <Route path="team-timesheets" element={<RequirePermission module="timesheets"><AdminTimesheetsPage /></RequirePermission>} />
+          <Route path="financials" element={<RequirePermission module="financials"><AdminFinancialsPage /></RequirePermission>} />
+          <Route path="commissions" element={<RequirePermission module="commissions"><AdminCommissionsPage /></RequirePermission>} />
+          <Route path="reports" element={<RequirePermission module="reports"><AdminReportsPage /></RequirePermission>} />
         </Route>
       )}
 

@@ -26,8 +26,8 @@ export function TaskModal({ isOpen, onClose, onSaved, task, preselectedProjectId
   useEffect(() => {
     if (isOpen) {
       Promise.all([
-        fetch('/api/projects').then(res => res.json()),
-        fetch('/api/team').then(res => res.json())
+        fetch('/api/lookups/projects').then(res => res.json()),
+        fetch('/api/lookups/team').then(res => res.json())
       ])
       .then(([projectsData, teamData]) => {
         setProjects(projectsData || []);

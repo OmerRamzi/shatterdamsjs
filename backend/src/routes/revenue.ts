@@ -1,14 +1,14 @@
 import { Hono } from 'hono';
-import { requireAuth, requireAdmin } from '../middleware';
+import { requireAuth, requireInternalStaff, requirePermission } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
 const revenueRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
-revenueRoutes.use('*', requireAuth);
+revenueRoutes.use('*', requireAuth, requireInternalStaff);
 
 // Get all revenue streams
-revenueRoutes.get('/streams', requireAdmin, async (c) => {
+revenueRoutes.get('/streams', requirePermission('financials', 'view'), async (c) => {
   const admin = c.get('user');
   const search = c.req.query('search');
   const status = c.req.query('status');
@@ -53,7 +53,7 @@ revenueRoutes.get('/streams', requireAdmin, async (c) => {
 });
 
 // Create a new revenue stream
-revenueRoutes.post('/streams', requireAdmin, async (c) => {
+revenueRoutes.post('/streams', requirePermission('financials', 'manage'), async (c) => {
   const admin = c.get('user');
   const data = await c.req.json();
   const db = c.get('db');
@@ -104,7 +104,7 @@ revenueRoutes.post('/streams', requireAdmin, async (c) => {
 });
 
 // Get a specific revenue stream with its details
-revenueRoutes.get('/streams/:id', requireAdmin, async (c) => {
+revenueRoutes.get('/streams/:id', requirePermission('financials', 'view'), async (c) => {
   const admin = c.get('user');
   const streamId = parseInt(c.req.param('id'));
   if (isNaN(streamId)) return c.json({ error: 'Invalid stream ID' }, 400);
@@ -150,7 +150,7 @@ revenueRoutes.get('/streams/:id', requireAdmin, async (c) => {
 });
 
 // Update a revenue stream
-revenueRoutes.put('/streams/:id', requireAdmin, async (c) => {
+revenueRoutes.put('/streams/:id', requirePermission('financials', 'manage'), async (c) => {
   const admin = c.get('user');
   const streamId = parseInt(c.req.param('id'));
   if (isNaN(streamId)) return c.json({ error: 'Invalid stream ID' }, 400);
@@ -194,7 +194,7 @@ revenueRoutes.put('/streams/:id', requireAdmin, async (c) => {
 });
 
 // Delete a revenue stream
-revenueRoutes.delete('/streams/:id', requireAdmin, async (c) => {
+revenueRoutes.delete('/streams/:id', requirePermission('financials', 'full'), async (c) => {
   const admin = c.get('user');
   const streamId = parseInt(c.req.param('id'));
   if (isNaN(streamId)) return c.json({ error: 'Invalid stream ID' }, 400);
@@ -211,7 +211,7 @@ revenueRoutes.delete('/streams/:id', requireAdmin, async (c) => {
 });
 
 // Get revenue records
-revenueRoutes.get('/records', requireAdmin, async (c) => {
+revenueRoutes.get('/records', requirePermission('financials', 'view'), async (c) => {
   const admin = c.get('user');
   const db = c.get('db');
   

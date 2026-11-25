@@ -1,25 +1,35 @@
 import { Hono } from 'hono';
-import { requireAuth } from '../middleware';
+import { requireAuth, requireInternalStaff, requirePermission } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, and, desc, inArray, isNull, sql, ilike, or } from 'drizzle-orm';
 import { fromCents, toCents } from '../lib/calculations';
+import { AuthUser, getPermissionScope } from '../lib/permissions';
 
-const crmRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any, db: any } }>();
+const crmRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: AuthUser, db: any } }>();
 
-crmRoutes.use('*', requireAuth);
+crmRoutes.use('*', requireAuth, requireInternalStaff);
+
+const isAssignedScope = (user: AuthUser) => getPermissionScope(user, 'crm') === 'assigned';
 
 /**
  * GET /api/crm/stats
  * Overview metrics for the CRM module & sales pipeline
  */
-crmRoutes.get('/stats', async (c) => {
+crmRoutes.get('/stats', requirePermission('crm', 'view'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
 
   try {
+    const dealConds = [eq(schema.deals.tenantId, user.tenantId), isNull(schema.deals.deletedAt)];
+    const leadConds = [eq(schema.leads.tenantId, user.tenantId), isNull(schema.leads.deletedAt)];
+    if (isAssignedScope(user)) {
+      dealConds.push(eq(schema.deals.assignedTo, user.id));
+      leadConds.push(eq(schema.leads.assignedTo, user.id));
+    }
+
     const dealsList = await db.select()
       .from(schema.deals)
-      .where(and(eq(schema.deals.tenantId, user.tenantId), isNull(schema.deals.deletedAt)));
+      .where(and(...dealConds));
 
     const leadsList = await db.select({
       id: schema.leads.id,
@@ -27,7 +37,7 @@ crmRoutes.get('/stats', async (c) => {
       estimatedValue: schema.leads.estimatedValue
     })
       .from(schema.leads)
-      .where(and(eq(schema.leads.tenantId, user.tenantId), isNull(schema.leads.deletedAt)));
+      .where(and(...leadConds));
 
     // Pipeline calculations
     let totalPipelineCents = 0;
@@ -85,7 +95,7 @@ crmRoutes.get('/stats', async (c) => {
 /**
  * GET /api/crm/leads
  */
-crmRoutes.get('/leads', async (c) => {
+crmRoutes.get('/leads', requirePermission('crm', 'view'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const status = c.req.query('status');
@@ -99,6 +109,10 @@ crmRoutes.get('/leads', async (c) => {
       eq(schema.leads.tenantId, user.tenantId),
       isNull(schema.leads.deletedAt)
     ];
+
+    if (isAssignedScope(user)) {
+      conditions.push(eq(schema.leads.assignedTo, user.id));
+    }
 
     if (status && status !== 'all') {
       conditions.push(eq(schema.leads.status, status as any));
@@ -162,7 +176,7 @@ crmRoutes.get('/leads', async (c) => {
 /**
  * POST /api/crm/leads
  */
-crmRoutes.post('/leads', async (c) => {
+crmRoutes.post('/leads', requirePermission('crm', 'manage'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const body = await c.req.json();
@@ -172,6 +186,10 @@ crmRoutes.post('/leads', async (c) => {
   }
 
   try {
+    const assignedToVal = isAssignedScope(user)
+      ? user.id
+      : (body.assignedTo ? parseInt(body.assignedTo) : user.id);
+
     const [newLead] = await db.insert(schema.leads).values({
       tenantId: user.tenantId,
       title: body.title.trim(),
@@ -184,7 +202,7 @@ crmRoutes.post('/leads', async (c) => {
       priority: body.priority || 'medium',
       estimatedValue: body.estimatedValue ? String(body.estimatedValue) : '0.00',
       currency: body.currency || 'LKR',
-      assignedTo: body.assignedTo ? parseInt(body.assignedTo) : user.id,
+      assignedTo: assignedToVal,
       notes: body.notes?.trim() || null,
     }).returning();
 
@@ -208,7 +226,7 @@ crmRoutes.post('/leads', async (c) => {
 /**
  * GET /api/crm/leads/:id
  */
-crmRoutes.get('/leads/:id', async (c) => {
+crmRoutes.get('/leads/:id', requirePermission('crm', 'view'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const leadId = parseInt(c.req.param('id'), 10);
@@ -222,6 +240,9 @@ crmRoutes.get('/leads/:id', async (c) => {
       .limit(1);
 
     if (!lead) return c.json({ error: 'Lead not found' }, 404);
+    if (isAssignedScope(user) && lead.assignedTo !== user.id) {
+      return c.json({ error: 'Forbidden: Lead not assigned to you' }, 403);
+    }
 
     const [leadContacts, leadDeals, leadInteractions] = await Promise.all([
       db.select().from(schema.contacts).where(and(eq(schema.contacts.leadId, leadId), isNull(schema.contacts.deletedAt))),
@@ -257,9 +278,115 @@ crmRoutes.get('/leads/:id', async (c) => {
 });
 
 /**
+ * PUT /api/crm/leads/bulk
+ * Bulk update multiple leads (status, priority, source, assignedTo)
+ */
+crmRoutes.put('/leads/bulk', requirePermission('crm', 'manage'), async (c) => {
+  const user = c.get('user');
+  const db = c.get('db');
+  const body = await c.req.json();
+  const ids: number[] = Array.isArray(body.ids) ? body.ids.map(Number).filter(id => !isNaN(id)) : [];
+  const updates = body.updates || {};
+
+  if (ids.length === 0) {
+    return c.json({ error: 'No lead IDs provided for bulk update' }, 400);
+  }
+
+  try {
+    const whereConds = [
+      inArray(schema.leads.id, ids),
+      eq(schema.leads.tenantId, user.tenantId),
+      isNull(schema.leads.deletedAt)
+    ];
+    if (isAssignedScope(user)) {
+      whereConds.push(eq(schema.leads.assignedTo, user.id));
+    }
+
+    const updateData: Record<string, any> = {
+      updatedAt: new Date().toISOString()
+    };
+
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.priority !== undefined) updateData.priority = updates.priority;
+    if (updates.source !== undefined) updateData.source = updates.source;
+    if (!isAssignedScope(user) && updates.assignedTo !== undefined) {
+      updateData.assignedTo = updates.assignedTo ? parseInt(updates.assignedTo) : null;
+    }
+
+    const updated = await db.update(schema.leads)
+      .set(updateData)
+      .where(and(...whereConds))
+      .returning({ id: schema.leads.id });
+
+    // Log activity
+    await db.insert(schema.activityLogs).values({
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: `Bulk updated ${updated.length} leads`,
+      entityType: 'lead',
+      description: `Fields updated: ${Object.keys(updates).join(', ')}`,
+    }).catch(() => {});
+
+    return c.json({
+      success: true,
+      updatedCount: updated.length,
+      ids: updated.map((u: any) => u.id)
+    });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+/**
+ * DELETE /api/crm/leads/bulk
+ * Bulk soft-delete multiple leads
+ */
+crmRoutes.delete('/leads/bulk', requirePermission('crm', 'full'), async (c) => {
+  const user = c.get('user');
+  const db = c.get('db');
+  const body = await c.req.json();
+  const ids: number[] = Array.isArray(body.ids) ? body.ids.map(Number).filter(id => !isNaN(id)) : [];
+
+  if (ids.length === 0) {
+    return c.json({ error: 'No lead IDs provided for bulk delete' }, 400);
+  }
+
+  try {
+    const whereConds = [
+      inArray(schema.leads.id, ids),
+      eq(schema.leads.tenantId, user.tenantId),
+      isNull(schema.leads.deletedAt)
+    ];
+    if (isAssignedScope(user)) {
+      whereConds.push(eq(schema.leads.assignedTo, user.id));
+    }
+
+    const deleted = await db.update(schema.leads)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(and(...whereConds))
+      .returning({ id: schema.leads.id });
+
+    await db.insert(schema.activityLogs).values({
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: `Bulk deleted ${deleted.length} leads`,
+      entityType: 'lead',
+    }).catch(() => {});
+
+    return c.json({
+      success: true,
+      deletedCount: deleted.length,
+      ids: deleted.map((d: any) => d.id)
+    });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+/**
  * PUT /api/crm/leads/:id
  */
-crmRoutes.put('/leads/:id', async (c) => {
+crmRoutes.put('/leads/:id', requirePermission('crm', 'manage'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const leadId = parseInt(c.req.param('id'), 10);
@@ -268,6 +395,11 @@ crmRoutes.put('/leads/:id', async (c) => {
   if (isNaN(leadId)) return c.json({ error: 'Invalid ID' }, 400);
 
   try {
+    const whereConds = [eq(schema.leads.id, leadId), eq(schema.leads.tenantId, user.tenantId)];
+    if (isAssignedScope(user)) {
+      whereConds.push(eq(schema.leads.assignedTo, user.id));
+    }
+
     const [updated] = await db.update(schema.leads)
       .set({
         title: body.title !== undefined ? body.title.trim() : undefined,
@@ -280,15 +412,17 @@ crmRoutes.put('/leads/:id', async (c) => {
         priority: body.priority !== undefined ? body.priority : undefined,
         estimatedValue: body.estimatedValue !== undefined ? String(body.estimatedValue) : undefined,
         currency: body.currency !== undefined ? body.currency : undefined,
-        assignedTo: body.assignedTo !== undefined ? (body.assignedTo ? parseInt(body.assignedTo) : null) : undefined,
+        assignedTo: isAssignedScope(user)
+          ? undefined
+          : (body.assignedTo !== undefined ? (body.assignedTo ? parseInt(body.assignedTo) : null) : undefined),
         lostReason: body.lostReason !== undefined ? body.lostReason : undefined,
         notes: body.notes !== undefined ? body.notes?.trim() : undefined,
         updatedAt: new Date().toISOString(),
       })
-      .where(and(eq(schema.leads.id, leadId), eq(schema.leads.tenantId, user.tenantId)))
+      .where(and(...whereConds))
       .returning();
 
-    if (!updated) return c.json({ error: 'Lead not found' }, 404);
+    if (!updated) return c.json({ error: 'Lead not found or unauthorized' }, 404);
 
     return c.json(updated);
   } catch (error: any) {
@@ -299,7 +433,7 @@ crmRoutes.put('/leads/:id', async (c) => {
 /**
  * DELETE /api/crm/leads/:id
  */
-crmRoutes.delete('/leads/:id', async (c) => {
+crmRoutes.delete('/leads/:id', requirePermission('crm', 'full'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const leadId = parseInt(c.req.param('id'), 10);
@@ -307,12 +441,17 @@ crmRoutes.delete('/leads/:id', async (c) => {
   if (isNaN(leadId)) return c.json({ error: 'Invalid ID' }, 400);
 
   try {
+    const whereConds = [eq(schema.leads.id, leadId), eq(schema.leads.tenantId, user.tenantId)];
+    if (isAssignedScope(user)) {
+      whereConds.push(eq(schema.leads.assignedTo, user.id));
+    }
+
     const [deleted] = await db.update(schema.leads)
       .set({ deletedAt: new Date().toISOString() })
-      .where(and(eq(schema.leads.id, leadId), eq(schema.leads.tenantId, user.tenantId)))
+      .where(and(...whereConds))
       .returning();
 
-    if (!deleted) return c.json({ error: 'Lead not found' }, 404);
+    if (!deleted) return c.json({ error: 'Lead not found or unauthorized' }, 404);
 
     return c.json({ success: true });
   } catch (error: any) {
@@ -324,7 +463,7 @@ crmRoutes.delete('/leads/:id', async (c) => {
  * POST /api/crm/leads/:id/convert
  * Converts a qualified Lead into a Client account and primary Contact
  */
-crmRoutes.post('/leads/:id/convert', async (c) => {
+crmRoutes.post('/leads/:id/convert', requirePermission('crm', 'manage'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const leadId = parseInt(c.req.param('id'), 10);
@@ -339,6 +478,9 @@ crmRoutes.post('/leads/:id/convert', async (c) => {
       .limit(1);
 
     if (!lead) return c.json({ error: 'Lead not found' }, 404);
+    if (isAssignedScope(user) && lead.assignedTo !== user.id) {
+      return c.json({ error: 'Forbidden: Lead not assigned to you' }, 403);
+    }
 
     const companyName = body.companyName?.trim() || lead.companyName || lead.title;
     const contactPerson = body.contactPerson?.trim() || lead.contactName || 'Primary Contact';
@@ -423,7 +565,7 @@ crmRoutes.post('/leads/:id/convert', async (c) => {
 /**
  * GET /api/crm/deals
  */
-crmRoutes.get('/deals', async (c) => {
+crmRoutes.get('/deals', requirePermission('crm', 'view'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const stage = c.req.query('stage');
@@ -434,6 +576,10 @@ crmRoutes.get('/deals', async (c) => {
       eq(schema.deals.tenantId, user.tenantId),
       isNull(schema.deals.deletedAt)
     ];
+
+    if (isAssignedScope(user)) {
+      conditions.push(eq(schema.deals.assignedTo, user.id));
+    }
 
     if (stage && stage !== 'all') {
       conditions.push(eq(schema.deals.stage, stage as any));
@@ -493,7 +639,7 @@ crmRoutes.get('/deals', async (c) => {
 /**
  * POST /api/crm/deals
  */
-crmRoutes.post('/deals', async (c) => {
+crmRoutes.post('/deals', requirePermission('crm', 'manage'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const body = await c.req.json();
@@ -503,6 +649,10 @@ crmRoutes.post('/deals', async (c) => {
   }
 
   try {
+    const assignedToVal = isAssignedScope(user)
+      ? user.id
+      : (body.assignedTo ? parseInt(body.assignedTo) : user.id);
+
     const [newDeal] = await db.insert(schema.deals).values({
       tenantId: user.tenantId,
       title: body.title.trim(),
@@ -513,7 +663,7 @@ crmRoutes.post('/deals', async (c) => {
       expectedCloseDate: body.expectedCloseDate || null,
       leadId: body.leadId ? parseInt(body.leadId) : null,
       clientId: body.clientId ? parseInt(body.clientId) : null,
-      assignedTo: body.assignedTo ? parseInt(body.assignedTo) : user.id,
+      assignedTo: assignedToVal,
       lostReason: body.lostReason || null,
       orderIndex: body.orderIndex || 0,
     }).returning();
@@ -537,7 +687,7 @@ crmRoutes.post('/deals', async (c) => {
 /**
  * PUT /api/crm/deals/:id
  */
-crmRoutes.put('/deals/:id', async (c) => {
+crmRoutes.put('/deals/:id', requirePermission('crm', 'manage'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const dealId = parseInt(c.req.param('id'), 10);
@@ -546,6 +696,11 @@ crmRoutes.put('/deals/:id', async (c) => {
   if (isNaN(dealId)) return c.json({ error: 'Invalid ID' }, 400);
 
   try {
+    const whereConds = [eq(schema.deals.id, dealId), eq(schema.deals.tenantId, user.tenantId)];
+    if (isAssignedScope(user)) {
+      whereConds.push(eq(schema.deals.assignedTo, user.id));
+    }
+
     const [updated] = await db.update(schema.deals)
       .set({
         title: body.title !== undefined ? body.title.trim() : undefined,
@@ -556,15 +711,17 @@ crmRoutes.put('/deals/:id', async (c) => {
         expectedCloseDate: body.expectedCloseDate !== undefined ? body.expectedCloseDate : undefined,
         leadId: body.leadId !== undefined ? (body.leadId ? parseInt(body.leadId) : null) : undefined,
         clientId: body.clientId !== undefined ? (body.clientId ? parseInt(body.clientId) : null) : undefined,
-        assignedTo: body.assignedTo !== undefined ? (body.assignedTo ? parseInt(body.assignedTo) : null) : undefined,
+        assignedTo: isAssignedScope(user)
+          ? undefined
+          : (body.assignedTo !== undefined ? (body.assignedTo ? parseInt(body.assignedTo) : null) : undefined),
         lostReason: body.lostReason !== undefined ? body.lostReason : undefined,
         orderIndex: body.orderIndex !== undefined ? parseInt(body.orderIndex) : undefined,
         updatedAt: new Date().toISOString(),
       })
-      .where(and(eq(schema.deals.id, dealId), eq(schema.deals.tenantId, user.tenantId)))
+      .where(and(...whereConds))
       .returning();
 
-    if (!updated) return c.json({ error: 'Deal not found' }, 404);
+    if (!updated) return c.json({ error: 'Deal not found or unauthorized' }, 404);
 
     return c.json(updated);
   } catch (error: any) {
@@ -576,7 +733,7 @@ crmRoutes.put('/deals/:id', async (c) => {
  * PUT /api/crm/deals/reorder
  * Handles Kanban drag and drop stage changes
  */
-crmRoutes.put('/deals/reorder', async (c) => {
+crmRoutes.put('/deals/reorder', requirePermission('crm', 'manage'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const body = await c.req.json(); // { dealId: number, newStage: string, newOrderIndex?: number }
@@ -586,14 +743,21 @@ crmRoutes.put('/deals/reorder', async (c) => {
   }
 
   try {
+    const whereConds = [eq(schema.deals.id, body.dealId), eq(schema.deals.tenantId, user.tenantId)];
+    if (isAssignedScope(user)) {
+      whereConds.push(eq(schema.deals.assignedTo, user.id));
+    }
+
     const [updated] = await db.update(schema.deals)
       .set({
         stage: body.newStage as any,
         orderIndex: body.newOrderIndex !== undefined ? body.newOrderIndex : undefined,
         updatedAt: new Date().toISOString(),
       })
-      .where(and(eq(schema.deals.id, body.dealId), eq(schema.deals.tenantId, user.tenantId)))
+      .where(and(...whereConds))
       .returning();
+
+    if (!updated) return c.json({ error: 'Deal not found or unauthorized' }, 404);
 
     return c.json(updated);
   } catch (error: any) {
@@ -604,7 +768,7 @@ crmRoutes.put('/deals/reorder', async (c) => {
 /**
  * DELETE /api/crm/deals/:id
  */
-crmRoutes.delete('/deals/:id', async (c) => {
+crmRoutes.delete('/deals/:id', requirePermission('crm', 'full'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const dealId = parseInt(c.req.param('id'), 10);
@@ -612,12 +776,17 @@ crmRoutes.delete('/deals/:id', async (c) => {
   if (isNaN(dealId)) return c.json({ error: 'Invalid ID' }, 400);
 
   try {
+    const whereConds = [eq(schema.deals.id, dealId), eq(schema.deals.tenantId, user.tenantId)];
+    if (isAssignedScope(user)) {
+      whereConds.push(eq(schema.deals.assignedTo, user.id));
+    }
+
     const [deleted] = await db.update(schema.deals)
       .set({ deletedAt: new Date().toISOString() })
-      .where(and(eq(schema.deals.id, dealId), eq(schema.deals.tenantId, user.tenantId)))
+      .where(and(...whereConds))
       .returning();
 
-    if (!deleted) return c.json({ error: 'Deal not found' }, 404);
+    if (!deleted) return c.json({ error: 'Deal not found or unauthorized' }, 404);
 
     return c.json({ success: true });
   } catch (error: any) {
@@ -632,7 +801,7 @@ crmRoutes.delete('/deals/:id', async (c) => {
 /**
  * GET /api/crm/contacts
  */
-crmRoutes.get('/contacts', async (c) => {
+crmRoutes.get('/contacts', requirePermission('crm', 'view'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const clientId = c.req.query('clientId');
@@ -645,6 +814,10 @@ crmRoutes.get('/contacts', async (c) => {
       eq(schema.contacts.tenantId, user.tenantId),
       isNull(schema.contacts.deletedAt)
     ];
+
+    if (isAssignedScope(user)) {
+      conditions.push(eq(schema.contacts.assignedTo, user.id));
+    }
 
     if (clientId) conditions.push(eq(schema.contacts.clientId, parseInt(clientId, 10)));
     if (leadId) conditions.push(eq(schema.contacts.leadId, parseInt(leadId, 10)));
@@ -708,7 +881,7 @@ crmRoutes.get('/contacts', async (c) => {
 /**
  * POST /api/crm/contacts
  */
-crmRoutes.post('/contacts', async (c) => {
+crmRoutes.post('/contacts', requirePermission('crm', 'manage'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const body = await c.req.json();
@@ -718,11 +891,15 @@ crmRoutes.post('/contacts', async (c) => {
   }
 
   try {
+    const assignedToVal = isAssignedScope(user)
+      ? user.id
+      : (body.assignedTo ? parseInt(body.assignedTo) : null);
+
     const [newContact] = await db.insert(schema.contacts).values({
       tenantId: user.tenantId,
       leadId: body.leadId ? parseInt(body.leadId) : null,
       clientId: body.clientId ? parseInt(body.clientId) : null,
-      assignedTo: body.assignedTo ? parseInt(body.assignedTo) : null,
+      assignedTo: assignedToVal,
       firstName: body.firstName.trim(),
       lastName: body.lastName?.trim() || null,
       email: body.email?.trim() || null,
@@ -741,9 +918,114 @@ crmRoutes.post('/contacts', async (c) => {
 });
 
 /**
+ * PUT /api/crm/contacts/bulk
+ * Bulk update multiple contacts (role, assignedTo, clientId)
+ */
+crmRoutes.put('/contacts/bulk', requirePermission('crm', 'manage'), async (c) => {
+  const user = c.get('user');
+  const db = c.get('db');
+  const body = await c.req.json();
+  const ids: number[] = Array.isArray(body.ids) ? body.ids.map(Number).filter(id => !isNaN(id)) : [];
+  const updates = body.updates || {};
+
+  if (ids.length === 0) {
+    return c.json({ error: 'No contact IDs provided for bulk update' }, 400);
+  }
+
+  try {
+    const whereConds = [
+      inArray(schema.contacts.id, ids),
+      eq(schema.contacts.tenantId, user.tenantId),
+      isNull(schema.contacts.deletedAt)
+    ];
+    if (isAssignedScope(user)) {
+      whereConds.push(eq(schema.contacts.assignedTo, user.id));
+    }
+
+    const updateData: Record<string, any> = {
+      updatedAt: new Date().toISOString()
+    };
+
+    if (updates.role !== undefined) updateData.role = updates.role;
+    if (updates.clientId !== undefined) updateData.clientId = updates.clientId ? parseInt(updates.clientId) : null;
+    if (!isAssignedScope(user) && updates.assignedTo !== undefined) {
+      updateData.assignedTo = updates.assignedTo ? parseInt(updates.assignedTo) : null;
+    }
+
+    const updated = await db.update(schema.contacts)
+      .set(updateData)
+      .where(and(...whereConds))
+      .returning({ id: schema.contacts.id });
+
+    // Log activity
+    await db.insert(schema.activityLogs).values({
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: `Bulk updated ${updated.length} contacts`,
+      entityType: 'contact',
+      description: `Fields updated: ${Object.keys(updates).join(', ')}`,
+    }).catch(() => {});
+
+    return c.json({
+      success: true,
+      updatedCount: updated.length,
+      ids: updated.map((u: any) => u.id)
+    });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+/**
+ * DELETE /api/crm/contacts/bulk
+ * Bulk soft-delete multiple contacts
+ */
+crmRoutes.delete('/contacts/bulk', requirePermission('crm', 'full'), async (c) => {
+  const user = c.get('user');
+  const db = c.get('db');
+  const body = await c.req.json();
+  const ids: number[] = Array.isArray(body.ids) ? body.ids.map(Number).filter(id => !isNaN(id)) : [];
+
+  if (ids.length === 0) {
+    return c.json({ error: 'No contact IDs provided for bulk delete' }, 400);
+  }
+
+  try {
+    const whereConds = [
+      inArray(schema.contacts.id, ids),
+      eq(schema.contacts.tenantId, user.tenantId),
+      isNull(schema.contacts.deletedAt)
+    ];
+    if (isAssignedScope(user)) {
+      whereConds.push(eq(schema.contacts.assignedTo, user.id));
+    }
+
+    const deleted = await db.update(schema.contacts)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(and(...whereConds))
+      .returning({ id: schema.contacts.id });
+
+    await db.insert(schema.activityLogs).values({
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: `Bulk deleted ${deleted.length} contacts`,
+      entityType: 'contact',
+    }).catch(() => {});
+
+    return c.json({
+      success: true,
+      deletedCount: deleted.length,
+      ids: deleted.map((d: any) => d.id)
+    });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+/**
  * PUT /api/crm/contacts/:id
  */
-crmRoutes.put('/contacts/:id', async (c) => {
+crmRoutes.put('/contacts/:id', requirePermission('crm', 'manage'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const contactId = parseInt(c.req.param('id'), 10);
@@ -752,6 +1034,11 @@ crmRoutes.put('/contacts/:id', async (c) => {
   if (isNaN(contactId)) return c.json({ error: 'Invalid ID' }, 400);
 
   try {
+    const whereConds = [eq(schema.contacts.id, contactId), eq(schema.contacts.tenantId, user.tenantId)];
+    if (isAssignedScope(user)) {
+      whereConds.push(eq(schema.contacts.assignedTo, user.id));
+    }
+
     const [updated] = await db.update(schema.contacts)
       .set({
         firstName: body.firstName !== undefined ? body.firstName.trim() : undefined,
@@ -760,16 +1047,18 @@ crmRoutes.put('/contacts/:id', async (c) => {
         phone: body.phone !== undefined ? body.phone?.trim() : undefined,
         jobTitle: body.jobTitle !== undefined ? body.jobTitle?.trim() : undefined,
         role: body.role !== undefined ? body.role : undefined,
-        assignedTo: body.assignedTo !== undefined ? (body.assignedTo ? parseInt(body.assignedTo) : null) : undefined,
+        assignedTo: isAssignedScope(user)
+          ? undefined
+          : (body.assignedTo !== undefined ? (body.assignedTo ? parseInt(body.assignedTo) : null) : undefined),
         isPrimary: body.isPrimary !== undefined ? body.isPrimary : undefined,
         linkedinUrl: body.linkedinUrl !== undefined ? body.linkedinUrl?.trim() : undefined,
         notes: body.notes !== undefined ? body.notes?.trim() : undefined,
         updatedAt: new Date().toISOString(),
       })
-      .where(and(eq(schema.contacts.id, contactId), eq(schema.contacts.tenantId, user.tenantId)))
+      .where(and(...whereConds))
       .returning();
 
-    if (!updated) return c.json({ error: 'Contact not found' }, 404);
+    if (!updated) return c.json({ error: 'Contact not found or unauthorized' }, 404);
 
     return c.json(updated);
   } catch (error: any) {
@@ -780,7 +1069,7 @@ crmRoutes.put('/contacts/:id', async (c) => {
 /**
  * DELETE /api/crm/contacts/:id
  */
-crmRoutes.delete('/contacts/:id', async (c) => {
+crmRoutes.delete('/contacts/:id', requirePermission('crm', 'full'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const contactId = parseInt(c.req.param('id'), 10);
@@ -788,12 +1077,17 @@ crmRoutes.delete('/contacts/:id', async (c) => {
   if (isNaN(contactId)) return c.json({ error: 'Invalid ID' }, 400);
 
   try {
+    const whereConds = [eq(schema.contacts.id, contactId), eq(schema.contacts.tenantId, user.tenantId)];
+    if (isAssignedScope(user)) {
+      whereConds.push(eq(schema.contacts.assignedTo, user.id));
+    }
+
     const [deleted] = await db.update(schema.contacts)
       .set({ deletedAt: new Date().toISOString() })
-      .where(and(eq(schema.contacts.id, contactId), eq(schema.contacts.tenantId, user.tenantId)))
+      .where(and(...whereConds))
       .returning();
 
-    if (!deleted) return c.json({ error: 'Contact not found' }, 404);
+    if (!deleted) return c.json({ error: 'Contact not found or unauthorized' }, 404);
 
     return c.json({ success: true });
   } catch (error: any) {
@@ -808,7 +1102,7 @@ crmRoutes.delete('/contacts/:id', async (c) => {
 /**
  * GET /api/crm/interactions
  */
-crmRoutes.get('/interactions', async (c) => {
+crmRoutes.get('/interactions', requirePermission('crm', 'view'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const leadId = c.req.query('leadId');
@@ -820,6 +1114,9 @@ crmRoutes.get('/interactions', async (c) => {
     if (leadId) conditions.push(eq(schema.crmInteractions.leadId, parseInt(leadId, 10)));
     if (dealId) conditions.push(eq(schema.crmInteractions.dealId, parseInt(dealId, 10)));
     if (clientId) conditions.push(eq(schema.crmInteractions.clientId, parseInt(clientId, 10)));
+    if (isAssignedScope(user)) {
+      conditions.push(eq(schema.crmInteractions.performedBy, user.id));
+    }
 
     const interactions = await db.select({
       id: schema.crmInteractions.id,
@@ -849,7 +1146,7 @@ crmRoutes.get('/interactions', async (c) => {
 /**
  * POST /api/crm/interactions
  */
-crmRoutes.post('/interactions', async (c) => {
+crmRoutes.post('/interactions', requirePermission('crm', 'manage'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const body = await c.req.json();
@@ -882,7 +1179,7 @@ crmRoutes.post('/interactions', async (c) => {
 /**
  * PUT /api/crm/interactions/:id
  */
-crmRoutes.put('/interactions/:id', async (c) => {
+crmRoutes.put('/interactions/:id', requirePermission('crm', 'manage'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const interactionId = parseInt(c.req.param('id'), 10);
@@ -891,6 +1188,11 @@ crmRoutes.put('/interactions/:id', async (c) => {
   if (isNaN(interactionId)) return c.json({ error: 'Invalid ID' }, 400);
 
   try {
+    const whereConds = [eq(schema.crmInteractions.id, interactionId), eq(schema.crmInteractions.tenantId, user.tenantId)];
+    if (isAssignedScope(user)) {
+      whereConds.push(eq(schema.crmInteractions.performedBy, user.id));
+    }
+
     const [updated] = await db.update(schema.crmInteractions)
       .set({
         title: body.title !== undefined ? body.title.trim() : undefined,
@@ -899,8 +1201,10 @@ crmRoutes.put('/interactions/:id', async (c) => {
         dueDate: body.dueDate !== undefined ? body.dueDate : undefined,
         updatedAt: new Date().toISOString(),
       })
-      .where(and(eq(schema.crmInteractions.id, interactionId), eq(schema.crmInteractions.tenantId, user.tenantId)))
+      .where(and(...whereConds))
       .returning();
+
+    if (!updated) return c.json({ error: 'Interaction not found or unauthorized' }, 404);
 
     return c.json(updated);
   } catch (error: any) {
@@ -912,7 +1216,7 @@ crmRoutes.put('/interactions/:id', async (c) => {
  * POST /api/crm/import/leads
  * Bulk import leads from CSV (Zoho CRM, HubSpot, custom CSV)
  */
-crmRoutes.post('/import/leads', async (c) => {
+crmRoutes.post('/import/leads', requirePermission('crm', 'manage'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const body = await c.req.json();
@@ -929,7 +1233,9 @@ crmRoutes.post('/import/leads', async (c) => {
 
     const insertedIds: number[] = [];
     const chunkSize = 50;
-    const defaultAssignee = body.defaultAssignedTo ? parseInt(body.defaultAssignedTo) : user.id;
+    const defaultAssignee = isAssignedScope(user)
+      ? user.id
+      : (body.defaultAssignedTo ? parseInt(body.defaultAssignedTo) : user.id);
 
     for (let i = 0; i < items.length; i += chunkSize) {
       const chunk = items.slice(i, i + chunkSize);
@@ -994,7 +1300,9 @@ crmRoutes.post('/import/leads', async (c) => {
           priority,
           estimatedValue: estVal,
           currency: item.currency || 'LKR',
-          assignedTo: item.assignedTo ? parseInt(item.assignedTo) : defaultAssignee,
+          assignedTo: isAssignedScope(user)
+            ? user.id
+            : (item.assignedTo ? parseInt(item.assignedTo) : defaultAssignee),
           notes: item.notes?.trim() || null,
         };
       });
@@ -1027,7 +1335,7 @@ crmRoutes.post('/import/leads', async (c) => {
  * POST /api/crm/import/contacts
  * Bulk import contacts from CSV
  */
-crmRoutes.post('/import/contacts', async (c) => {
+crmRoutes.post('/import/contacts', requirePermission('crm', 'manage'), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const body = await c.req.json();
@@ -1051,7 +1359,9 @@ crmRoutes.post('/import/contacts', async (c) => {
 
     const insertedIds: number[] = [];
     const chunkSize = 50;
-    const defaultAssignee = body.defaultAssignedTo ? parseInt(body.defaultAssignedTo) : null;
+    const defaultAssignee = isAssignedScope(user)
+      ? user.id
+      : (body.defaultAssignedTo ? parseInt(body.defaultAssignedTo) : null);
 
     for (let i = 0; i < items.length; i += chunkSize) {
       const chunk = items.slice(i, i + chunkSize);
@@ -1090,7 +1400,9 @@ crmRoutes.post('/import/contacts', async (c) => {
           jobTitle: item.jobTitle?.trim() || null,
           role,
           clientId: matchedClientId,
-          assignedTo: item.assignedTo ? parseInt(item.assignedTo) : defaultAssignee,
+          assignedTo: isAssignedScope(user)
+            ? user.id
+            : (item.assignedTo ? parseInt(item.assignedTo) : defaultAssignee),
           isPrimary: Boolean(item.isPrimary),
           linkedinUrl: item.linkedinUrl?.trim() || null,
           notes: item.notes?.trim() || null,

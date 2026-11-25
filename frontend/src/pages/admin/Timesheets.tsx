@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { Clock, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 export default function AdminTimesheetsPage() {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('timesheets', 'manage');
   const [timesheets, setTimesheets] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
@@ -107,7 +110,7 @@ export default function AdminTimesheetsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {timesheet.status === 'pending' && (
+                      {canManage && timesheet.status === 'pending' && (
                         <div className="flex items-center justify-end gap-2">
                           <button 
                             onClick={() => handleUpdateStatus(timesheet.id, 'approved')}

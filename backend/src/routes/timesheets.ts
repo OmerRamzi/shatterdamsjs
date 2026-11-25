@@ -1,11 +1,12 @@
 import { Hono } from 'hono';
-import { requireAuth, requireAdmin } from '../middleware';
+import { requireAuth, requireInternalStaff, requirePermission } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
+import { AuthUser, hasPermission } from '../lib/permissions';
 
-const timesheetsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
+const timesheetsRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: AuthUser, db: any } }>();
 
-timesheetsRoutes.use('*', requireAuth);
+timesheetsRoutes.use('*', requireAuth, requireInternalStaff);
 
 timesheetsRoutes.get('/', async (c) => {
   const user = c.get('user');
@@ -19,9 +20,9 @@ timesheetsRoutes.get('/', async (c) => {
   try {
     const conditions = [eq(schema.timesheets.tenantId, user.tenantId)];
     
-    // Team members can only see their own timesheets, admins can see all
-    if (user.role === 'team' || user.role === 'freelancer' || user.role === 'employee') {
-      conditions.push(eq(schema.timesheets.userId, parseInt(user.sub as string)));
+    // Team members without 'timesheets' module access can only see their own timesheets
+    if (!hasPermission(user, 'timesheets', 'view')) {
+      conditions.push(eq(schema.timesheets.userId, user.id));
     }
     
     if (projectId) conditions.push(eq(schema.timesheets.projectId, parseInt(projectId)));
@@ -126,9 +127,9 @@ timesheetsRoutes.put('/:id', async (c) => {
     if (existing.approved) return c.json({ error: 'Cannot edit approved timesheet' }, 400);
     
     // Check permission
-    const isOwner = existing.userId === parseInt(user.sub as string);
-    const isAdmin = user.role === 'administrator';
-    if (!isOwner && !isAdmin) {
+    const isOwner = existing.userId === user.id;
+    const canManageAll = hasPermission(user, 'timesheets', 'manage');
+    if (!isOwner && !canManageAll) {
       return c.json({ error: 'Unauthorized' }, 403);
     }
 
@@ -168,9 +169,9 @@ timesheetsRoutes.delete('/:id', async (c) => {
     if (existing.approved) return c.json({ error: 'Cannot delete approved timesheet' }, 400);
     
     // Check permission
-    const isOwner = existing.userId === parseInt(user.sub as string);
-    const isAdmin = user.role === 'administrator';
-    if (!isOwner && !isAdmin) {
+    const isOwner = existing.userId === user.id;
+    const canManageAll = hasPermission(user, 'timesheets', 'manage');
+    if (!isOwner && !canManageAll) {
       return c.json({ error: 'Unauthorized' }, 403);
     }
 
@@ -183,7 +184,7 @@ timesheetsRoutes.delete('/:id', async (c) => {
   }
 });
 
-timesheetsRoutes.patch('/:id/status', requireAdmin, async (c) => {
+timesheetsRoutes.patch('/:id/status', requirePermission('timesheets', 'manage'), async (c) => {
   const user = c.get('user');
   const id = parseInt(c.req.param('id'));
   const { approved } = await c.req.json();

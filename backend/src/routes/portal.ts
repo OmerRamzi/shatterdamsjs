@@ -1,16 +1,17 @@
 import { Hono } from 'hono';
-import { requireAuth, requireAdmin } from '../middleware';
+import { requireAuth } from '../middleware';
 import * as schema from '../db/schema';
 import { eq, inArray, desc, ne, and, isNull, sql } from 'drizzle-orm';
 import { fromCents, toCents } from '../lib/calculations';
+import { AuthUser, hasPermission } from '../lib/permissions';
 
-const portalRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any, db: any } }>();
+const portalRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: AuthUser, db: any } }>();
 
 portalRoutes.use('*', requireAuth);
 
 portalRoutes.get('/stats', async (c) => {
   const user = c.get('user');
-  if (user.role !== 'administrator') return c.json({ error: 'Unauthorized' }, 403);
+  if (!hasPermission(user, 'overview', 'view')) return c.json({ error: 'Unauthorized' }, 403);
   
   const db = c.get('db');
   

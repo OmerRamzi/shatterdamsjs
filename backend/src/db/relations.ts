@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { tenants, activityLogs, users, clients, files, projects, fileComments, invoices, milestones, quotations, quotationItems, timesheets, tasks, userRoles, projectTeam, invoiceItems, payrollLogs, settings, taskComments, leads, deals, contacts, crmInteractions } from "./schema";
+import { tenants, activityLogs, users, clients, files, projects, fileComments, invoices, milestones, quotations, quotationItems, timesheets, tasks, userRoles, projectTeam, invoiceItems, payrollLogs, settings, taskComments, leads, deals, contacts, crmInteractions, userModulePermissions } from "./schema";
 
 export const activityLogsRelations = relations(activityLogs, ({one}) => ({
 	tenant: one(tenants, {
@@ -26,6 +26,7 @@ export const tenantsRelations = relations(tenants, ({many}) => ({
 	payrollLogs: many(payrollLogs),
 	settings: many(settings),
 	users: many(users),
+	userModulePermissions: many(userModulePermissions),
 }));
 
 export const usersRelations = relations(users, ({one, many}) => ({
@@ -48,6 +49,12 @@ export const usersRelations = relations(users, ({one, many}) => ({
 		relationName: "timesheets_userId_users_id"
 	}),
 	userRoles: many(userRoles),
+	modulePermissions: many(userModulePermissions, {
+		relationName: "userModulePermissions_userId_users_id"
+	}),
+	grantedModulePermissions: many(userModulePermissions, {
+		relationName: "userModulePermissions_grantedBy_users_id"
+	}),
 	projectTeams: many(projectTeam),
 	payrollLogs: many(payrollLogs),
 	tasks: many(tasks),
@@ -375,5 +382,22 @@ export const crmInteractionsRelations = relations(crmInteractions, ({one}) => ({
 	contact: one(contacts, {
 		fields: [crmInteractions.contactId],
 		references: [contacts.id]
+	}),
+}));
+
+export const userModulePermissionsRelations = relations(userModulePermissions, ({one}) => ({
+	tenant: one(tenants, {
+		fields: [userModulePermissions.tenantId],
+		references: [tenants.id]
+	}),
+	user: one(users, {
+		fields: [userModulePermissions.userId],
+		references: [users.id],
+		relationName: "userModulePermissions_userId_users_id"
+	}),
+	granter: one(users, {
+		fields: [userModulePermissions.grantedBy],
+		references: [users.id],
+		relationName: "userModulePermissions_grantedBy_users_id"
 	}),
 }));

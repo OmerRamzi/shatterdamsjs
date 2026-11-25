@@ -85,6 +85,7 @@ import revenueRoutes from './routes/revenue';
 import commissionsRoutes from './routes/commissions';
 import webhookRoutes from './routes/webhooks';
 import crmRoutes from './routes/crm';
+import lookupsRoutes from './routes/lookups';
 
 app.route('/api/auth', authRoutes);
 app.route('/api/clients', clientsRoutes);
@@ -105,6 +106,7 @@ app.route('/api/revenue', revenueRoutes);
 app.route('/api/commissions', commissionsRoutes);
 app.route('/api/webhooks', webhookRoutes);
 app.route('/api/crm', crmRoutes);
+app.route('/api/lookups', lookupsRoutes);
 
 import { processRevenueStreams } from './cron/revenue';
 import { processPartnerIntegrations } from './cron/partners';
