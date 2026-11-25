@@ -344,6 +344,10 @@ export const contactsRelations = relations(contacts, ({one, many}) => ({
 		fields: [contacts.clientId],
 		references: [clients.id]
 	}),
+	assignee: one(users, {
+		fields: [contacts.assignedTo],
+		references: [users.id]
+	}),
 	interactions: many(crmInteractions),
 }));
 

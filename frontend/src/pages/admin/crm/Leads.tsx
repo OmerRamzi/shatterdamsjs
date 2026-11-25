@@ -38,10 +38,12 @@ interface Lead {
 export default function AdminLeadsPage() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [assigneeFilter, setAssigneeFilter] = useState('all');
 
   // Modals
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
@@ -52,12 +54,22 @@ export default function AdminLeadsPage() {
 
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
 
+  useEffect(() => {
+    fetch('/api/team')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) setTeamMembers(data);
+      })
+      .catch(() => {});
+  }, []);
+
   const fetchLeads = useCallback(async () => {
     setIsLoading(true);
     try {
       let url = '/api/crm/leads?';
       if (statusFilter !== 'all') url += `status=${statusFilter}&`;
       if (priorityFilter !== 'all') url += `priority=${priorityFilter}&`;
+      if (assigneeFilter !== 'all') url += `assignedTo=${assigneeFilter}&`;
 
       const res = await fetch(url);
       if (res.ok) setLeads(await res.json());
@@ -66,7 +78,7 @@ export default function AdminLeadsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [statusFilter, priorityFilter]);
+  }, [statusFilter, priorityFilter, assigneeFilter]);
 
   useEffect(() => {
     fetchLeads();
@@ -207,7 +219,22 @@ export default function AdminLeadsPage() {
         </div>
 
         {/* Right filters & search */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <select
+            value={assigneeFilter}
+            onChange={(e) => setAssigneeFilter(e.target.value)}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 bg-white"
+          >
+            <option value="all">All Assignees</option>
+            <option value="me">Assigned to Me</option>
+            <option value="unassigned">Unassigned Only</option>
+            {teamMembers.map(m => (
+              <option key={m.id} value={m.id}>
+                {m.displayName || m.email}
+              </option>
+            ))}
+          </select>
+
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
@@ -220,7 +247,7 @@ export default function AdminLeadsPage() {
             <option value="low">Low</option>
           </select>
 
-          <div className="relative w-full sm:w-56">
+          <div className="relative w-full sm:w-52">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
             <input
               type="text"
@@ -241,6 +268,7 @@ export default function AdminLeadsPage() {
               <tr>
                 <th className="py-3.5 px-4">Opportunity / Title</th>
                 <th className="py-3.5 px-4">Contact Person</th>
+                <th className="py-3.5 px-4">Assigned To</th>
                 <th className="py-3.5 px-4">Priority</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4">Source</th>
@@ -251,13 +279,13 @@ export default function AdminLeadsPage() {
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 font-semibold">
+                  <td colSpan={8} className="py-12 text-center text-slate-400 font-semibold">
                     Loading leads...
                   </td>
                 </tr>
               ) : filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
                     <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p className="font-bold text-slate-700">No leads found</p>
                     <p className="text-xs text-slate-400 mt-0.5">Capture a new lead or adjust active filters.</p>
@@ -288,20 +316,40 @@ export default function AdminLeadsPage() {
                         <span className="font-semibold text-slate-800 block">
                           {lead.contactName || '—'}
                         </span>
-                        <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                        <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5 flex-wrap">
                           {lead.email && (
                             <a href={`mailto:${lead.email}`} className="hover:text-amber-600 flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
-                              <span className="truncate max-w-[120px]">{lead.email}</span>
+                              <Mail className="w-3 h-3 text-slate-400" />
+                              <span className="truncate max-w-[110px]">{lead.email}</span>
                             </a>
                           )}
                           {lead.phone && (
-                            <a href={`tel:${lead.phone}`} className="hover:text-amber-600 flex items-center gap-1">
-                              <Phone className="w-3 h-3" />
+                            <a 
+                              href={`tel:${lead.phone}`} 
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-[10px] transition-colors"
+                              title={`Call ${lead.contactName || lead.phone}`}
+                            >
+                              <Phone className="w-2.5 h-2.5 fill-emerald-600" />
+                              <span>{lead.phone}</span>
                             </a>
                           )}
                         </div>
                       </div>
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      {lead.assignedUser ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-full bg-slate-900 text-yellow-400 font-bold text-[10px] flex items-center justify-center shrink-0">
+                            {lead.assignedUser.name[0]?.toUpperCase()}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-800 truncate max-w-[100px]">
+                            {lead.assignedUser.name}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic">Unassigned</span>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4">

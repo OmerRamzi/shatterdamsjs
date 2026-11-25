@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   X, 
   Upload, 
@@ -74,6 +74,8 @@ export function CsvImportModal({ isOpen, onClose, onImportComplete, defaultType 
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
   const [importedCount, setImportedCount] = useState(0);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [defaultAssignedTo, setDefaultAssignedTo] = useState('');
 
   // Field mappings: Target Field -> CSV Header Name
   const [leadMapping, setLeadMapping] = useState<Record<string, string>>({
@@ -102,6 +104,17 @@ export function CsvImportModal({ isOpen, onClose, onImportComplete, defaultType 
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/team')
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data)) setTeamMembers(data);
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -152,14 +165,15 @@ export function CsvImportModal({ isOpen, onClose, onImportComplete, defaultType 
 
       for (const h of headers) {
         const norm = normalize(h);
-        if (!newMapping.firstName && (norm.includes('firstname') || norm === 'first')) newMapping.firstName = h;
-        else if (!newMapping.lastName && (norm.includes('lastname') || norm === 'last' || norm === 'surname')) newMapping.lastName = h;
+        if (!newMapping.firstName && (norm.includes('firstname') || norm === 'first' || norm === 'fname')) newMapping.firstName = h;
+        else if (!newMapping.lastName && (norm.includes('lastname') || norm === 'last' || norm === 'surname' || norm === 'lname')) newMapping.lastName = h;
         else if (!newMapping.fullName && (norm.includes('fullname') || norm.includes('contactname') || norm === 'name')) newMapping.fullName = h;
-        else if (!newMapping.companyName && (norm.includes('company') || norm.includes('account') || norm.includes('organization'))) newMapping.companyName = h;
-        else if (!newMapping.jobTitle && (norm.includes('title') || norm.includes('designation') || norm.includes('position') || norm.includes('role'))) newMapping.jobTitle = h;
+        else if (!newMapping.companyName && (norm.includes('company') || norm.includes('accountname') || norm === 'account' || norm.includes('organization'))) newMapping.companyName = h;
+        else if (!newMapping.jobTitle && (norm.includes('jobtitle') || norm.includes('title') || norm.includes('designation') || norm.includes('position'))) newMapping.jobTitle = h;
         else if (!newMapping.email && (norm.includes('email') || norm.includes('mail'))) newMapping.email = h;
-        else if (!newMapping.phone && (norm.includes('phone') || norm.includes('mobile') || norm.includes('cell'))) newMapping.phone = h;
-        else if (!newMapping.notes && (norm.includes('description') || norm.includes('note') || norm.includes('comment'))) newMapping.notes = h;
+        else if (!newMapping.phone && (norm.includes('phone') || norm.includes('mobile') || norm.includes('cell') || norm.includes('contactnumber'))) newMapping.phone = h;
+        else if (!newMapping.role && (norm.includes('role') || norm.includes('department') || norm.includes('stakeholder'))) newMapping.role = h;
+        else if (!newMapping.notes && (norm.includes('description') || norm.includes('note') || norm.includes('comment') || norm.includes('remark'))) newMapping.notes = h;
       }
       setContactMapping(newMapping);
     }
@@ -258,7 +272,10 @@ export function CsvImportModal({ isOpen, onClose, onImportComplete, defaultType 
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ 
+          items,
+          defaultAssignedTo: defaultAssignedTo ? parseInt(defaultAssignedTo) : null,
+        }),
       });
 
       const data = await res.json();
@@ -275,17 +292,24 @@ export function CsvImportModal({ isOpen, onClose, onImportComplete, defaultType 
     }
   };
 
+  const getSampleValue = (selectedHeader: string) => {
+    if (!selectedHeader || rawRows.length === 0) return null;
+    const colIdx = csvHeaders.indexOf(selectedHeader);
+    if (colIdx === -1) return null;
+    return rawRows[0]?.[colIdx] || null;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200/80 w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Top Header */}
         <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center ring-1 ring-amber-200/60">
+            <div className="w-9 h-9 rounded-xl bg-yellow-400/10 text-yellow-700 flex items-center justify-center ring-1 ring-yellow-400/20">
               <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-base text-slate-900">
+              <h3 className="font-bold text-base text-slate-900 font-heading">
                 Import from Zoho CRM / CSV
               </h3>
               <p className="text-xs text-slate-500">
@@ -304,12 +328,12 @@ export function CsvImportModal({ isOpen, onClose, onImportComplete, defaultType 
         {/* Target Entity Selector */}
         {step === 'upload' && (
           <div className="px-5 pt-4 flex items-center gap-2 border-b border-slate-100 pb-3">
-            <span className="text-xs font-bold text-slate-600 mr-2">Import Target:</span>
+            <span className="text-xs font-semibold text-slate-600 mr-2">Import Target:</span>
             <button
               onClick={() => setImportType('leads')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 importType === 'leads'
-                  ? 'bg-amber-400/20 text-amber-900 ring-1 ring-amber-400/40 shadow-xs'
+                  ? 'bg-yellow-400/20 text-yellow-950 ring-1 ring-yellow-400/50 shadow-2xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -318,9 +342,9 @@ export function CsvImportModal({ isOpen, onClose, onImportComplete, defaultType 
             </button>
             <button
               onClick={() => setImportType('contacts')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 importType === 'contacts'
-                  ? 'bg-amber-400/20 text-amber-900 ring-1 ring-amber-400/40 shadow-xs'
+                  ? 'bg-yellow-400/20 text-yellow-950 ring-1 ring-yellow-400/50 shadow-2xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -424,23 +448,36 @@ export function CsvImportModal({ isOpen, onClose, onImportComplete, defaultType 
                       { field: 'status', label: 'Lead Status (e.g. Qualified)', required: false },
                       { field: 'priority', label: 'Priority (e.g. Hot, High)', required: false },
                       { field: 'notes', label: 'Description / Discovery Notes', required: false },
-                    ].map(item => (
-                      <div key={item.field} className="bg-slate-50/70 p-2.5 rounded-xl border border-slate-200/80">
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                          {item.label}
-                        </label>
-                        <select
-                          value={leadMapping[item.field] || ''}
-                          onChange={(e) => setLeadMapping({ ...leadMapping, [item.field]: e.target.value })}
-                          className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900"
-                        >
-                          <option value="">— (Ignore / Skip) —</option>
-                          {csvHeaders.map(h => (
-                            <option key={h} value={h}>{h}</option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
+                    ].map(item => {
+                      const selectedCol = leadMapping[item.field] || '';
+                      const sampleVal = getSampleValue(selectedCol);
+
+                      return (
+                        <div key={item.field} className="bg-slate-50/70 p-2.5 rounded-xl border border-slate-200/80">
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            {item.label}
+                          </label>
+                          <select
+                            value={selectedCol}
+                            onChange={(e) => setLeadMapping({ ...leadMapping, [item.field]: e.target.value })}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-medium focus:outline-none focus:ring-1 focus:ring-yellow-400 text-slate-900"
+                          >
+                            <option value="">— (Ignore / Skip) —</option>
+                            {csvHeaders.map(h => (
+                              <option key={h} value={h}>{h}</option>
+                            ))}
+                          </select>
+                          {selectedCol && sampleVal && (
+                            <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-slate-500 truncate">
+                              <span className="text-slate-400 shrink-0">Row 1:</span>
+                              <span className="font-mono text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-200 truncate">
+                                "{sampleVal}"
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </>
                 ) : (
                   <>
@@ -454,25 +491,62 @@ export function CsvImportModal({ isOpen, onClose, onImportComplete, defaultType 
                       { field: 'phone', label: 'Phone Number', required: false },
                       { field: 'role', label: 'Stakeholder Role', required: false },
                       { field: 'notes', label: 'Notes / Description', required: false },
-                    ].map(item => (
-                      <div key={item.field} className="bg-slate-50/70 p-2.5 rounded-xl border border-slate-200/80">
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                          {item.label}
-                        </label>
-                        <select
-                          value={contactMapping[item.field] || ''}
-                          onChange={(e) => setContactMapping({ ...contactMapping, [item.field]: e.target.value })}
-                          className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900"
-                        >
-                          <option value="">— (Ignore / Skip) —</option>
-                          {csvHeaders.map(h => (
-                            <option key={h} value={h}>{h}</option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
+                    ].map(item => {
+                      const selectedCol = contactMapping[item.field] || '';
+                      const sampleVal = getSampleValue(selectedCol);
+
+                      return (
+                        <div key={item.field} className="bg-slate-50/70 p-2.5 rounded-xl border border-slate-200/80">
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            {item.label}
+                          </label>
+                          <select
+                            value={selectedCol}
+                            onChange={(e) => setContactMapping({ ...contactMapping, [item.field]: e.target.value })}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-medium focus:outline-none focus:ring-1 focus:ring-yellow-400 text-slate-900"
+                          >
+                            <option value="">— (Ignore / Skip) —</option>
+                            {csvHeaders.map(h => (
+                              <option key={h} value={h}>{h}</option>
+                            ))}
+                          </select>
+                          {selectedCol && sampleVal && (
+                            <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-slate-500 truncate">
+                              <span className="text-slate-400 shrink-0">Row 1:</span>
+                              <span className="font-mono text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-200 truncate">
+                                "{sampleVal}"
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </>
                 )}
+              </div>
+
+              {/* Default Assignee Selection */}
+              <div className="p-3 bg-yellow-50/70 border border-yellow-200/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-900">
+                    Assign all imported records to team member
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Assigned members can call and manage them from their team dashboard.
+                  </p>
+                </div>
+                <select
+                  value={defaultAssignedTo}
+                  onChange={(e) => setDefaultAssignedTo(e.target.value)}
+                  className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-medium focus:outline-none focus:ring-1 focus:ring-yellow-400 text-slate-900 shrink-0 min-w-[180px]"
+                >
+                  <option value="">— Unassigned —</option>
+                  {teamMembers.map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.displayName || m.email} {m.role ? `(${m.role})` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Sample Data Preview */}
@@ -538,9 +612,9 @@ export function CsvImportModal({ isOpen, onClose, onImportComplete, defaultType 
                 <button
                   type="button"
                   onClick={executeImport}
-                  className="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold transition-all shadow-xs text-xs sm:text-sm"
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold transition-colors shadow-xs text-xs sm:text-sm"
                 >
-                  <span>Start Import ({rawRows.length} Rows)</span>
+                  <span>Start import ({rawRows.length} rows)</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               )}

@@ -19,11 +19,13 @@ export function ContactModal({ isOpen, onClose, onSaved, contact, defaultClientI
     role: 'decision_maker',
     isPrimary: false,
     clientId: defaultClientId ? String(defaultClientId) : '',
+    assignedTo: '',
     linkedinUrl: '',
     notes: '',
   });
 
   const [clients, setClients] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -33,6 +35,13 @@ export function ContactModal({ isOpen, onClose, onSaved, contact, defaultClientI
         .then(r => r.json())
         .then(data => {
           if (Array.isArray(data)) setClients(data);
+        })
+        .catch(() => {});
+
+      fetch('/api/team')
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data)) setTeamMembers(data);
         })
         .catch(() => {});
     }
@@ -49,6 +58,7 @@ export function ContactModal({ isOpen, onClose, onSaved, contact, defaultClientI
         role: contact.role || 'decision_maker',
         isPrimary: Boolean(contact.isPrimary),
         clientId: contact.clientId ? String(contact.clientId) : defaultClientId ? String(defaultClientId) : '',
+        assignedTo: contact.assignedTo ? String(contact.assignedTo) : '',
         linkedinUrl: contact.linkedinUrl || '',
         notes: contact.notes || '',
       });
@@ -62,6 +72,7 @@ export function ContactModal({ isOpen, onClose, onSaved, contact, defaultClientI
         role: 'decision_maker',
         isPrimary: false,
         clientId: defaultClientId ? String(defaultClientId) : '',
+        assignedTo: '',
         linkedinUrl: '',
         notes: '',
       });
@@ -88,6 +99,7 @@ export function ContactModal({ isOpen, onClose, onSaved, contact, defaultClientI
       const payload = {
         ...formData,
         clientId: formData.clientId ? parseInt(formData.clientId) : null,
+        assignedTo: formData.assignedTo ? parseInt(formData.assignedTo) : null,
       };
 
       const res = await fetch(url, {
@@ -234,15 +246,31 @@ export function ContactModal({ isOpen, onClose, onSaved, contact, defaultClientI
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 mb-1">LinkedIn Profile</label>
-              <input
-                type="url"
-                placeholder="https://linkedin.com/in/username"
-                value={formData.linkedinUrl}
-                onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900 bg-white"
-              />
+              <label className="block font-bold text-slate-700 mb-1">Assigned Team Member</label>
+              <select
+                value={formData.assignedTo}
+                onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900 bg-white"
+              >
+                <option value="">— Unassigned —</option>
+                {teamMembers.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.displayName || m.email} {m.role ? `(${m.role})` : ''}
+                  </option>
+                ))}
+              </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">LinkedIn Profile</label>
+            <input
+              type="url"
+              placeholder="https://linkedin.com/in/username"
+              value={formData.linkedinUrl}
+              onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900 bg-white"
+            />
           </div>
 
           <div className="flex items-center gap-2 pt-1">

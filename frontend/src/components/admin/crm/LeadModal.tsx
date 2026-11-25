@@ -20,11 +20,24 @@ export function LeadModal({ isOpen, onClose, onSaved, lead }: LeadModalProps) {
     priority: 'medium',
     estimatedValue: '',
     currency: 'LKR',
+    assignedTo: '',
     notes: '',
   });
 
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/team')
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data)) setTeamMembers(data);
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (lead) {
@@ -39,6 +52,7 @@ export function LeadModal({ isOpen, onClose, onSaved, lead }: LeadModalProps) {
         priority: lead.priority || 'medium',
         estimatedValue: lead.estimatedValue || '',
         currency: lead.currency || 'LKR',
+        assignedTo: lead.assignedTo ? String(lead.assignedTo) : '',
         notes: lead.notes || '',
       });
     } else {
@@ -53,6 +67,7 @@ export function LeadModal({ isOpen, onClose, onSaved, lead }: LeadModalProps) {
         priority: 'medium',
         estimatedValue: '',
         currency: 'LKR',
+        assignedTo: '',
         notes: '',
       });
     }
@@ -75,10 +90,15 @@ export function LeadModal({ isOpen, onClose, onSaved, lead }: LeadModalProps) {
       const url = lead ? `/api/crm/leads/${lead.id}` : '/api/crm/leads';
       const method = lead ? 'PUT' : 'POST';
 
+      const payload = {
+        ...formData,
+        assignedTo: formData.assignedTo ? parseInt(formData.assignedTo) : null,
+      };
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -259,6 +279,25 @@ export function LeadModal({ isOpen, onClose, onSaved, lead }: LeadModalProps) {
                 <option value="GBP">GBP (£)</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Assigned Team Member</label>
+            <select
+              value={formData.assignedTo}
+              onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900 bg-white"
+            >
+              <option value="">— Unassigned —</option>
+              {teamMembers.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.displayName || m.email} {m.role ? `(${m.role})` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Assigned team members can view this lead in their dashboard and initiate calls directly.
+            </p>
           </div>
 
           <div>

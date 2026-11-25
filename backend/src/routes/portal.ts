@@ -695,5 +695,88 @@ portalRoutes.get('/team/projects/:id', async (c) => {
   }
 });
 
+/**
+ * GET /api/portal/team/contacts
+ * Contacts assigned to the logged-in team member
+ */
+portalRoutes.get('/team/contacts', async (c) => {
+  const user = c.get('user');
+  if (!['employee', 'freelancer', 'team', 'administrator'].includes(user.role)) {
+    return c.json({ error: 'Unauthorized' }, 403);
+  }
+  const db = c.get('db');
+  const userId = user.id ? Number(user.id) : (user.sub ? Number(user.sub) : 0);
+
+  try {
+    const conditions = [
+      eq(schema.contacts.tenantId, user.tenantId),
+      isNull(schema.contacts.deletedAt)
+    ];
+
+    if (user.role !== 'administrator') {
+      conditions.push(eq(schema.contacts.assignedTo, userId));
+    }
+
+    const contactsList = await db.select()
+      .from(schema.contacts)
+      .where(and(...conditions))
+      .orderBy(desc(schema.contacts.isPrimary), desc(schema.contacts.createdAt));
+
+    // Enrich with company names
+    const clientIds = [...new Set(contactsList.map((c: any) => c.clientId).filter(Boolean))] as number[];
+    const clientsMap = new Map<number, string>();
+    if (clientIds.length > 0) {
+      const clRows = await db.select({ id: schema.clients.id, name: schema.clients.companyName })
+        .from(schema.clients)
+        .where(and(inArray(schema.clients.id, clientIds), eq(schema.clients.tenantId, user.tenantId)));
+      for (const cl of clRows) clientsMap.set(cl.id, cl.name);
+    }
+
+    const enriched = contactsList.map((contact: any) => ({
+      ...contact,
+      companyName: contact.clientId ? clientsMap.get(contact.clientId) || null : null,
+    }));
+
+    return c.json(enriched);
+  } catch (error: any) {
+    console.error('Fetch team contacts error:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+/**
+ * GET /api/portal/team/leads
+ * Leads assigned to the logged-in team member
+ */
+portalRoutes.get('/team/leads', async (c) => {
+  const user = c.get('user');
+  if (!['employee', 'freelancer', 'team', 'administrator'].includes(user.role)) {
+    return c.json({ error: 'Unauthorized' }, 403);
+  }
+  const db = c.get('db');
+  const userId = user.id ? Number(user.id) : (user.sub ? Number(user.sub) : 0);
+
+  try {
+    const conditions = [
+      eq(schema.leads.tenantId, user.tenantId),
+      isNull(schema.leads.deletedAt)
+    ];
+
+    if (user.role !== 'administrator') {
+      conditions.push(eq(schema.leads.assignedTo, userId));
+    }
+
+    const leadsList = await db.select()
+      .from(schema.leads)
+      .where(and(...conditions))
+      .orderBy(desc(schema.leads.createdAt));
+
+    return c.json(leadsList);
+  } catch (error: any) {
+    console.error('Fetch team leads error:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
 export default portalRoutes;
 

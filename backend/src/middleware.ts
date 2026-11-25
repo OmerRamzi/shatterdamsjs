@@ -9,8 +9,11 @@ export const requireAuth = createMiddleware(async (c, next) => {
   }
 
   try {
-    const payload = await verify(token, c.env.JWT_SECRET as string, "HS256");
-    c.set('user', payload);
+    const payload = await verify(token, c.env.JWT_SECRET as string, "HS256") as any;
+    c.set('user', {
+      ...payload,
+      id: payload.id ? Number(payload.id) : (payload.sub ? Number(payload.sub) : undefined),
+    });
     await next();
   } catch (e) {
     return c.json({ error: 'Invalid token' }, 401);

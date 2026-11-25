@@ -911,6 +911,7 @@ export const contacts = pgTable("contacts", {
 	role: contactRole().default('decision_maker'),
 	isPrimary: boolean("is_primary").default(false),
 	linkedinUrl: varchar("linkedin_url", { length: 255 }),
+	assignedTo: integer("assigned_to"),
 	notes: text(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
@@ -931,9 +932,15 @@ export const contacts = pgTable("contacts", {
 		foreignColumns: [clients.id],
 		name: "contacts_client_id_clients_id_fk"
 	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.assignedTo],
+		foreignColumns: [users.id],
+		name: "contacts_assigned_to_users_id_fk"
+	}).onDelete("set null"),
 	index("contacts_tenant_id_idx").on(table.tenantId),
 	index("contacts_client_id_idx").on(table.clientId),
 	index("contacts_lead_id_idx").on(table.leadId),
+	index("contacts_assigned_to_idx").on(table.assignedTo),
 ]);
 
 export const crmInteractions = pgTable("crm_interactions", {

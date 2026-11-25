@@ -10,7 +10,8 @@ import {
   Star, 
   Pencil, 
   Trash2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  UserCheck
 } from 'lucide-react';
 import { ContactModal } from '../../../components/admin/crm/ContactModal';
 import { CsvImportModal } from '../../../components/admin/crm/CsvImportModal';
@@ -26,6 +27,8 @@ interface Contact {
   isPrimary: boolean;
   clientId: number | null;
   companyName?: string | null;
+  assignedTo?: number | null;
+  assignedUser?: { id: number; name: string } | null;
   linkedinUrl: string | null;
   notes: string | null;
   createdAt: string;
@@ -33,25 +36,38 @@ interface Contact {
 
 export default function AdminContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [assigneeFilter, setAssigneeFilter] = useState('all');
 
   // Contact Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
 
+  useEffect(() => {
+    fetch('/api/team')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) setTeamMembers(data);
+      })
+      .catch(() => {});
+  }, []);
+
   const fetchContacts = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/crm/contacts');
+      let url = '/api/crm/contacts?';
+      if (assigneeFilter !== 'all') url += `assignedTo=${assigneeFilter}&`;
+      const res = await fetch(url);
       if (res.ok) setContacts(await res.json());
     } catch (err) {
       console.error('Fetch contacts error:', err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [assigneeFilter]);
 
   useEffect(() => {
     fetchContacts();
@@ -140,19 +156,37 @@ export default function AdminContactsPage() {
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="flex items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by name, company, email, or role..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3.5 py-1.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900"
-          />
+      {/* Search Bar & Assignee Filter */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto flex-1">
+          <div className="relative w-full sm:w-80">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by name, company, email, or role..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3.5 py-1.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900"
+            />
+          </div>
+
+          <select
+            value={assigneeFilter}
+            onChange={(e) => setAssigneeFilter(e.target.value)}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 bg-white"
+          >
+            <option value="all">All Assignees</option>
+            <option value="me">Assigned to Me</option>
+            <option value="unassigned">Unassigned Only</option>
+            {teamMembers.map(m => (
+              <option key={m.id} value={m.id}>
+                Assigned to: {m.displayName || m.email}
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="text-xs font-semibold text-slate-500">
+
+        <div className="text-xs font-semibold text-slate-500 shrink-0">
           {filteredContacts.length} contacts registered
         </div>
       </div>
@@ -235,7 +269,7 @@ export default function AdminContactsPage() {
                   )}
 
                   {/* Contact channels */}
-                  <div className="space-y-1.5 text-xs text-slate-600 mb-3">
+                  <div className="space-y-2 text-xs text-slate-600 mb-3">
                     {contact.email && (
                       <div className="flex items-center gap-2">
                         <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -245,19 +279,37 @@ export default function AdminContactsPage() {
                       </div>
                     )}
                     {contact.phone && (
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <a href={`tel:${contact.phone}`} className="hover:text-amber-600">
-                          {contact.phone}
+                      <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="truncate font-mono text-slate-800 text-[11px] font-medium">{contact.phone}</span>
+                        </div>
+                        <a 
+                          href={`tel:${contact.phone}`} 
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition-colors shrink-0 shadow-2xs"
+                          title={`Direct call to ${fullName}`}
+                        >
+                          <Phone className="w-2.5 h-2.5 fill-white" />
+                          <span>Call</span>
                         </a>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Bottom footer: Role badge & LinkedIn */}
-                <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
-                  <div>{getRoleBadge(contact.role)}</div>
+                {/* Bottom footer: Role badge, Assignee & LinkedIn */}
+                <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {getRoleBadge(contact.role)}
+                    {contact.assignedUser ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-400/10 text-yellow-800 border border-yellow-400/20 text-[10px] font-semibold" title={`Assigned to ${contact.assignedUser.name}`}>
+                        <UserCheck className="w-3 h-3 text-yellow-600" />
+                        <span className="truncate max-w-[100px]">{contact.assignedUser.name}</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 italic">Unassigned</span>
+                    )}
+                  </div>
 
                   {contact.linkedinUrl && (
                     <a

@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs';
 
 const teamRoutes = new Hono<{ Bindings: { DATABASE_URL: string }, Variables: { user: any } }>();
 
-teamRoutes.use('*', requireAuth, requireAdmin);
+teamRoutes.use('*', requireAuth);
 
 teamRoutes.get('/', async (c) => {
   const db = c.get('db');
@@ -33,7 +33,7 @@ teamRoutes.get('/', async (c) => {
   }
 });
 
-teamRoutes.post('/', async (c) => {
+teamRoutes.post('/', requireAdmin, async (c) => {
   const admin = c.get('user');
   const data = await c.req.json();
   const db = c.get('db');
@@ -68,7 +68,7 @@ teamRoutes.post('/', async (c) => {
   }
 });
 
-teamRoutes.put('/:id', async (c) => {
+teamRoutes.put('/:id', requireAdmin, async (c) => {
   const admin = c.get('user');
   const userIdToUpdate = parseInt(c.req.param('id'));
   const data = await c.req.json();
@@ -102,7 +102,7 @@ teamRoutes.put('/:id', async (c) => {
   }
 });
 
-teamRoutes.delete('/:id', async (c) => {
+teamRoutes.delete('/:id', requireAdmin, async (c) => {
   const admin = c.get('user');
   const userIdToDelete = parseInt(c.req.param('id'));
   const db = c.get('db');

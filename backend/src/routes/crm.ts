@@ -91,6 +91,7 @@ crmRoutes.get('/leads', async (c) => {
   const status = c.req.query('status');
   const priority = c.req.query('priority');
   const source = c.req.query('source');
+  const assignedTo = c.req.query('assignedTo');
   const search = c.req.query('search');
 
   try {
@@ -108,13 +109,23 @@ crmRoutes.get('/leads', async (c) => {
     if (source && source !== 'all') {
       conditions.push(eq(schema.leads.source, source as any));
     }
+    if (assignedTo) {
+      if (assignedTo === 'me') {
+        conditions.push(eq(schema.leads.assignedTo, user.id));
+      } else if (assignedTo === 'unassigned') {
+        conditions.push(isNull(schema.leads.assignedTo));
+      } else if (!isNaN(parseInt(assignedTo, 10))) {
+        conditions.push(eq(schema.leads.assignedTo, parseInt(assignedTo, 10)));
+      }
+    }
     if (search && search.trim()) {
       const term = `%${search.trim()}%`;
       conditions.push(or(
         ilike(schema.leads.title, term),
         ilike(schema.leads.companyName, term),
         ilike(schema.leads.contactName, term),
-        ilike(schema.leads.email, term)
+        ilike(schema.leads.email, term),
+        ilike(schema.leads.phone, term)
       ) as any);
     }
 
@@ -626,6 +637,7 @@ crmRoutes.get('/contacts', async (c) => {
   const db = c.get('db');
   const clientId = c.req.query('clientId');
   const leadId = c.req.query('leadId');
+  const assignedTo = c.req.query('assignedTo');
   const search = c.req.query('search');
 
   try {
@@ -636,13 +648,23 @@ crmRoutes.get('/contacts', async (c) => {
 
     if (clientId) conditions.push(eq(schema.contacts.clientId, parseInt(clientId, 10)));
     if (leadId) conditions.push(eq(schema.contacts.leadId, parseInt(leadId, 10)));
+    if (assignedTo) {
+      if (assignedTo === 'me') {
+        conditions.push(eq(schema.contacts.assignedTo, user.id));
+      } else if (assignedTo === 'unassigned') {
+        conditions.push(isNull(schema.contacts.assignedTo));
+      } else if (!isNaN(parseInt(assignedTo, 10))) {
+        conditions.push(eq(schema.contacts.assignedTo, parseInt(assignedTo, 10)));
+      }
+    }
     if (search && search.trim()) {
       const term = `%${search.trim()}%`;
       conditions.push(or(
         ilike(schema.contacts.firstName, term),
         ilike(schema.contacts.lastName, term),
         ilike(schema.contacts.email, term),
-        ilike(schema.contacts.jobTitle, term)
+        ilike(schema.contacts.jobTitle, term),
+        ilike(schema.contacts.phone, term)
       ) as any);
     }
 
@@ -651,8 +673,10 @@ crmRoutes.get('/contacts', async (c) => {
       .where(and(...conditions))
       .orderBy(desc(schema.contacts.isPrimary), desc(schema.contacts.createdAt));
 
-    // Enrich with client / lead info
+    // Enrich with client / lead info & assignees
     const clientIds = [...new Set(contactsList.map((c: any) => c.clientId).filter(Boolean))] as number[];
+    const assignedIds = [...new Set(contactsList.map((c: any) => c.assignedTo).filter(Boolean))] as number[];
+
     const clientsMap = new Map<number, string>();
     if (clientIds.length > 0) {
       const clRows = await db.select({ id: schema.clients.id, name: schema.clients.companyName })
@@ -661,9 +685,18 @@ crmRoutes.get('/contacts', async (c) => {
       for (const cl of clRows) clientsMap.set(cl.id, cl.name);
     }
 
+    const usersMap = new Map<number, { id: number; name: string }>();
+    if (assignedIds.length > 0) {
+      const uRows = await db.select({ id: schema.users.id, name: schema.users.displayName })
+        .from(schema.users)
+        .where(and(inArray(schema.users.id, assignedIds), eq(schema.users.tenantId, user.tenantId)));
+      for (const u of uRows) usersMap.set(u.id, u);
+    }
+
     const formatted = contactsList.map((contact: any) => ({
       ...contact,
       companyName: contact.clientId ? clientsMap.get(contact.clientId) || null : null,
+      assignedUser: contact.assignedTo ? usersMap.get(contact.assignedTo) || null : null,
     }));
 
     return c.json(formatted);
@@ -689,6 +722,7 @@ crmRoutes.post('/contacts', async (c) => {
       tenantId: user.tenantId,
       leadId: body.leadId ? parseInt(body.leadId) : null,
       clientId: body.clientId ? parseInt(body.clientId) : null,
+      assignedTo: body.assignedTo ? parseInt(body.assignedTo) : null,
       firstName: body.firstName.trim(),
       lastName: body.lastName?.trim() || null,
       email: body.email?.trim() || null,
@@ -726,6 +760,7 @@ crmRoutes.put('/contacts/:id', async (c) => {
         phone: body.phone !== undefined ? body.phone?.trim() : undefined,
         jobTitle: body.jobTitle !== undefined ? body.jobTitle?.trim() : undefined,
         role: body.role !== undefined ? body.role : undefined,
+        assignedTo: body.assignedTo !== undefined ? (body.assignedTo ? parseInt(body.assignedTo) : null) : undefined,
         isPrimary: body.isPrimary !== undefined ? body.isPrimary : undefined,
         linkedinUrl: body.linkedinUrl !== undefined ? body.linkedinUrl?.trim() : undefined,
         notes: body.notes !== undefined ? body.notes?.trim() : undefined,
@@ -894,6 +929,7 @@ crmRoutes.post('/import/leads', async (c) => {
 
     const insertedIds: number[] = [];
     const chunkSize = 50;
+    const defaultAssignee = body.defaultAssignedTo ? parseInt(body.defaultAssignedTo) : user.id;
 
     for (let i = 0; i < items.length; i += chunkSize) {
       const chunk = items.slice(i, i + chunkSize);
@@ -958,7 +994,7 @@ crmRoutes.post('/import/leads', async (c) => {
           priority,
           estimatedValue: estVal,
           currency: item.currency || 'LKR',
-          assignedTo: user.id,
+          assignedTo: item.assignedTo ? parseInt(item.assignedTo) : defaultAssignee,
           notes: item.notes?.trim() || null,
         };
       });
@@ -1015,6 +1051,7 @@ crmRoutes.post('/import/contacts', async (c) => {
 
     const insertedIds: number[] = [];
     const chunkSize = 50;
+    const defaultAssignee = body.defaultAssignedTo ? parseInt(body.defaultAssignedTo) : null;
 
     for (let i = 0; i < items.length; i += chunkSize) {
       const chunk = items.slice(i, i + chunkSize);
@@ -1053,6 +1090,7 @@ crmRoutes.post('/import/contacts', async (c) => {
           jobTitle: item.jobTitle?.trim() || null,
           role,
           clientId: matchedClientId,
+          assignedTo: item.assignedTo ? parseInt(item.assignedTo) : defaultAssignee,
           isPrimary: Boolean(item.isPrimary),
           linkedinUrl: item.linkedinUrl?.trim() || null,
           notes: item.notes?.trim() || null,
