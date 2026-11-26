@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Search, User, Pencil, Trash2, ShieldCheck } from 'lucide-react';
 import { TeamModal } from '../../components/admin/TeamModal';
 import { TeamPermissionsModal } from '../../components/admin/TeamPermissionsModal';
-import { getModuleLabel } from '../../lib/permissions';
+import { getModuleLabel, type PermissionRowInput } from '../../lib/permissions';
 
 export default function AdminTeamPage() {
   const [team, setTeam] = useState<any[]>([]);
@@ -17,12 +17,35 @@ export default function AdminTeamPage() {
   const [isPermModalOpen, setIsPermModalOpen] = useState(false);
   const [permMember, setPermMember] = useState<any>(null);
 
-  const fetchTeam = () => {
-    setIsLoading(true);
-    fetch('/api/team')
+  const fetchTeam = (silent = false) => {
+    if (!silent) setIsLoading(true);
+    fetch('/api/team', { cache: 'no-store' })
       .then((res) => res.json())
-      .then((data) => setTeam(Array.isArray(data) ? data : []))
-      .finally(() => setIsLoading(false));
+      .then((data) => {
+        if (Array.isArray(data)) setTeam(data);
+      })
+      .finally(() => {
+        if (!silent) setIsLoading(false);
+      });
+  };
+
+  const handlePermissionsSaved = (
+    updatedPermissions?: PermissionRowInput[],
+    targetUserId?: number
+  ) => {
+    if (targetUserId !== undefined && Array.isArray(updatedPermissions)) {
+      setTeam((prev) =>
+        prev.map((m) =>
+          m.id === targetUserId ? { ...m, permissions: updatedPermissions } : m
+        )
+      );
+      setPermMember((prev: any) =>
+        prev && prev.id === targetUserId
+          ? { ...prev, permissions: updatedPermissions }
+          : prev
+      );
+    }
+    fetchTeam(true);
   };
 
   useEffect(() => {
@@ -254,7 +277,7 @@ export default function AdminTeamPage() {
       <TeamPermissionsModal
         isOpen={isPermModalOpen}
         onClose={() => setIsPermModalOpen(false)}
-        onSaved={fetchTeam}
+        onSaved={handlePermissionsSaved}
         member={permMember}
       />
     </div>

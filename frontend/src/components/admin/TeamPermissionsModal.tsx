@@ -12,7 +12,10 @@ import {
 interface TeamPermissionsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (
+    updatedPermissions?: PermissionRowInput[],
+    targetUserId?: number
+  ) => void;
   member: {
     id: number;
     displayName: string;
@@ -41,6 +44,8 @@ export function TeamPermissionsModal({
 
   useEffect(() => {
     if (!isOpen || !member) return;
+    let active = true;
+    const controller = new AbortController();
     setError('');
     setIsLoading(true);
 
@@ -53,9 +58,19 @@ export function TeamPermissionsModal({
     }
     setGrants(initial);
 
-    fetch(`/api/team/${member.id}/permissions`)
-      .then((res) => res.json())
+    fetch(`/api/team/${member.id}/permissions`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to load current permissions');
+        }
+        return data;
+      })
       .then((data) => {
+        if (!active) return;
         if (Array.isArray(data?.permissions)) {
           const fresh: Record<string, PermissionRowInput> = {};
           for (const p of data.permissions) {
@@ -68,10 +83,18 @@ export function TeamPermissionsModal({
           setGrants(fresh);
         }
       })
-      .catch(() => {
-        // Keep seeded state on transient error
+      .catch((err) => {
+        if (!active || err?.name === 'AbortError') return;
+        setError(err?.message || 'Failed to load latest permissions');
       })
-      .finally(() => setIsLoading(false));
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [isOpen, member]);
 
   if (!isOpen || !member) return null;
@@ -127,6 +150,7 @@ export function TeamPermissionsModal({
 
       const res = await fetch(`/api/team/${member.id}/permissions`, {
         method: 'PUT',
+        cache: 'no-store',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -136,7 +160,10 @@ export function TeamPermissionsModal({
         throw new Error(data.error || 'Failed to update module permissions');
       }
 
-      onSaved();
+      const savedPermissions = Array.isArray(data.permissions)
+        ? data.permissions
+        : payload.permissions;
+      onSaved(savedPermissions, member.id);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Error saving permissions');

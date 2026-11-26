@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Users as UsersIcon, ShieldCheck } from 'lucide-react';
 import { TeamPermissionsModal } from '../../components/admin/TeamPermissionsModal';
-import { getModuleLabel } from '../../lib/permissions';
+import { getModuleLabel, type PermissionRowInput } from '../../lib/permissions';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -11,9 +11,9 @@ export default function AdminUsersPage() {
   const [isPermModalOpen, setIsPermModalOpen] = useState(false);
   const [permMember, setPermMember] = useState<any>(null);
 
-  const fetchUsers = () => {
-    setIsLoading(true);
-    fetch('/api/users')
+  const fetchUsers = (silent = false) => {
+    if (!silent) setIsLoading(true);
+    fetch('/api/users', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -21,7 +21,28 @@ export default function AdminUsersPage() {
         }
       })
       .catch(console.error)
-      .finally(() => setIsLoading(false));
+      .finally(() => {
+        if (!silent) setIsLoading(false);
+      });
+  };
+
+  const handlePermissionsSaved = (
+    updatedPermissions?: PermissionRowInput[],
+    targetUserId?: number
+  ) => {
+    if (targetUserId !== undefined && Array.isArray(updatedPermissions)) {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === targetUserId ? { ...u, permissions: updatedPermissions } : u
+        )
+      );
+      setPermMember((prev: any) =>
+        prev && prev.id === targetUserId
+          ? { ...prev, permissions: updatedPermissions }
+          : prev
+      );
+    }
+    fetchUsers(true);
   };
 
   useEffect(() => {
@@ -194,7 +215,7 @@ export default function AdminUsersPage() {
       <TeamPermissionsModal
         isOpen={isPermModalOpen}
         onClose={() => setIsPermModalOpen(false)}
-        onSaved={fetchUsers}
+        onSaved={handlePermissionsSaved}
         member={permMember}
       />
     </div>

@@ -18,6 +18,13 @@ app.use('*', cors({
   credentials: true,
 }));
 
+// Never cache authenticated or dynamic API responses at the browser or edge
+app.use('/api/*', async (c, next) => {
+  await next();
+  c.header('Cache-Control', 'no-store, no-cache, must-revalidate');
+  c.header('Pragma', 'no-cache');
+});
+
 // Inject config fallbacks into c.env because Cloudflare drops them on some CI builds
 app.use('*', async (c, next) => {
   for (const [key, value] of Object.entries(config)) {
